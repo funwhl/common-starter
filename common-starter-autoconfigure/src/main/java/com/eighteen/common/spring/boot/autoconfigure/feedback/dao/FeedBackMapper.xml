@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.eighteen.common.spring.boot.autoconfigure.feedback.dao.FeedBackMapper">
+
+    <sql id="feedbacklog">AID, CID, CSITE, CTYPE, MAC, MAC1, UA, UA1, IDFA, ANDROIDID, ANDROIDID1, IMEI,
+    UUID, OPENUDID, UDID, OS, IP, TS, CONVERT_ID, CALLBACK_URL, CALLBACK_PRARAM,EventType, CreateTime
+    </sql>
+    <sql id="clicklog">
+        imei, aid, cid, did, mac, ip, android_id, ts, click_time,create_time, call_back
+    </sql>
+
+    <insert id="insertClickLog" parameterType="java.util.Map">
+        insert ignore into KuaiShouFeedback.dbo.KuaiShouClickLog
+        <foreach collection="params.keys" item="key" open="(" close=")" separator=",">
+            ${key}
+        </foreach>
+        values
+        <foreach collection="params.keys" item="key" open="(" close=")" separator=",">
+            #{params.${key}}
+        </foreach>
+    </insert>
+
+    <insert id="insertFeedback" parameterType="java.util.Map">
+        insert ignore into KuaiShouFeedback.dbo.FeedbackLog
+        <foreach collection="params.keys" item="key" open="(" close=")" separator=",">
+            ${key}
+        </foreach>
+        values
+        <foreach collection="params.keys" item="key" open="(" close=")" separator=",">
+            #{params.${key}}
+        </foreach>
+    </insert>
+    <select id="countFromStatistics" >
+        select count(1) from DB_32.ActiveStatistics.dbo.LinkStatistics
+        where imei = #{imei}
+        <if test='coid != null'>
+            and coid = #{coid}
+        </if>
+        <if test='noid != null'>
+            and noid = #{noid}
+        </if>
+    </select>
+
+</mapper>
