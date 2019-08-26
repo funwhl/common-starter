@@ -44,14 +44,15 @@
             <!--<url>http://172.17.0.1:8081/repository/maven-releases/</url>-->
         <!--</repository>-->
     <!--</distributionManagement>-->
+
     <distributionManagement>
         <repository>
             <id>nexus-releases</id>
-            <url>http://maven.30.net/nexus/content/repositories/releases/</url>
+            <url>http://192.168.2.233:8083/nexus/content/repositories/releases/</url>
         </repository>
         <snapshotRepository>
             <id>nexus-snapshots</id>
-            <url>http://maven.30.net/nexus/content/repositories/snapshots/</url>
+            <url>http://192.168.2.233:8083/nexus/content/repositories/snapshots/</url>
         </snapshotRepository>
     </distributionManagement>
 
