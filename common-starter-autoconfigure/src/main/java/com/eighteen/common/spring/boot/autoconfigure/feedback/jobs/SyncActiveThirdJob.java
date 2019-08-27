@@ -10,9 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -30,7 +28,7 @@ public class SyncActiveThirdJob implements SimpleJob {
     @Value("${18.feedback.sync-active-last-minutes:10}")
     private Integer expire;
     @Value("${18.feedback.channel}")
-    private Integer channel;
+    private String channel;
     @Value("${spring.application.name}")
     private String appName;
 
