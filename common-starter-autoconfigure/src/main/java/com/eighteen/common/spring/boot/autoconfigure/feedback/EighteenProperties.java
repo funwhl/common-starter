@@ -35,6 +35,16 @@ public class EighteenProperties {
     private String syncActiveCron;
     private String transferActiveCron;
 
+    private String monitorParams = "__${@@_}__";
+
+    public String getMonitorParams() {
+        return monitorParams;
+    }
+
+    public void setMonitorParams(String monitorParams) {
+        this.monitorParams = monitorParams;
+    }
+
     public String getChannel() {
         return channel;
     }
@@ -139,22 +149,4 @@ public class EighteenProperties {
         this.transferActiveCron = transferActiveCron;
     }
 
-    @Override
-    public String toString() {
-        return "EighteenProperties{" +
-                "channel='" + channel + '\'' +
-                ", syncActiveLastMinutes=" + syncActiveLastMinutes +
-                ", channelActive2history=" + channelActive2history +
-                ", channelclick2history=" + channelclick2history +
-                ", clickDataExpire=" + clickDataExpire +
-                ", imeisTableExpire=" + imeisTableExpire +
-                ", preFetch=" + preFetch +
-                ", callbackField='" + callbackField + '\'' +
-                ", clieanClickCron='" + clieanClickCron + '\'' +
-                ", cleanImeisCron='" + cleanImeisCron + '\'' +
-                ", feedbackCron='" + feedbackCron + '\'' +
-                ", syncActiveCron='" + syncActiveCron + '\'' +
-                ", transferActiveCron='" + transferActiveCron + '\'' +
-                '}';
-    }
 }

@@ -79,19 +79,6 @@ public class JobZkProperties implements InitializingBean {
     }
 
     @Override
-    public String toString() {
-        return "JobZkProperties{" +
-                "appName='" + appName + '\'' +
-                ", serverlist='" + serverlist + '\'' +
-                ", namespace='" + namespace + '\'' +
-                ", baseSleepTimeMilliseconds=" + baseSleepTimeMilliseconds +
-                ", maxSleepTimeMilliseconds=" + maxSleepTimeMilliseconds +
-                ", maxRetries=" + maxRetries +
-                ", sessionTimeOutMillseconds=" + sessionTimeOutMillseconds +
-                '}';
-    }
-
-    @Override
     public void afterPropertiesSet() {
         this.namespace = String.format("%s-%s", namespace, appName);
     }

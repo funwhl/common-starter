@@ -50,7 +50,7 @@ public interface FeedBackMapper {
 
     @Insert("<script>" +
             "Insert into KuaiShouFeedback.dbo.ActiveLogger_kuaishou  " +
-            "select * from ThirdActive.dbo.ActiveLogger where channel = #{channel} and activetime >= #{date} " +
+            "select * from ThirdActive.dbo.ActiveLogger where channel in (${channel}) and activetime >= #{date} " +
             "<if test='list != null and list.size() > 0'>" +
 //            " and active.type = 'kuaishou' and  imei not in " +
             " and  imei not in " +
@@ -59,7 +59,7 @@ public interface FeedBackMapper {
             "    </foreach>" +
             "</if>" +
             "</script>")
-    int syncActiveThird(@Param("list") Set<String> list, @Param("date") Date date, @Param("channel") Integer channel);
+    int syncActiveThird(@Param("list") Set<String> list, @Param("date") Date date, @Param("channel") String channel);
 
     @Delete("DELETE FROM KuaiShouFeedback.dbo.KuaiShouClickLog where create_time < #{end}")
     int cleanClickLog(@Param("end") Date end);

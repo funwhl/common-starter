@@ -39,7 +39,6 @@ public class JobAutoConfiguration implements EmbeddedValueResolverAware {
     private String appName;
 
     public JobAutoConfiguration(JobZkProperties jobZkProperties) {
-        System.out.println(jobZkProperties.toString());
         this.jobZkProperties = jobZkProperties;
     }
 
@@ -63,7 +62,6 @@ public class JobAutoConfiguration implements EmbeddedValueResolverAware {
     private LiteJobConfiguration getJobConfiguration(TaskJob taskJob, Object object) {
         String c = resolver.resolveStringValue(taskJob.cron());
         String jobName = taskJob.jobName() + appName;
-//        Optional.ofNullable(taskJob.desc()).orElseThrow(() -> new IllegalArgumentException("The desc cannot be null !"));
 
         SimpleJobConfiguration simpleJobConfiguration = new SimpleJobConfiguration(
                 JobCoreConfiguration

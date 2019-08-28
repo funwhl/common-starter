@@ -31,7 +31,6 @@ public class FeedbackAutoConfiguration  {
     private BeanDefinitionRegistry registry;
 
     public FeedbackAutoConfiguration(EighteenProperties eighteenProperties) {
-        logger.info(eighteenProperties.toString());
         this.eighteenProperties = eighteenProperties;
     }
 

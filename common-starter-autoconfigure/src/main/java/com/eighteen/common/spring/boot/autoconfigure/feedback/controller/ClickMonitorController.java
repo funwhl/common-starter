@@ -1,11 +1,14 @@
 package com.eighteen.common.spring.boot.autoconfigure.feedback.controller;
 
+import com.eighteen.common.spring.boot.autoconfigure.feedback.EighteenProperties;
 import com.eighteen.common.spring.boot.autoconfigure.feedback.dao.FeedBackMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -13,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -23,24 +27,35 @@ import java.util.Map;
 
 @RestController
 @Configuration
+@EnableConfigurationProperties(EighteenProperties.class)
+@ConditionalOnProperty(prefix = EighteenProperties.PREFIX, name = "channel")
 public class ClickMonitorController implements InitializingBean {
     private static final Logger logger = LoggerFactory.getLogger(ClickMonitorController.class);
     @Autowired(required = false)
     FeedBackMapper feedBackMapper;
-    private  String token;
+
+    private String token;
     @Value("${spring.application.name}")
-    private  String appName;
-    @Value("${accessKey}")
-    private  String accessKey;
+    private String appName;
+    @Value("${accessKey:XMABZ1HK1XP20XJI}")
+    private String accessKey;
 
     @GetMapping(value = "clickMonitor")
     public void test(@RequestParam Map<String, Object> params) {
         try {
-            if (!params.containsKey("token")||!params.get("token").equals(token)) {
-                logger.error("token not found-> {}",token);
+            if (!params.containsKey("token") || !params.get("token").equals(token)) {
+                logger.error("token not found-> {}", token);
                 return;
             }
-            params.remove("token");
+
+            Iterator<Map.Entry<String, Object>> it = params.entrySet().iterator();
+            while (it.hasNext()) {
+                Map.Entry<String, Object> entry = it.next();
+                String key = entry.getKey();
+                if (!key.startsWith("@@_")) {
+                    it.remove();
+                }
+            }
             feedBackMapper.insertClickLog(params);
         } catch (Exception e) {
             logger.info(e.getMessage());
@@ -48,13 +63,12 @@ public class ClickMonitorController implements InitializingBean {
     }
 
 
-
     @Override
     public void afterPropertiesSet() {
         String a = Base64.getEncoder().encodeToString(accessKey.getBytes(StandardCharsets.UTF_8));
         String b = Base64.getEncoder().encodeToString(appName.getBytes(StandardCharsets.UTF_8));
         token = Base64.getEncoder().encodeToString((a + b).getBytes(StandardCharsets.UTF_8));
-        logger.info("click-monitor token: {}",token);
+        logger.info("click-monitor token: {}", token);
     }
 
 

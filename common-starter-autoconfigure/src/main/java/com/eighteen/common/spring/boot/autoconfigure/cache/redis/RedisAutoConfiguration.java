@@ -30,7 +30,6 @@ public class RedisAutoConfiguration {
     private RedisProperties properties;
 
     public RedisAutoConfiguration(RedisProperties properties) {
-        System.out.println(properties.toString());
         this.properties = properties;
     }
 

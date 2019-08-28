@@ -1,8 +1,8 @@
 # Auto Configure
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
 com.eighteen.common.spring.boot.autoconfigure.mybatis.ref.MybatisAutoConfiguration,\
-com.eighteen.common.spring.boot.autoconfigure.job.JobAutoConfiguration,\
 com.eighteen.common.spring.boot.autoconfigure.mq.RabbitMqAutoConfiguration,\
+com.eighteen.common.spring.boot.autoconfigure.job.JobAutoConfiguration,\
 com.eighteen.common.spring.boot.autoconfigure.feedback.FeedbackAutoConfiguration,\
 com.eighteen.common.spring.boot.autoconfigure.feedback.controller.ClickMonitorController,\
 com.eighteen.common.spring.boot.autoconfigure.cache.redis.RedisAutoConfiguration

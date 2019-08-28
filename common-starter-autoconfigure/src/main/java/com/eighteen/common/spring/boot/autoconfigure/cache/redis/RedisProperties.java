@@ -14,14 +14,6 @@ import static com.eighteen.common.spring.boot.autoconfigure.cache.redis.RedisPro
 @ConfigurationProperties(prefix = PREFIX)
 public class RedisProperties {
     public static final String PREFIX = "spring.redis";
-//    private static Boolean DEFAULT_CLUSTER = false;
-//    private static Boolean DEFAULT_BLOCK_WHEN_EXHAUSTED = true;
-//    private static Integer DEFAULT_TIMEOUT = 10000;
-//    private static Integer DEFAULT_CONNECTION_TIMEOUT = 2000;
-//    private static Integer DEFAULT_MAX_ATTEMPTS = 3;
-//    private static Integer DEFAULT_MAX_TOTAL = 8;
-//    private static Integer DEFAULT_MAX_IDLE = 8;
-//    private static Integer DEFAULT_MAX_WAIT_MILLIS = -1;
     private Boolean cluster =false;
     private Integer timeout =10000;
     private String password;
@@ -113,19 +105,4 @@ public class RedisProperties {
         this.nodes = nodes;
     }
 
-    @Override
-    public String toString() {
-        return "RedisProperties{" +
-                "cluster=" + cluster +
-                ", timeout=" + timeout +
-                ", password='" + password + '\'' +
-                ", connectionTimeout=" + connectionTimeout +
-                ", maxAttempts=" + maxAttempts +
-                ", maxTotal=" + maxTotal +
-                ", maxIdle=" + maxIdle +
-                ", blockWhenExhausted=" + blockWhenExhausted +
-                ", maxWaitMillis=" + maxWaitMillis +
-                ", clusterNodes='" + nodes + '\'' +
-                '}';
-    }
 }
