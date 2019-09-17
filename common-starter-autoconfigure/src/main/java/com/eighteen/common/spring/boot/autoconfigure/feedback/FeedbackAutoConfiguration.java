@@ -1,69 +1,112 @@
 package com.eighteen.common.spring.boot.autoconfigure.feedback;
 
-import com.eighteen.common.spring.boot.autoconfigure.feedback.jobs.*;
+import com.eighteen.common.spring.boot.autoconfigure.feedback.controller.ClickMonitorController;
+import com.eighteen.common.spring.boot.autoconfigure.feedback.service.FeedbackService;
+import com.eighteen.common.spring.boot.autoconfigure.feedback.service.impl.FeedbackServiceImpl;
+import com.eighteen.common.spring.boot.autoconfigure.job.Job;
+import com.eighteen.common.spring.boot.autoconfigure.job.JobAutoConfiguration;
 import com.eighteen.common.spring.boot.autoconfigure.mybatis.ref.MybatisAutoConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
+import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.type.AnnotationMetadata;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.SchedulingConfigurer;
+import org.springframework.scheduling.config.ScheduledTaskRegistrar;
+
+import java.util.HashMap;
+import java.util.Map;
+
+import static com.eighteen.common.spring.boot.autoconfigure.feedback.service.impl.FeedbackServiceImpl.JobType.*;
 
 /**
  * Created by eighteen.
  * Date: 2019/8/25
- * Time: 1:20
+ * Time: 11:20
  */
 
 @Configuration
-@EnableConfigurationProperties(EighteenProperties.class)
 @ConditionalOnProperty(prefix = EighteenProperties.PREFIX, name = "channel")
+@EnableConfigurationProperties(EighteenProperties.class)
 @AutoConfigureAfter(MybatisAutoConfiguration.class)
-public class FeedbackAutoConfiguration  {
+@AutoConfigureBefore(JobAutoConfiguration.class)
+@EnableScheduling
+public class FeedbackAutoConfiguration {
     public static final Logger logger = LoggerFactory.getLogger(FeedbackAutoConfiguration.class);
-    private EighteenProperties eighteenProperties;
+    @Autowired
+    EighteenProperties properties;
     private BeanFactory beanFactory;
     private AnnotationMetadata importingClassMetadata;
     private BeanDefinitionRegistry registry;
 
-    public FeedbackAutoConfiguration(EighteenProperties eighteenProperties) {
-        this.eighteenProperties = eighteenProperties;
+    @Bean
+    FeedbackService feedbackService() {
+        return new FeedbackServiceImpl();
     }
 
     @Bean
-    CleanImeis cleanImeis() {
-        logger.info("create job cleanImeis");
-        return new CleanImeis();
+    ClickMonitorController clickMonitorController() {
+        return new ClickMonitorController();
     }
 
     @Bean
-    CleanClickLog cleanClickLog() {
-        logger.info("create job CleanClickLog");
-        return new CleanClickLog();
+    @ConditionalOnProperty(prefix = EighteenProperties.PREFIX, name = "mode", havingValue = "2")
+    SchedulingConfigurer schedule18Job() {
+        return taskRegistrar -> {
+            taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_IMEI), properties.getCleanImeiCron());
+            taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_ACTIVE), properties.getCleanActiveCron());
+            taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_CLICK), properties.getCleanClickCron());
+            taskRegistrar.addCronTask(() -> feedbackService().syncActive(), properties.getSyncActiveCron());
+            taskRegistrar.addCronTask(() -> feedbackService().feedback(), properties.getFeedbackCron());
+            taskRegistrar.addCronTask(() -> feedbackService().stat(STAT_DAY), properties.getDayStatCron());
+
+        };
+//        return new Scheduling18Configurer();
     }
 
+//    public class Scheduling18Configurer implements SchedulingConfigurer{
+//        @Override
+//        public void configureTasks(ScheduledTaskRegistrar taskRegistrar) {
+//            taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_IMEI), properties.getCleanImeiCron());
+//            taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_ACTIVE), properties.getCleanActiveCron());
+//            taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_CLICK), properties.getCleanClickCron());
+//            taskRegistrar.addCronTask(() -> feedbackService().syncActive(), properties.getSyncActiveCron());
+//            taskRegistrar.addCronTask(() -> feedbackService().feedback(), properties.getFeedbackCron());
+//            taskRegistrar.addCronTask(() -> feedbackService().stat(STAT_DAY), properties.getDayStatCron());
+//        }
+//    }
 
     @Bean
-    FeedbackJob feedbackJob() {
-        logger.info("create job FeedbackJob");
-        return new FeedbackJob();
+    @ConditionalOnProperty(prefix = EighteenProperties.PREFIX, name = "mode", havingValue = "1")
+    Map<String, Job> simple18Jobs() {
+
+        Map<String, Job> jobs = new HashMap<>();
+        jobs.put(CLEAN_IMEI.getKey(), Job.builder().jobName(CLEAN_IMEI.getKey()).cron(properties.getCleanImeiCron()).failover(true)
+                .job(c -> feedbackService().clean(CLEAN_IMEI)).build());
+
+        jobs.put(CLEAN_ACTIVE.getKey(), Job.builder().jobName(CLEAN_ACTIVE.getKey()).cron(properties.getCleanActiveCron()).failover(true)
+                .job(c -> feedbackService().clean(CLEAN_ACTIVE)).build());
+
+        jobs.put(CLEAN_CLICK.getKey(), Job.builder().jobName(CLEAN_CLICK.getKey()).cron(properties.getCleanClickCron()).failover(true)
+                .job(c -> feedbackService().clean(CLEAN_CLICK)).build());
+
+        jobs.put(SYNC_ACTIVE.getKey(), Job.builder().jobName(SYNC_ACTIVE.getKey()).cron(properties.getSyncActiveCron()).failover(true)
+                .job(c -> feedbackService().syncActive()).monitorExecution(false).build());
+
+        jobs.put(FEED_BACK.getKey(), Job.builder().jobName(FEED_BACK.getKey()).cron(properties.getFeedbackCron()).failover(true)
+                .job(c -> feedbackService().feedback()).monitorExecution(false).build());
+
+        jobs.put(STAT_DAY.getKey(), Job.builder().jobName(STAT_DAY.getKey()).cron(properties.getDayStatCron()).failover(true)
+                .job(c -> feedbackService().stat(STAT_DAY)).build());
+
+        return jobs;
     }
-
-    @Bean
-    SyncActiveThirdJob syncActiveThirdJob() {
-        logger.info("create job SyncActiveThirdJob");
-        return new SyncActiveThirdJob();
-    }
-
-    @Bean
-    TransferActiveT2History transferActiveT2History() {
-        logger.info("create job TransferActiveT2History");
-        return new TransferActiveT2History();
-    }
-
-
 }

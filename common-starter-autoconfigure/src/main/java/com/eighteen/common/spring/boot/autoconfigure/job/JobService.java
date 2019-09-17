@@ -9,8 +9,8 @@
 //import com.dangdang.ddframe.job.lite.config.LiteJobConfiguration;
 //import com.dangdang.ddframe.job.lite.spring.api.SpringJobScheduler;
 //import com.dangdang.ddframe.job.reg.zookeeper.ZookeeperRegistryCenter;
-//import JsonUtils;
-//import org.apache.curator.framework.CuratorFramework;
+//import com.eighteen.common.spring.boot.autoconfigure.JsonUtils;
+import org.apache.curator.framework.CuratorFramework;
 //import org.apache.curator.framework.recipes.cache.ChildData;
 //import org.apache.curator.framework.recipes.cache.PathChildrenCache;
 //import org.apache.curator.framework.recipes.cache.PathChildrenCacheEvent;
@@ -140,42 +140,42 @@
 //        client.delete().deletingChildrenIfNeeded().forPath("/" + jobName);
 //    }
 //
-////    /**
-////     * 开启任务监听,当有任务添加时，监听zk中的数据增加，自动在其他节点也初始化该任务
-////     */
-////    public void monitorJobRegister() {
-////        CuratorFramework client = zookeeperRegistryCenter.getClient();
-////        @SuppressWarnings("resource")
-////        PathChildrenCache childrenCache = new PathChildrenCache(client, "/", true);
-////        PathChildrenCacheListener childrenCacheListener = new PathChildrenCacheListener() {
-////            public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) throws Exception {
-////                ChildData data = event.getData();
-////                switch (event.getType()) {
-////                    case CHILD_ADDED:
-////                        String config = new String(client.getData().forPath(data.getPath() + "/config"));
-////                        Job job = JsonUtils.toBean(Job.class, config);
-////                        Object bean = null;
-////                        // 获取bean失败则添加任务
-////                        try {
-////                            bean = ctx.getBean("SpringJobScheduler" + job.getJobName());
-////                        } catch (BeansException e) {
-////                            logger.error("ERROR NO BEAN,CREATE BEAN SpringJobScheduler" + job.getJobName());
-////                        }
-////                        if (Objects.isNull(bean)) {
-////                            addJob(job);
-////                        }
-////                        break;
-////                    default:
-////                        break;
-////                }
-////            }
-////        };
-////        childrenCache.getListenable().addListener(childrenCacheListener);
-////        try {
-////            childrenCache.start(PathChildrenCache.StartMode.BUILD_INITIAL_CACHE);
-//////				childrenCache.start(PathChildrenCache.StartMode.POST_INITIALIZED_EVENT);
-////        } catch (Exception e) {
-////            e.printStackTrace();
-////        }
-////    }
+//    /**
+//     * 开启任务监听,当有任务添加时，监听zk中的数据增加，自动在其他节点也初始化该任务
+//     */
+//    public void monitorJobRegister() {
+//        CuratorFramework client = zookeeperRegistryCenter.getClient();
+//        @SuppressWarnings("resource")
+//        PathChildrenCache childrenCache = new PathChildrenCache(client, "/", true);
+//        PathChildrenCacheListener childrenCacheListener = new PathChildrenCacheListener() {
+//            public void childEvent(CuratorFramework client, PathChildrenCacheEvent event) throws Exception {
+//                ChildData data = event.getData();
+//                switch (event.getType()) {
+//                    case CHILD_ADDED:
+//                        String config = new String(client.getData().forPath(data.getPath() + "/config"));
+//                        Job job = JsonUtils.toBean(Job.class, config);
+//                        Object bean = null;
+//                        // 获取bean失败则添加任务
+//                        try {
+//                            bean = ctx.getBean("SpringJobScheduler" + job.getJobName());
+//                        } catch (BeansException e) {
+//                            logger.error("ERROR NO BEAN,CREATE BEAN SpringJobScheduler" + job.getJobName());
+//                        }
+//                        if (Objects.isNull(bean)) {
+//                            addJob(job);
+//                        }
+//                        break;
+//                    default:
+//                        break;
+//                }
+//            }
+//        };
+//        childrenCache.getListenable().addListener(childrenCacheListener);
+//        try {
+//            childrenCache.start(PathChildrenCache.StartMode.BUILD_INITIAL_CACHE);
+////				childrenCache.start(PathChildrenCache.StartMode.POST_INITIALIZED_EVENT);
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//    }
 //}

@@ -7,7 +7,7 @@ import java.util.Map;
 import java.util.Objects;
 
 /**
- * Created by eighteen.
+ * Created by wangwei.
  * Date: 2019/8/21
  * Time: 23:29
  */
@@ -18,7 +18,7 @@ public class Message implements Serializable {
     private int type = -1;
 
     private Object payload = null;
-    private Map<String, String> headers = null;
+    private Map<String, String> headers;
     private long createTime = System.currentTimeMillis();
 
     public Message() {
@@ -31,6 +31,9 @@ public class Message implements Serializable {
 
     public Object getPayload() {
         return payload;
+    }
+    public <T> T getPayload(Class<T> aClass) {
+        return (T) payload;
     }
 
     public Map<String, String> getHeaders() {

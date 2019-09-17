@@ -15,6 +15,7 @@
  */
 package com.eighteen.common.spring.boot.autoconfigure.mybatis.ref;
 
+import com.eighteen.common.spring.boot.autoconfigure.feedback.dao.FeedBackMapper;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.mapping.DatabaseIdProvider;
 import org.apache.ibatis.plugin.Interceptor;
@@ -40,6 +41,7 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.boot.autoconfigure.AutoConfigurationPackages;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
@@ -79,6 +81,7 @@ import java.util.stream.Stream;
 @org.springframework.context.annotation.Configuration
 @ConditionalOnClass({SqlSessionFactory.class, SqlSessionFactoryBean.class})
 @ConditionalOnSingleCandidate(DataSource.class)
+//@ConditionalOnBean({DataSource.class})
 @EnableConfigurationProperties(MybatisProperties.class)
 @AutoConfigureAfter(DataSourceAutoConfiguration.class)
 public class MybatisAutoConfiguration implements InitializingBean {
@@ -223,7 +226,7 @@ public class MybatisAutoConfiguration implements InitializingBean {
 
             List<String> packages = AutoConfigurationPackages.get(this.beanFactory);
             packages.add("com.eighteen.**.dao");
-            packages.add("com.eighteen.**.dao");
+            packages.add("com.eighteen.common.spring.boot.autoconfigure.feedback.dao");
             if (logger.isDebugEnabled()) {
                 packages.forEach(pkg -> logger.debug("Using auto-configuration base package '{}'", pkg));
             }

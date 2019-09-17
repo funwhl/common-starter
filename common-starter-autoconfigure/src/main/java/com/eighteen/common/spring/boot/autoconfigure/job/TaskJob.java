@@ -1,6 +1,5 @@
 package com.eighteen.common.spring.boot.autoconfigure.job;
 
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.lang.annotation.*;
@@ -17,13 +16,10 @@ import java.lang.annotation.*;
 @Component
 public @interface TaskJob {
 
-    //    @NotNull
     String jobName();
 
-    //    @NotNull
     String cron();
 
-    //    @NotNull
     String desc();
 
     boolean failover() default false;

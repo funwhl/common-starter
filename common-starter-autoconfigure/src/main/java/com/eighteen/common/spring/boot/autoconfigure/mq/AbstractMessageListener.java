@@ -17,7 +17,7 @@ import org.springframework.retry.support.RetryTemplate;
 import java.util.Collections;
 
 /**
- * Created by eighteen.
+ * Created by wangwei.
  * Date: 2019/8/21
  * Time: 22:40
  */
@@ -50,7 +50,7 @@ public abstract class AbstractMessageListener implements MessageListener, Initia
     }
 
     @Override
-    public void afterPropertiesSet() throws Exception {
+    public void afterPropertiesSet() {
         if (retryTemplate == null) {
             retryTemplate = new RetryTemplate();
 

@@ -1,6 +1,5 @@
 package com.eighteen.common.spring.boot.autoconfigure.web;
 
-
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Consts;
 import org.apache.http.HttpEntity;
@@ -21,6 +20,7 @@ import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
 import org.apache.http.conn.ssl.TrustSelfSignedStrategy;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
+import org.apache.http.entity.mime.MultipartEntityBuilder;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
 import org.apache.http.message.BasicNameValuePair;
@@ -48,8 +48,8 @@ public class HttpClientUtils {
     public static final int connTimeout = 5000;
     public static final int readTimeout = 5000;
     public static final String charset = "UTF-8";
-    public static HttpClient client = null;
     private static final int maxTole = 200;
+    public static HttpClient client = null;
 
     static {
 
@@ -103,9 +103,9 @@ public class HttpClientUtils {
         return postForm(url, params, null, connTimeout, readTimeout);
     }
 
-//    public static String postParameters(String url, File file, String fileParam) throws Exception {
-//        return postForm(url, file, fileParam, null, connTimeout, readTimeout);
-//    }
+    public static String postParameters(String url, File file, String fileParam) throws Exception {
+        return postForm(url, file, fileParam, null, connTimeout, readTimeout);
+    }
 
     public static String get(String url) throws Exception {
         return get(url, charset, null, null);
@@ -303,51 +303,51 @@ public class HttpClientUtils {
     }
 
 
-//    /**
-//     * 提交form表单
-//     *
-//     * @param url
-//     * @param
-//     * @param connTimeout
-//     * @param readTimeout
-//     * @return
-//     * @throws ConnectTimeoutException
-//     * @throws SocketTimeoutException
-//     * @throws Exception
-//     */
-//    public static String postForm(String url, File file, String fileParam, Map<String, String> headers,
-//                                  Integer connTimeout, Integer readTimeout) throws Exception {
-//
-//        HttpPost post = new HttpPost(url);
-//        try {
-//            if (file == null) {
-//                return null;
-//            }
-//            MultipartEntityBuilder reqEntity = MultipartEntityBuilder.create();
-//            reqEntity.addBinaryBody(fileParam, file); // 设置文件
-//            post.setEntity(reqEntity.build());
-//
-//            if (headers != null && !headers.isEmpty()) {
-//                for (Entry<String, String> entry : headers.entrySet()) {
-//                    post.addHeader(entry.getKey(), entry.getValue());
-//                }
-//            }
-//            // 设置参数
-//            RequestConfig.Builder customReqConf = RequestConfig.custom();
-//            if (connTimeout != null) {
-//                customReqConf.setConnectTimeout(connTimeout);
-//            }
-//            if (readTimeout != null) {
-//                customReqConf.setSocketTimeout(readTimeout);
-//            }
-//            post.setConfig(customReqConf.build());
-//            HttpResponse res = client.execute(post);
-//            // return IOUtils.toString(res.getEntity().getContent(), "UTF-8");
-//            return EntityUtils.toString(res.getEntity(), charset);
-//        } finally {
-//            post.releaseConnection();
-//        }
-//    }
+    /**
+     * 提交form表单
+     *
+     * @param url
+     * @param
+     * @param connTimeout
+     * @param readTimeout
+     * @return
+     * @throws ConnectTimeoutException
+     * @throws SocketTimeoutException
+     * @throws Exception
+     */
+    public static String postForm(String url, File file, String fileParam, Map<String, String> headers,
+                                  Integer connTimeout, Integer readTimeout) throws Exception {
+
+        HttpPost post = new HttpPost(url);
+        try {
+            if (file == null) {
+                return null;
+            }
+            MultipartEntityBuilder reqEntity = MultipartEntityBuilder.create();
+            reqEntity.addBinaryBody(fileParam, file); // 设置文件
+            post.setEntity(reqEntity.build());
+
+            if (headers != null && !headers.isEmpty()) {
+                for (Entry<String, String> entry : headers.entrySet()) {
+                    post.addHeader(entry.getKey(), entry.getValue());
+                }
+            }
+            // 设置参数
+            RequestConfig.Builder customReqConf = RequestConfig.custom();
+            if (connTimeout != null) {
+                customReqConf.setConnectTimeout(connTimeout);
+            }
+            if (readTimeout != null) {
+                customReqConf.setSocketTimeout(readTimeout);
+            }
+            post.setConfig(customReqConf.build());
+            HttpResponse res = client.execute(post);
+            // return IOUtils.toString(res.getEntity().getContent(), "UTF-8");
+            return EntityUtils.toString(res.getEntity(), charset);
+        } finally {
+            post.releaseConnection();
+        }
+    }
 
     public static String get(String url, Map<String, String> headers) throws Exception {
         HttpGet get = createGet(url, headers, 3000, 3000);
@@ -442,5 +442,4 @@ public class HttpClientUtils {
         }
         return count;
     }
-
 }

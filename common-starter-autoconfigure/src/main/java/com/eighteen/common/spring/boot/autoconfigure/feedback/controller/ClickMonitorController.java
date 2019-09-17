@@ -1,75 +1,75 @@
 package com.eighteen.common.spring.boot.autoconfigure.feedback.controller;
 
-import com.eighteen.common.spring.boot.autoconfigure.feedback.EighteenProperties;
 import com.eighteen.common.spring.boot.autoconfigure.feedback.dao.FeedBackMapper;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.util.DigestUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.nio.charset.StandardCharsets;
-import java.util.Base64;
-import java.util.Iterator;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * Created by eighteen.
  * Date: 2019/8/25
- * Time: 0:09
+ * Time: 20:09
  */
 
 @RestController
-@Configuration
-@EnableConfigurationProperties(EighteenProperties.class)
-@ConditionalOnProperty(prefix = EighteenProperties.PREFIX, name = "channel")
-public class ClickMonitorController implements InitializingBean {
+public class ClickMonitorController {
     private static final Logger logger = LoggerFactory.getLogger(ClickMonitorController.class);
     @Autowired(required = false)
     FeedBackMapper feedBackMapper;
 
-    private String token;
-    @Value("${spring.application.name}")
-    private String appName;
-    @Value("${accessKey:XMABZ1HK1XP20XJI}")
-    private String accessKey;
+    @Value("${18.feedback.channel}")
+    private String channel;
 
     @GetMapping(value = "clickMonitor")
-    public void test(@RequestParam Map<String, Object> params) {
+    public void clickMonitor(@RequestParam Map<String, Object> params) {
         try {
-            if (!params.containsKey("token") || !params.get("token").equals(token)) {
-                logger.error("token not found-> {}", token);
-                return;
-            }
-
-            Iterator<Map.Entry<String, Object>> it = params.entrySet().iterator();
-            while (it.hasNext()) {
-                Map.Entry<String, Object> entry = it.next();
-                String key = entry.getKey();
-                if (!key.startsWith("@@_")) {
-                    it.remove();
-                }
-            }
+            logger.info("click monitor active->{}", params.toString());
+            params.put("create_time", new Date());
+            if (NumberUtils.isCreatable(String.valueOf(params.get("ts"))))
+                params.put("click_time", new Date(Long.valueOf(String.valueOf(params.get("ts")))));
             feedBackMapper.insertClickLog(params);
         } catch (Exception e) {
-            logger.info(e.getMessage());
+            e.printStackTrace();
         }
     }
 
-
-    @Override
-    public void afterPropertiesSet() {
-        String a = Base64.getEncoder().encodeToString(accessKey.getBytes(StandardCharsets.UTF_8));
-        String b = Base64.getEncoder().encodeToString(appName.getBytes(StandardCharsets.UTF_8));
-        token = Base64.getEncoder().encodeToString((a + b).getBytes(StandardCharsets.UTF_8));
-        logger.info("click-monitor token: {}", token);
-    }
-
-
+//    @GetMapping(value = "compensate")
+//    public void compensate(@RequestParam("start") String start) {
+//        try {
+//            logger.info("compensate");
+//            Date date = new SimpleDateFormat("yyyy-MM-dd").parse(start);
+//            Set<String> imeis = feedBackMapper.getDayImeis(date);
+//            List<Map<String, Object>> data = feedBackMapper.getThirdActiveLogger(date, channel);
+//
+//            data = data.stream().sorted((o1, o2) -> ((Date) o2.get("activetime")).compareTo((Date) o1.get("activetime")))
+//                    .collect(
+//                            Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei"))))), ArrayList::new)
+//                    );
+//            ListIterator<Map<String, Object>> it = data.listIterator();
+//            while (it.hasNext()) {
+//                Map<String, Object> map = it.next();
+//                String imei = String.valueOf(map.get("imei"));
+//                if (imeis.contains(imei)) {
+//                    it.remove();
+//                    continue;
+//                }
+//                map.put("imeimd5", DigestUtils.md5DigestAsHex(imei.getBytes()));
+//                map.put("wifimacmd5", DigestUtils.md5DigestAsHex(String.valueOf(map.get("wifimac")).getBytes()));
+//                feedBackMapper.insertActiveLogger(map);
+//            }
+//        } catch (Exception e) {
+//            e.printStackTrace();
+//        }
+//    }
 }
