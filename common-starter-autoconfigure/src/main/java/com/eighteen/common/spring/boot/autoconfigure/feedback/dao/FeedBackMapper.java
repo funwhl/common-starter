@@ -2,12 +2,12 @@ package com.eighteen.common.spring.boot.autoconfigure.feedback.dao;
 
 
 import com.eighteen.common.spring.boot.autoconfigure.feedback.model.ThirdRetentionLog;
+import com.eighteen.common.spring.boot.autoconfigure.feedback.domain.DayImei;
 import org.apache.ibatis.annotations.*;
 
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  * @author : eighteen
@@ -119,18 +119,22 @@ public interface FeedBackMapper {
     int deleteActiveThird(@Param("end") Date end);
 
     @Insert("insert into DayImei (" +
-            "      imei, imeimd5, CreateTime" +
+            "      imei, imeimd5, CreateTime, coid, ncoid " +
             "    )" +
             "    values (" +
-            "      #{imei,jdbcType=VARCHAR}, #{imeimd5,jdbcType=VARCHAR}, #{createTime,jdbcType=TIMESTAMP}" +
+            "      #{imei}, #{imeimd5}, #{createTime}, #{coid}, #{ncoid} " +
             "    )")
-    int insertDayImei(@Param("imei") String imei, @Param("imeimd5") String imeimd5, @Param("createTime") Date createTime);
+    int insertDayImei(@Param("imei") String imei, @Param("imeimd5") String imeimd5, @Param("createTime") Date createTime,@Param("coid")Integer coid,@Param("ncoid")Integer ncoid);
 
-    @Select("SELECT imei FROM DayImei where CreateTime > #{date} ")
-    Set<String> getDayImeis(@Param("date") Date date);
+    @Select("SELECT imei,imeimd5,createTime FROM DayImei where CreateTime > #{date} ")
+    @ResultType(DayImei.class)
+    List<DayImei> getDayImeis(@Param("date") Date date);
 
     @Delete("DELETE FROM DayImei where CreateTime < #{date} ")
     int cleanDayImeis(@Param("date") Date date);
+
+    @Delete("DELETE FROM DayLiucunImei where CreateTime < #{date} ")
+    int cleanDayLCImeis(@Param("date") Date date);
 
     @Insert("insert into ActiveStatisticsDayReport select a.channel,${date} as 'date' ,count(*) as 'count' ${did} from ActiveLogger a inner join KuaiShouClickLog b " +
             " on a.imeimd5 = b.imei and activetime > #{date} and activetime < dateadd(day,1,#{date}) and a.activetime > b.click_time " +

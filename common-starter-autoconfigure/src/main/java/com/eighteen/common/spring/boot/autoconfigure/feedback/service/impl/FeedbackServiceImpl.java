@@ -5,6 +5,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.eighteen.common.spring.boot.autoconfigure.cache.redis.Redis;
 import com.eighteen.common.spring.boot.autoconfigure.feedback.dao.FeedBackMapper;
 import com.eighteen.common.spring.boot.autoconfigure.feedback.model.ThirdRetentionLog;
+import com.eighteen.common.spring.boot.autoconfigure.feedback.domain.DayImei;
 import com.eighteen.common.spring.boot.autoconfigure.feedback.service.FeedbackService;
 import com.eighteen.common.spring.boot.autoconfigure.web.HttpClientUtils;
 import org.slf4j.Logger;
@@ -52,8 +53,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             List<String> history = new ArrayList<>();
             List<Map<String, Object>> results = feedBackMapper.getPreFetchData(1000);
 
-            Set<String> imeis = feedBackMapper.getDayImeis(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)));
-
+            List<DayImei> imeis = feedBackMapper.getDayImeis(new Date(System.currentTimeMillis() -TimeUnit.DAYS.toMillis(2)));
             results = results.stream().sorted((o1, o2) -> ((Date) o2.get("activetime")).compareTo((Date) o1.get("activetime")))
                     .collect(
                             Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei"))))), ArrayList::new)
@@ -62,9 +62,9 @@ public class FeedbackServiceImpl implements FeedbackService {
                 Future future = executor.submit(() -> {
                     try {
                         String imei = o.get("imei") == null ? null : String.valueOf(o.get("imei"));
-                        if (imeis.contains(imei)) return null;
                         Integer coid = o.get("coid") == null ? null : Integer.valueOf(String.valueOf(o.get("coid")));
                         Integer ncoid = o.get("ncoid") == null ? null : Integer.valueOf(String.valueOf(o.get("ncoid")));
+                        if (imeis.contains(new DayImei(imei,coid,ncoid))) return new String[]{imei, "2"};
                         if (feedBackMapper.countFromStatistics(imei, coid, ncoid) > 0) {
                             return new String[]{imei, "2"};
                         } else {
@@ -91,6 +91,9 @@ public class FeedbackServiceImpl implements FeedbackService {
 //                            logger.error(e.getMessage());
 //                        }
                                 feedBackMapper.insertFeedback(map);
+                                feedBackMapper.insertDayImei(imei,
+                                        o.get("imeimd5") == null ? null : String.valueOf(o.get("imeimd5")), new Date(),
+                                        coid,ncoid);
                             }
                         }
                         return new String[]{imei, "1"};
@@ -120,7 +123,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         tryWork(r -> {
             Date date = new Date();
             Date before = new Date(date.getTime() - TimeUnit.DAYS.toMillis(1));
-            Set<String> imeis = feedBackMapper.getDayImeis(before);
+            List<DayImei> imeis = feedBackMapper.getDayImeis(before);
 
             Long curent = date.getTime();
             Long offset = TimeUnit.MINUTES.toMillis(10);
@@ -139,7 +142,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             while (it.hasNext()) {
                 Map<String, Object> map = it.next();
                 String imei = String.valueOf(map.get("imei"));
-                if (imeis.contains(imei)) {
+                if (imeis.contains(new DayImei(imei,Integer.valueOf(String.valueOf(map.get("coid"))),Integer.valueOf(String.valueOf(map.get("ncoid")))))) {
                     it.remove();
                     continue;
                 }
@@ -155,9 +158,13 @@ public class FeedbackServiceImpl implements FeedbackService {
     public void clean(JobType type) {
         switch (type) {
             case CLEAN_IMEI:
+                Long current = System.currentTimeMillis();
                 tryWork(r -> feedBackMapper.cleanDayImeis(new Date(
-                                System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1))),
+                                current - TimeUnit.DAYS.toMillis(1))),
                         CLEAN_IMEI);
+                tryWork(r -> feedBackMapper.cleanDayLCImeis(new Date(
+                                current - TimeUnit.DAYS.toMillis(2))),
+                        CLEAN_LC_IMEI);
                 break;
             case CLEAN_ACTIVE:
                 tryWork(r -> {
@@ -211,6 +218,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         CLEAN_CLICK("CLEAN_CLICK", TimeUnit.DAYS.toMillis(1) - 60 * 60),
         CLEAN_ACTIVE("CLEAN_ACTIVE", TimeUnit.DAYS.toMillis(1) - 60 * 60),
         CLEAN_IMEI("CLEAN_IMEI", TimeUnit.DAYS.toSeconds(1) - 60 * 5),
+        CLEAN_LC_IMEI("CLEAN_LC_IMEI", TimeUnit.DAYS.toSeconds(2) - 60 * 5),
         FEED_BACK("FEED_BACK", TimeUnit.MINUTES.toMillis(5) - 60),
         SYNC_ACTIVE("SYNC_ACTIVE", TimeUnit.MINUTES.toMillis(5) - 60),
         STAT_DAY("STAT_DAY", TimeUnit.DAYS.toMillis(1) - 60 * 60);
