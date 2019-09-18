@@ -55,7 +55,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             List<String> history = new ArrayList<>();
             List<Map<String, Object>> results = feedBackMapper.getPreFetchData(1000);
 
-            List<DayImei> imeis = feedBackMapper.getDayImeis(new Date(System.currentTimeMillis() -TimeUnit.DAYS.toMillis(2)));
+            List<DayImei> imeis = feedBackMapper.getDayImeis(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)));
             results = results.stream().sorted((o1, o2) -> ((Date) o2.get("activetime")).compareTo((Date) o1.get("activetime")))
                     .collect(
                             Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei"))))), ArrayList::new)
@@ -66,7 +66,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                         String imei = o.get("imei") == null ? null : String.valueOf(o.get("imei"));
                         Integer coid = o.get("coid") == null ? null : Integer.valueOf(String.valueOf(o.get("coid")));
                         Integer ncoid = o.get("ncoid") == null ? null : Integer.valueOf(String.valueOf(o.get("ncoid")));
-                        if (imeis.contains(new DayImei(imei,coid,ncoid))) return new String[]{imei, "2"};
+                        if (imeis.contains(new DayImei(imei, coid, ncoid))) return new String[]{imei, "2"};
                         if (feedBackMapper.countFromStatistics(imei, coid, ncoid) > 0) {
                             return new String[]{imei, "2"};
                         } else {
@@ -95,7 +95,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                                 feedBackMapper.insertFeedback(map);
                                 feedBackMapper.insertDayImei(imei,
                                         o.get("imeimd5") == null ? null : String.valueOf(o.get("imeimd5")), new Date(),
-                                        coid,ncoid);
+                                        coid, ncoid);
                             }
                         }
                         return new String[]{imei, "1"};
@@ -144,7 +144,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             while (it.hasNext()) {
                 Map<String, Object> map = it.next();
                 String imei = String.valueOf(map.get("imei"));
-                if (imeis.contains(new DayImei(imei,Integer.valueOf(String.valueOf(map.get("coid"))),Integer.valueOf(String.valueOf(map.get("ncoid")))))) {
+                if (imeis.contains(new DayImei(imei, Integer.valueOf(String.valueOf(map.get("coid"))), Integer.valueOf(String.valueOf(map.get("ncoid")))))) {
                     it.remove();
                     continue;
                 }
@@ -196,7 +196,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         Map<String, ThirdRetentionLog> mapRetention = new HashMap<>();
         list.forEach(e -> mapRetention.put(e.getImei(), e));
         // 去重回传，调用回调地址
-        for(ThirdRetentionLog thirdRetentionLog : mapRetention.values()){
+        for (ThirdRetentionLog thirdRetentionLog : mapRetention.values()) {
             // event_type= 7 回传事件，7为次留 数据回传
             String url = thirdRetentionLog.getCallBack() + "&event_type=7&event_time=" + System.currentTimeMillis();
             try {
@@ -206,7 +206,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                     Map<String, Object> map = new HashMap<>();
                     map.put("CreateTime", new Date());
                     map.put("imei", thirdRetentionLog.getImei());
-                    map.put("aid",thirdRetentionLog.getAid());
+                    map.put("aid", thirdRetentionLog.getAid());
                     map.put("cid", thirdRetentionLog.getCid());
                     map.put("mac", thirdRetentionLog.getMac());
                     map.put("ip", thirdRetentionLog.getIp());
@@ -216,7 +216,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                     map.put("ANDROIDID", thirdRetentionLog.getAndroidId());
                     map.put("callback_url", url);
                     feedBackMapper.insertFeedback(map);
-//                    feedBackMapper.insertDayImei();
+                    feedBackMapper.insertDayLiucunImei(thirdRetentionLog.getImei(), thirdRetentionLog.getImeimd5());
                 }
 
             } catch (Exception e) {
@@ -273,8 +273,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     }
 
 
-
-    public static void main(String[] args){
+    public static void main(String[] args) {
 
         List<Map<String, Object>> results = new ArrayList<>();
         Map<String, Object> map = new HashMap<>();
@@ -299,7 +298,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                         Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei"))))), ArrayList::new)
                 );
 
-        System.out.println("results:"+results.size());
+        System.out.println("results:" + results.size());
 
     }
 }

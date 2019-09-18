@@ -124,7 +124,7 @@ public interface FeedBackMapper {
             "    values (" +
             "      #{imei}, #{imeimd5}, #{createTime}, #{coid}, #{ncoid} " +
             "    )")
-    int insertDayImei(@Param("imei") String imei, @Param("imeimd5") String imeimd5, @Param("createTime") Date createTime,@Param("coid")Integer coid,@Param("ncoid")Integer ncoid);
+    int insertDayImei(@Param("imei") String imei, @Param("imeimd5") String imeimd5, @Param("createTime") Date createTime, @Param("coid") Integer coid, @Param("ncoid") Integer ncoid);
 
     @Select("SELECT imei,imeimd5,createTime FROM DayImei where CreateTime > #{date} ")
     @ResultType(DayImei.class)
@@ -161,8 +161,11 @@ public interface FeedBackMapper {
     @Select("select b.*, c.call_back as callBack,c.aid,c.cid,c.mac,c.ts,c.android_id as androidId from ( " +
             " select top 2000 a.*  from toutiaofeedback.dbo.ThirdRetentionLog a  " +
             " where  a.activetime >=  CAST( DATEADD(DAY,-1,GETDATE()) as date) and a.type ='kuaishouChannel'  " +
-            " and not exists ( select imei from dayliucunimei ) " +
-            " ) b INNER JOIN KuaiShouClickLog c on b.imeimd5 = c.imei " )
+            " and not exists ( select imei from dayliucunimei d where a.imei = d.imei ) " +
+            " ) b INNER JOIN KuaiShouClickLog c on b.imeimd5 = c.imei ")
     List<ThirdRetentionLog> getSecondStay();
 
+
+    @Insert("insert into DayLiucunImei(imei ,imeimd5, createTime) VALUES (#{imei}, #{imeimd5} , getdate())")
+    int insertDayLiucunImei(@Param("imei") String imei, @Param("imeimd5") String imeimd5);
 }
