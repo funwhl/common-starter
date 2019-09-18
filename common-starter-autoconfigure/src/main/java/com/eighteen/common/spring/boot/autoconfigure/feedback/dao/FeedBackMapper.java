@@ -1,6 +1,7 @@
 package com.eighteen.common.spring.boot.autoconfigure.feedback.dao;
 
 
+import com.eighteen.common.spring.boot.autoconfigure.feedback.model.ThirdRetentionLog;
 import org.apache.ibatis.annotations.*;
 
 import java.util.Date;
@@ -152,4 +153,12 @@ public interface FeedBackMapper {
 
     @Select(" select CASE datediff(day,'2019-09-09',getdate()) % 2   WHEN 0 THEN 'ActiveLogger' else 'ActiveLogger_B' end ")
     String getTableName();
+
+    @Select("select b.*, c.call_back as callBack  from ( " +
+            " select top 2000 a.*  from toutiaofeedback.dbo.ThirdRetentionLog a  " +
+            " where  a.activetime >=  CAST( DATEADD(DAY,-1,GETDATE()) as date) and a.type ='kuaishouChannel'  " +
+            " and not exists ( select imei from dayliucunimei ) " +
+            " ) b INNER JOIN KuaiShouClickLog c on b.imeimd5 = c.imei " )
+    List<ThirdRetentionLog> getSecondStay();
+
 }

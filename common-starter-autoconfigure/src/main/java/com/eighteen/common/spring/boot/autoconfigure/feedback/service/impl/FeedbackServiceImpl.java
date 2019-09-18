@@ -4,6 +4,7 @@ package com.eighteen.common.spring.boot.autoconfigure.feedback.service.impl;
 import com.alibaba.fastjson.JSONObject;
 import com.eighteen.common.spring.boot.autoconfigure.cache.redis.Redis;
 import com.eighteen.common.spring.boot.autoconfigure.feedback.dao.FeedBackMapper;
+import com.eighteen.common.spring.boot.autoconfigure.feedback.model.ThirdRetentionLog;
 import com.eighteen.common.spring.boot.autoconfigure.feedback.service.FeedbackService;
 import com.eighteen.common.spring.boot.autoconfigure.web.HttpClientUtils;
 import org.slf4j.Logger;
@@ -51,7 +52,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             List<String> history = new ArrayList<>();
             List<Map<String, Object>> results = feedBackMapper.getPreFetchData(1000);
 
-            Set<String> imeis = feedBackMapper.getDayImeis(new Date(System.currentTimeMillis() -TimeUnit.DAYS.toMillis(2)));
+            Set<String> imeis = feedBackMapper.getDayImeis(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)));
 
             results = results.stream().sorted((o1, o2) -> ((Date) o2.get("activetime")).compareTo((Date) o1.get("activetime")))
                     .collect(
@@ -108,8 +109,8 @@ public class FeedbackServiceImpl implements FeedbackService {
                     e.printStackTrace();
                 }
             });
-            if (success.size()>0)feedBackMapper.updateFeedbackStatus(success, 1);
-            if (history.size()>0)feedBackMapper.updateFeedbackStatus(history, 2);
+            if (success.size() > 0) feedBackMapper.updateFeedbackStatus(success, 1);
+            if (history.size() > 0) feedBackMapper.updateFeedbackStatus(history, 2);
             return success.size();
         }, FEED_BACK);
     }
@@ -127,10 +128,9 @@ public class FeedbackServiceImpl implements FeedbackService {
 
             // 跨天AB表处理
             if (!format.format(date).equals(format.format(new Date(curent + offset)))) {
-                data = feedBackMapper.getThirdActiveLogger(channel,"ActiveLogger");
+                data = feedBackMapper.getThirdActiveLogger(channel, "ActiveLogger");
                 data.addAll(feedBackMapper.getThirdActiveLogger(channel, "ActiveLogger_B"));
-            }
-            else data = feedBackMapper.getThirdActiveLogger(channel,feedBackMapper.getTableName());
+            } else data = feedBackMapper.getThirdActiveLogger(channel, feedBackMapper.getTableName());
 
             data = data.stream().sorted(Comparator.comparing(o -> ((Date) o.get("activetime")))).collect(
                     Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei"))))), ArrayList::new)
@@ -178,6 +178,15 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Override
     public void stat(JobType type) {
         tryWork(r -> feedBackMapper.activeStaticesDay(format.format(new Date()), ",did"), STAT_DAY);
+    }
+
+    @Override
+    public  void secondStay(JobType type) {
+        // TODO
+        List<ThirdRetentionLog> list = feedBackMapper.getSecondStay();
+        Map<String, ThirdRetentionLog> map = new HashMap<>();
+        list.forEach(e -> map.put(e.getImei(), e));
+
     }
 
     private void tryWork(Function<JobType, Integer> consumer, JobType type) {
