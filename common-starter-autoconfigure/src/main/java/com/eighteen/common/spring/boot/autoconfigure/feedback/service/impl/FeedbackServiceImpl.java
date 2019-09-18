@@ -8,6 +8,7 @@ import com.eighteen.common.spring.boot.autoconfigure.feedback.model.ThirdRetenti
 import com.eighteen.common.spring.boot.autoconfigure.feedback.domain.DayImei;
 import com.eighteen.common.spring.boot.autoconfigure.feedback.service.FeedbackService;
 import com.eighteen.common.spring.boot.autoconfigure.web.HttpClientUtils;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,6 +30,7 @@ import static com.eighteen.common.spring.boot.autoconfigure.feedback.service.imp
  * @date : 2019/8/22 17:43
  */
 @Service
+@Slf4j
 public class FeedbackServiceImpl implements FeedbackService {
     private static final Logger logger = LoggerFactory.getLogger(FeedbackServiceImpl.class);
     @Autowired(required = false)
@@ -188,11 +190,40 @@ public class FeedbackServiceImpl implements FeedbackService {
     }
 
     @Override
-    public  void secondStay(JobType type) {
+    public void secondStay(JobType type) {
         // TODO
         List<ThirdRetentionLog> list = feedBackMapper.getSecondStay();
-        Map<String, ThirdRetentionLog> map = new HashMap<>();
-        list.forEach(e -> map.put(e.getImei(), e));
+        Map<String, ThirdRetentionLog> mapRetention = new HashMap<>();
+        list.forEach(e -> mapRetention.put(e.getImei(), e));
+        // 去重回传，调用回调地址
+        for(ThirdRetentionLog thirdRetentionLog : mapRetention.values()){
+            // event_type= 7 回传事件，7为次留 数据回传
+            String url = thirdRetentionLog.getCallBack() + "&event_type=7&event_time=" + System.currentTimeMillis();
+            try {
+                String ret = HttpClientUtils.get(url);
+                JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
+                if (jsonObject.get("result").equals(1)) {
+                    Map<String, Object> map = new HashMap<>();
+                    map.put("CreateTime", new Date());
+                    map.put("imei", thirdRetentionLog.getImei());
+                    map.put("aid",thirdRetentionLog.getAid());
+                    map.put("cid", thirdRetentionLog.getCid());
+                    map.put("mac", thirdRetentionLog.getMac());
+                    map.put("ip", thirdRetentionLog.getIp());
+                    map.put("ts", thirdRetentionLog.getTs());
+                    map.put("channel", thirdRetentionLog.getChannel());
+                    map.put("EventType", 7);
+                    map.put("ANDROIDID", thirdRetentionLog.getAndroidId());
+                    map.put("callback_url", url);
+                    feedBackMapper.insertFeedback(map);
+//                    feedBackMapper.insertDayImei();
+                }
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                log.error(e.getMessage());
+            }
+        }
 
     }
 
@@ -221,7 +252,8 @@ public class FeedbackServiceImpl implements FeedbackService {
         CLEAN_LC_IMEI("CLEAN_LC_IMEI", TimeUnit.DAYS.toSeconds(2) - 60 * 5),
         FEED_BACK("FEED_BACK", TimeUnit.MINUTES.toMillis(5) - 60),
         SYNC_ACTIVE("SYNC_ACTIVE", TimeUnit.MINUTES.toMillis(5) - 60),
-        STAT_DAY("STAT_DAY", TimeUnit.DAYS.toMillis(1) - 60 * 60);
+        STAT_DAY("STAT_DAY", TimeUnit.DAYS.toMillis(1) - 60 * 60),
+        RETENTION("RETENTION", TimeUnit.DAYS.toMillis(10) - 60);
 
         private String key;
         private Long expire;
@@ -238,5 +270,36 @@ public class FeedbackServiceImpl implements FeedbackService {
         public Long getExpire() {
             return expire;
         }
+    }
+
+
+
+    public static void main(String[] args){
+
+        List<Map<String, Object>> results = new ArrayList<>();
+        Map<String, Object> map = new HashMap<>();
+        map.put("imei", "imei1");
+        map.put("activetime", 12345);
+        results.add(map);
+
+        map = new HashMap<>();
+        map.put("imei", "imei2");
+        map.put("activetime", 1235);
+        results.add(map);
+
+
+        map = new HashMap<>();
+        map.put("imei", "imei1");
+        map.put("activetime", 12311);
+        results.add(map);
+
+
+        results = results.stream().sorted((o1, o2) -> ((Integer) o2.get("activetime")).compareTo((Integer) o1.get("activetime")))
+                .collect(
+                        Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei"))))), ArrayList::new)
+                );
+
+        System.out.println("results:"+results.size());
+
     }
 }

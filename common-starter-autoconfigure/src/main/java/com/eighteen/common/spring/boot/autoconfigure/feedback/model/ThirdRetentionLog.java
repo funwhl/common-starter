@@ -77,7 +77,18 @@ public class ThirdRetentionLog implements Serializable{
     /** imeimd5 **/
     private String  imeimd5;
 
+
+    // 次留 字段
     private String callBack;
-    
+
+    private String aid;
+
+    private String cid;
+
+    private String mac;
+
+    private String ts;
+
+    private String androidId;
 
 }

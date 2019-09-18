@@ -37,5 +37,7 @@ public class EighteenProperties {
     private String syncActiveCron = "0 1/5 * * * ?";
     private String cleanActiveCron = "0 0 1 1/1 * ?";
     private String dayStatCron = "0 0 1 1/1 * ?";
+    private String retentionCron ="0 1/10 * * * ?";
+
     private Integer mode;
 }
