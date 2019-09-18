@@ -61,7 +61,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                 Future future = executor.submit(() -> {
                     try {
                         String imei = o.get("imei") == null ? null : String.valueOf(o.get("imei"));
-                        if (imeis.contains(imei)) return null;
+                        if (imeis.contains(imei)) return new String[]{imei, "2"};
                         Integer coid = o.get("coid") == null ? null : Integer.valueOf(String.valueOf(o.get("coid")));
                         Integer ncoid = o.get("ncoid") == null ? null : Integer.valueOf(String.valueOf(o.get("ncoid")));
                         if (feedBackMapper.countFromStatistics(imei, coid, ncoid) > 0) {
@@ -155,9 +155,13 @@ public class FeedbackServiceImpl implements FeedbackService {
     public void clean(JobType type) {
         switch (type) {
             case CLEAN_IMEI:
+                Long current = System.currentTimeMillis();
                 tryWork(r -> feedBackMapper.cleanDayImeis(new Date(
-                                System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1))),
+                                current - TimeUnit.DAYS.toMillis(1))),
                         CLEAN_IMEI);
+                tryWork(r -> feedBackMapper.cleanDayLCImeis(new Date(
+                                current - TimeUnit.DAYS.toMillis(2))),
+                        CLEAN_LC_IMEI);
                 break;
             case CLEAN_ACTIVE:
                 tryWork(r -> {
@@ -202,6 +206,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         CLEAN_CLICK("CLEAN_CLICK", TimeUnit.DAYS.toMillis(1) - 60 * 60),
         CLEAN_ACTIVE("CLEAN_ACTIVE", TimeUnit.DAYS.toMillis(1) - 60 * 60),
         CLEAN_IMEI("CLEAN_IMEI", TimeUnit.DAYS.toSeconds(1) - 60 * 5),
+        CLEAN_LC_IMEI("CLEAN_LC_IMEI", TimeUnit.DAYS.toSeconds(2) - 60 * 5),
         FEED_BACK("FEED_BACK", TimeUnit.MINUTES.toMillis(5) - 60),
         SYNC_ACTIVE("SYNC_ACTIVE", TimeUnit.MINUTES.toMillis(5) - 60),
         STAT_DAY("STAT_DAY", TimeUnit.DAYS.toMillis(1) - 60 * 60);
