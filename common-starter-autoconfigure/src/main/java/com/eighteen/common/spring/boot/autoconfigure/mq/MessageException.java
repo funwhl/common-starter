@@ -1,7 +1,7 @@
 package com.eighteen.common.spring.boot.autoconfigure.mq;
 
 /**
- * Created by eighteen.
+ * Created by wangwei.
  * Date: 2019/8/21
  * Time: 22:41
  */

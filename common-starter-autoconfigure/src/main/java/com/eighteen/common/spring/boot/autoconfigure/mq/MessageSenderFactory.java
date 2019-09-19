@@ -8,7 +8,7 @@ import org.springframework.transaction.support.TransactionSynchronizationAdapter
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
- * Created by eighteen.
+ * Created by wangwei.
  * Date: 2019/8/21
  * Time: 22:39
  */

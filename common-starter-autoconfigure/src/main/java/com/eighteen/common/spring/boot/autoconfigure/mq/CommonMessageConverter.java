@@ -7,7 +7,7 @@ import org.springframework.amqp.support.converter.MessageConversionException;
 import org.springframework.amqp.support.converter.MessageConverter;
 
 /**
- * Created by eighteen.
+ * Created by wangwei.
  * Date: 2019/8/21
  * Time: 22:40
  */

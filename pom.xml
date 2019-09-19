@@ -30,30 +30,26 @@
         <commons.pool2.version>2.4.3</commons.pool2.version>
         <hessian.version>4.0.51</hessian.version>
         <httpclient.version>4.5.2</httpclient.version>
+        <fastjson.version>1.2.53</fastjson.version>
+        <jooq.version>3.9.6</jooq.version>
+        <javassist.version>3.21.0-GA</javassist.version>
+        <hikari.version>2.4.13</hikari.version>
+        <p6spy.version>3.8.0</p6spy.version>
+        <druid.version>1.1.10</druid.version>
+        <common.starter.version>0.0.1-SNAPSHOT</common.starter.version>
     </properties>
 
-    <!--<distributionManagement>-->
-        <!--<snapshotRepository>-->
-            <!--<id>maven-snapshots</id>-->
-            <!--<name>maven-snapshots</name>-->
-            <!--<url>http://172.17.0.1:8081/repository/maven-snapshots/</url>-->
-        <!--</snapshotRepository>-->
-        <!--<repository>-->
-            <!--<id>maven-releases</id>-->
-            <!--<name>maven-releases</name>-->
-            <!--<url>http://172.17.0.1:8081/repository/maven-releases/</url>-->
-        <!--</repository>-->
-    <!--</distributionManagement>-->
-
     <distributionManagement>
-        <repository>
-            <id>nexus-releases</id>
-            <url>http://61.160.234.33:8083/nexus/content/repositories/releases/</url>
-        </repository>
         <snapshotRepository>
-            <id>nexus-snapshots</id>
-            <url>http://61.160.234.33:8083/nexus/content/repositories/snapshots/</url>
+            <id>maven-snapshots</id>
+            <name>maven-snapshots</name>
+            <url>http://172.17.0.1:8081/repository/maven-snapshots/</url>
         </snapshotRepository>
+        <repository>
+            <id>maven-releases</id>
+            <name>maven-releases</name>
+            <url>http://172.17.0.1:8081/repository/maven-releases/</url>
+        </repository>
     </distributionManagement>
 
     <dependencyManagement>
@@ -78,7 +74,7 @@
             <dependency>
                 <groupId>com.eighteen</groupId>
                 <artifactId>common-spring-boot-autoconfigure</artifactId>
-                <version>${project.version}</version>
+                <version>${common.starter.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.eighteen</groupId>
@@ -117,8 +113,38 @@
             </dependency>
             <dependency>
                 <groupId>org.apache.httpcomponents</groupId>
-                <artifactId>httpclient</artifactId>
+                <artifactId>httpmime</artifactId>
                 <version>${httpclient.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>fastjson</artifactId>
+                <version>${fastjson.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.jooq</groupId>
+                <artifactId>jooq</artifactId>
+                <version>${jooq.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.javassist</groupId>
+                <artifactId>javassist</artifactId>
+                <version>${javassist.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.zaxxer</groupId>
+                <artifactId>HikariCP-java7</artifactId>
+                <version>${hikari.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>p6spy</groupId>
+                <artifactId>p6spy</artifactId>
+                <version>${p6spy.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.alibaba</groupId>
+                <artifactId>druid-spring-boot-starter</artifactId>
+                <version>${druid.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
