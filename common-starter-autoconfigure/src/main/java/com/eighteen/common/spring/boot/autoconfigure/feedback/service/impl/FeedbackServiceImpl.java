@@ -151,6 +151,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                 map.put("imeimd5", DigestUtils.md5DigestAsHex(imei.getBytes()));
                 map.put("wifimacmd5", DigestUtils.md5DigestAsHex(String.valueOf(map.get("wifimac")).getBytes()));
             }
+            if (data.size()<=0) return 0;
             return feedBackMapper.insert("ActiveLogger", data);
         }, SYNC_ACTIVE);
 
@@ -192,39 +193,42 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Override
     public void secondStay(JobType type) {
         // TODO
-        List<ThirdRetentionLog> list = feedBackMapper.getSecondStay();
-        Map<String, ThirdRetentionLog> mapRetention = new HashMap<>();
-        list.forEach(e -> mapRetention.put(e.getImei(), e));
-        // 去重回传，调用回调地址
-        for (ThirdRetentionLog thirdRetentionLog : mapRetention.values()) {
-            // event_type= 7 回传事件，7为次留 数据回传
-            String url = thirdRetentionLog.getCallBack() + "&event_type=7&event_time=" + System.currentTimeMillis();
-            try {
-                String ret = HttpClientUtils.get(url);
-                JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
-                if (jsonObject.get("result").equals(1)) {
-                    Map<String, Object> map = new HashMap<>();
-                    map.put("CreateTime", new Date());
-                    map.put("imei", thirdRetentionLog.getImei());
-                    map.put("aid", thirdRetentionLog.getAid());
-                    map.put("cid", thirdRetentionLog.getCid());
-                    map.put("mac", thirdRetentionLog.getMac());
-                    map.put("ip", thirdRetentionLog.getIp());
-                    map.put("ts", thirdRetentionLog.getTs());
-                    map.put("channel", thirdRetentionLog.getChannel());
-                    map.put("EventType", 7);
-                    map.put("ANDROIDID", thirdRetentionLog.getAndroidId());
-                    map.put("callback_url", url);
-                    feedBackMapper.insertFeedback(map);
-                    feedBackMapper.insertDayLiucunImei(thirdRetentionLog.getImei(), thirdRetentionLog.getImeimd5());
+        tryWork(jobType -> {
+            List<ThirdRetentionLog> list = feedBackMapper.getSecondStay();
+            Map<String, ThirdRetentionLog> mapRetention = new HashMap<>();
+            list.forEach(e -> mapRetention.put(e.getImei(), e));
+            int success = 0;
+            // 去重回传，调用回调地址
+            for (ThirdRetentionLog thirdRetentionLog : mapRetention.values()) {
+                // event_type= 7 回传事件，7为次留 数据回传
+                String url = thirdRetentionLog.getCallBack() + "&event_type=7&event_time=" + System.currentTimeMillis();
+                try {
+                    String ret = HttpClientUtils.get(url);
+                    JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
+                    if (jsonObject.get("result").equals(1)) {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("CreateTime", new Date());
+                        map.put("imei", thirdRetentionLog.getImei());
+                        map.put("aid", thirdRetentionLog.getAid());
+                        map.put("cid", thirdRetentionLog.getCid());
+                        map.put("mac", thirdRetentionLog.getMac());
+                        map.put("ip", thirdRetentionLog.getIp());
+                        map.put("ts", thirdRetentionLog.getTs());
+                        map.put("channel", thirdRetentionLog.getChannel());
+                        map.put("EventType", 7);
+                        map.put("ANDROIDID", thirdRetentionLog.getAndroidId());
+                        map.put("callback_url", url);
+                        success=  feedBackMapper.insertFeedback(map);
+                        feedBackMapper.insertDayLiucunImei(thirdRetentionLog.getImei(), thirdRetentionLog.getImeimd5());
+                    }
+
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    log.error(e.getMessage());
                 }
-
-            } catch (Exception e) {
-                e.printStackTrace();
-                log.error(e.getMessage());
             }
-        }
-
+            return success;
+        },RETENTION);
     }
 
     private void tryWork(Function<JobType, Integer> consumer, JobType type) {
