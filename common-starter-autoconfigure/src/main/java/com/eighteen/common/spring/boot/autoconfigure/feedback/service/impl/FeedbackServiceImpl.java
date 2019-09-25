@@ -152,7 +152,8 @@ public class FeedbackServiceImpl implements FeedbackService {
                 map.put("wifimacmd5", DigestUtils.md5DigestAsHex(String.valueOf(map.get("wifimac")).getBytes()));
             }
             if (data.size()<=0) return 0;
-            return feedBackMapper.insert("ActiveLogger", data);
+            feedBackMapper.insert("ActiveLogger", data);
+            return data.size();
         }, SYNC_ACTIVE);
 
     }

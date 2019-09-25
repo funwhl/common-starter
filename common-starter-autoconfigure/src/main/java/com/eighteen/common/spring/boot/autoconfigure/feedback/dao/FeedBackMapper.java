@@ -31,7 +31,7 @@ public interface FeedBackMapper {
     int updateFeedbackStatus(@Param("imeis") List<String> imeis, @Param("status") Integer status);
 
     @Select("<script>" +
-            "select count(1) from DB_32.ActiveStatistics.dbo.LinkStatistics " +
+            "select count(1) from LinkStatistics.dbo.LinkStatistics " +
             " where imei = #{imei} " +
             "        <if test='coid != null'>" +
             " and ncoid = #{ncoid}" +
