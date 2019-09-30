@@ -278,33 +278,4 @@ public class FeedbackServiceImpl implements FeedbackService {
         }
     }
 
-
-    public static void main(String[] args) {
-
-        List<Map<String, Object>> results = new ArrayList<>();
-        Map<String, Object> map = new HashMap<>();
-        map.put("imei", "imei1");
-        map.put("activetime", 12345);
-        results.add(map);
-
-        map = new HashMap<>();
-        map.put("imei", "imei2");
-        map.put("activetime", 1235);
-        results.add(map);
-
-
-        map = new HashMap<>();
-        map.put("imei", "imei1");
-        map.put("activetime", 12311);
-        results.add(map);
-
-
-        results = results.stream().sorted((o1, o2) -> ((Integer) o2.get("activetime")).compareTo((Integer) o1.get("activetime")))
-                .collect(
-                        Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei"))))), ArrayList::new)
-                );
-
-        System.out.println("results:" + results.size());
-
-    }
 }
