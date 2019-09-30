@@ -16,8 +16,8 @@ import java.util.Map;
 
 @Mapper
 public interface FeedBackMapper {
-    @Select("select top ${num} a.*, click.* from ActiveLogger a " +
-            " INNER JOIN KuaiShouClickLog click" +
+    @Select("select top ${num} a.*, click.* from ActiveLogger a with(nolock) " +
+            " INNER JOIN KuaiShouClickLog click with(nolock) " +
             " ON a.imeimd5 = click.imei and a.activetime >= click.click_time and a.status = 0 "
     )
     List<Map<String, Object>> getPreFetchData(@Param("num") Integer num);
