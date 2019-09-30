@@ -43,7 +43,6 @@ public class FeedbackServiceImpl implements FeedbackService {
     private int mode;
     @Value("${spring.application.name}")
     private String appName;
-    private final static SimpleDateFormat format = new SimpleDateFormat("YYYY-MM-dd");
     private ExecutorService executor = new ThreadPoolExecutor(8, 8,
             0L, TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<>());
@@ -58,7 +57,8 @@ public class FeedbackServiceImpl implements FeedbackService {
             List<DayImei> imeis = feedBackMapper.getDayImeis(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)));
             results = results.stream().sorted((o1, o2) -> ((Date) o2.get("activetime")).compareTo((Date) o1.get("activetime")))
                     .collect(
-                            Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei"))))), ArrayList::new)
+                            Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei"))+
+                                    String.valueOf(o2.get("coid"))+String.valueOf(o2.get("ncoid"))))), ArrayList::new)
                     );
             if (results != null) results.forEach(o -> {
                 Future future = executor.submit(() -> {
@@ -122,6 +122,7 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     public void syncActive() {
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
         tryWork(r -> {
             Date date = new Date();
             Date before = new Date(date.getTime() - TimeUnit.DAYS.toMillis(1));
@@ -138,7 +139,8 @@ public class FeedbackServiceImpl implements FeedbackService {
             } else data = feedBackMapper.getThirdActiveLogger(channel, feedBackMapper.getTableName());
 
             data = data.stream().sorted(Comparator.comparing(o -> ((Date) o.get("activetime")))).collect(
-                    Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei"))))), ArrayList::new)
+                    Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei"))+
+                            String.valueOf(o2.get("coid"))+String.valueOf(o2.get("ncoid"))))), ArrayList::new)
             );
             ListIterator<Map<String, Object>> it = data.listIterator();
             while (it.hasNext()) {
@@ -189,6 +191,7 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     public void stat(JobType type) {
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
         tryWork(r -> feedBackMapper.activeStaticesDay(format.format(new Date()), ",did"), STAT_DAY);
     }
 
