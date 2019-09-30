@@ -126,7 +126,7 @@ public interface FeedBackMapper {
             "    )")
     int insertDayImei(@Param("imei") String imei, @Param("imeimd5") String imeimd5, @Param("createTime") Date createTime, @Param("coid") Integer coid, @Param("ncoid") Integer ncoid);
 
-    @Select("SELECT imei,imeimd5,createTime FROM DayImei where CreateTime > #{date} ")
+    @Select("SELECT imei,coid,ncoid,imeimd5,createTime FROM DayImei where CreateTime > #{date} ")
     @ResultType(DayImei.class)
     List<DayImei> getDayImeis(@Param("date") Date date);
 
