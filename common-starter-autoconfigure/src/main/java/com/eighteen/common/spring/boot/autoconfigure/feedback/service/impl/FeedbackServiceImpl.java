@@ -57,7 +57,8 @@ public class FeedbackServiceImpl implements FeedbackService {
             List<DayImei> imeis = feedBackMapper.getDayImeis(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)));
             results = results.stream().sorted((o1, o2) -> ((Date) o2.get("activetime")).compareTo((Date) o1.get("activetime")))
                     .collect(
-                            Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei"))))), ArrayList::new)
+                            Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei"))+
+                                    String.valueOf(o2.get("coid"))+String.valueOf(o2.get("ncoid"))))), ArrayList::new)
                     );
             if (results != null) results.forEach(o -> {
                 Future future = executor.submit(() -> {
