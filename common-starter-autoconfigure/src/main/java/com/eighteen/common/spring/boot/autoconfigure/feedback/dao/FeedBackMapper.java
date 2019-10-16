@@ -16,8 +16,8 @@ import java.util.Map;
 
 @Mapper
 public interface FeedBackMapper {
-    @Select("select top ${num} a.*, click.* from ActiveLogger a " +
-            " INNER JOIN KuaiShouClickLog click" +
+    @Select("select top ${num} a.*, click.* from ActiveLogger a with(nolock) " +
+            " INNER JOIN KuaiShouClickLog click with(nolock) " +
             " ON a.imeimd5 = click.imei and a.activetime >= click.click_time and a.status = 0 "
     )
     List<Map<String, Object>> getPreFetchData(@Param("num") Integer num);
@@ -136,7 +136,7 @@ public interface FeedBackMapper {
     @Delete("DELETE FROM DayLiucunImei where CreateTime < #{date} ")
     int cleanDayLCImeis(@Param("date") Date date);
 
-    @Insert("insert into ActiveStatisticsDayReport select a.channel,${date} as 'date' ,count(*) as 'count' ${did} from ActiveLogger a inner join KuaiShouClickLog b " +
+    @Insert("insert into ActiveStatisticsDayReport select a.channel,'${date}' as 'date' ,count(*) as 'count' ${did} from ActiveLogger a inner join KuaiShouClickLog b " +
             " on a.imeimd5 = b.imei and activetime > #{date} and activetime < dateadd(day,1,#{date}) and a.activetime > b.click_time " +
             "GROUP BY a.channel ${did}")
     int activeStaticesDay(@Param("date") String date, @Param("did") String did);
