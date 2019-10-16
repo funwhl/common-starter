@@ -136,7 +136,7 @@ public interface FeedBackMapper {
     @Delete("DELETE FROM DayLiucunImei where CreateTime < #{date} ")
     int cleanDayLCImeis(@Param("date") Date date);
 
-    @Insert("insert into ActiveStatisticsDayReport select a.channel,${date} as 'date' ,count(*) as 'count' ${did} from ActiveLogger a inner join KuaiShouClickLog b " +
+    @Insert("insert into ActiveStatisticsDayReport select a.channel,'${date}' as 'date' ,count(*) as 'count' ${did} from ActiveLogger a inner join KuaiShouClickLog b " +
             " on a.imeimd5 = b.imei and activetime > #{date} and activetime < dateadd(day,1,#{date}) and a.activetime > b.click_time " +
             "GROUP BY a.channel ${did}")
     int activeStaticesDay(@Param("date") String date, @Param("did") String did);
