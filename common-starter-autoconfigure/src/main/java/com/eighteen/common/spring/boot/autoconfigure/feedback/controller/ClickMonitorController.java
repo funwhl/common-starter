@@ -1,5 +1,6 @@
 package com.eighteen.common.spring.boot.autoconfigure.feedback.controller;
 
+import com.alibaba.fastjson.JSONObject;
 import com.eighteen.common.spring.boot.autoconfigure.feedback.dao.FeedBackMapper;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
@@ -42,7 +43,7 @@ public class ClickMonitorController {
             if (NumberUtils.isCreatable(String.valueOf(params.get("ts"))))
                 params.put("click_time", new Date(Long.valueOf(String.valueOf(params.get("ts")))));
             feedBackMapper.insertClickLog(params);
-            rabbitTemplate.convertAndSend("Agg.KuaiShouClickReport.Messages.KuaiShouClickReportMessages",params);
+            rabbitTemplate.convertAndSend("Agg.KuaiShouClickReport.Messages.KuaiShouClickReportMessages",JSONObject.toJSONString(params));
         } catch (Exception e) {
             e.printStackTrace();
         }
