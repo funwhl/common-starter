@@ -4,6 +4,7 @@ import com.eighteen.common.spring.boot.autoconfigure.feedback.dao.FeedBackMapper
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -30,6 +31,8 @@ public class ClickMonitorController {
 
     @Value("${18.feedback.channel}")
     private String channel;
+    @Autowired
+    RabbitTemplate rabbitTemplate;
 
     @GetMapping(value = "clickMonitor")
     public void clickMonitor(@RequestParam Map<String, Object> params) {
@@ -39,6 +42,7 @@ public class ClickMonitorController {
             if (NumberUtils.isCreatable(String.valueOf(params.get("ts"))))
                 params.put("click_time", new Date(Long.valueOf(String.valueOf(params.get("ts")))));
             feedBackMapper.insertClickLog(params);
+            rabbitTemplate.convertAndSend("Agg.KuaiShouClickReport.Messages.KuaiShouClickReportMessages",params);
         } catch (Exception e) {
             e.printStackTrace();
         }
