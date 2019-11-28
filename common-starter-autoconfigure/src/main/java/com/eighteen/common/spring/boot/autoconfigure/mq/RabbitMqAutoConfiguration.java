@@ -85,7 +85,7 @@ public class RabbitMqAutoConfiguration implements EnvironmentAware, BeanFactoryA
         prefetchCount = env.getProperty("spring.rabbitmq.listener.simple.prefetch", Integer.class, SimpleMessageListenerContainer.DEFAULT_PREFETCH_COUNT);
         concurrentConsumers = env.getProperty("spring.rabbitmq.listener.simple.concurrency", Integer.class, 1);
         maxConcurrentConsumers = env.getProperty("spring.rabbitmq.listener.simple.max-concurrency", Integer.class, 1);
-        envName = env.getProperty("application.env.name", String.class, "dev9");
+        envName = env.getProperty("application.env.name", String.class, "kuaishou-feedback");
 
     }
 

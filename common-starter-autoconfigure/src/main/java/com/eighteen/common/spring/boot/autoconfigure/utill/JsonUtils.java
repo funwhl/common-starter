@@ -1,4 +1,4 @@
-package com.eighteen.common.spring.boot.autoconfigure;
+package com.eighteen.common.spring.boot.autoconfigure.utill;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 

@@ -112,7 +112,7 @@ public class JobAutoConfiguration implements EmbeddedValueResolverAware {
                 Map<String, Job> simpleJobs = (Map<String, Job>) applicationContext.getBean("simple18Jobs");
                 registerJobs.putAll(simpleJobs);
               if (applicationContext instanceof AnnotationConfigServletWebServerApplicationContext) ((AnnotationConfigServletWebServerApplicationContext) applicationContext).getDefaultListableBeanFactory().removeBeanDefinition("simple18Jobs");
-              if (applicationContext instanceof GenericWebApplicationContext)   ((GenericWebApplicationContext) applicationContext).getDefaultListableBeanFactory().removeBeanDefinition("simple18Jobs");
+              else  ((GenericWebApplicationContext) applicationContext).getDefaultListableBeanFactory().removeBeanDefinition("simple18Jobs");
             }
             for (Map.Entry<String, Object> entry : registerJobs.entrySet()) {
                 try {
