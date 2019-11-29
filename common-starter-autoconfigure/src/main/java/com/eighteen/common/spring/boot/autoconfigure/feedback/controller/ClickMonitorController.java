@@ -5,6 +5,9 @@ import com.eighteen.common.spring.boot.autoconfigure.feedback.dao.FeedBackMapper
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.amqp.core.Message;
+import org.springframework.amqp.core.MessageBuilder;
+import org.springframework.amqp.core.MessageProperties;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -43,7 +46,13 @@ public class ClickMonitorController {
             if (NumberUtils.isCreatable(String.valueOf(params.get("ts"))))
                 params.put("click_time", new Date(Long.valueOf(String.valueOf(params.get("ts")))));
             feedBackMapper.insertClickLog(params);
-            rabbitTemplate.convertAndSend("Agg.KuaiShouClickReport.Messages.KuaiShouClickReportMessages",JSONObject.toJSONString(params));
+            String msg = JSONObject.toJSONString(params);
+            Message message = MessageBuilder.withBody(msg.getBytes())
+                    .setContentType(MessageProperties.CONTENT_TYPE_JSON)
+                    .setContentEncoding("utf-8")
+                    .setMessageId(UUID.randomUUID()+"")
+                    .build();
+            rabbitTemplate.convertAndSend("Agg.KuaiShouClickReport.Messages.KuaiShouClickReportMessages",message);
         } catch (Exception e) {
             e.printStackTrace();
         }
