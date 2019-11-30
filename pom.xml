@@ -39,6 +39,8 @@
         <p6spy.version>3.8.0</p6spy.version>
         <druid.version>1.1.10</druid.version>
         <com.eighteen.common.starter.version>0.0.2-SNAPSHOT</com.eighteen.common.starter.version>
+        <poi.version>3.17</poi.version>
+        <tk.version>4.0.3</tk.version>
     </properties>
 
     <distributionManagement>
@@ -97,12 +99,12 @@
             </dependency>
             <dependency>
                 <groupId>com.eighteen</groupId>
-                <artifactId>com.eighteen.common-spring-boot-autoconfigure</artifactId>
+                <artifactId>common-spring-boot-autoconfigure</artifactId>
                 <version>${com.eighteen.common.starter.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.eighteen</groupId>
-                <artifactId>com.eighteen.common-spring-boot-starter</artifactId>
+                <artifactId>common-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
@@ -169,6 +171,21 @@
                 <groupId>com.alibaba</groupId>
                 <artifactId>druid-spring-boot-starter</artifactId>
                 <version>${druid.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi</artifactId>
+                <version>${poi.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.poi</groupId>
+                <artifactId>poi-ooxml</artifactId>
+                <version>${poi.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>tk.mybatis</groupId>
+                <artifactId>mapper</artifactId>
+                <version>${tk.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>

@@ -6,11 +6,16 @@
 
     <parent>
         <groupId>com.eighteen</groupId>
-        <artifactId>com.eighteen.common-spring-boot</artifactId>
+        <artifactId>common-spring-boot</artifactId>
         <version>0.0.2-SNAPSHOT</version>
     </parent>
-    <artifactId>com.eighteen.common-spring-boot-autoconfigure</artifactId>
+    <artifactId>common-spring-boot-autoconfigure</artifactId>
     <dependencies>
+        <dependency>
+            <groupId>com.eighteen</groupId>
+            <artifactId>common-base</artifactId>
+            <version>0.0.2-SNAPSHOT</version>
+        </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-autoconfigure</artifactId>
@@ -151,6 +156,13 @@
         <dependency>
             <groupId>com.alibaba</groupId>
             <artifactId>druid-spring-boot-starter</artifactId>
+            <scope>compile</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <dependency>
+            <groupId>tk.mybatis</groupId>
+            <artifactId>mapper</artifactId>
             <scope>compile</scope>
             <optional>true</optional>
         </dependency>
