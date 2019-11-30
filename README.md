@@ -1,4 +1,4 @@
-# common-starter
+# com.eighteen.common-starter
 
 redis:
 spring.redis.nodes= localhost:6379

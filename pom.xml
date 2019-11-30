@@ -13,11 +13,13 @@
     <groupId>com.eighteen</groupId>
     <artifactId>common-spring-boot</artifactId>
     <packaging>pom</packaging>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>0.0.2-SNAPSHOT</version>
 
     <modules>
         <module>common-starter-autoconfigure</module>
         <module>common-starter</module>
+        <module>common-base</module>
+        <module>feedback-starter</module>
     </modules>
 
     <properties>
@@ -36,19 +38,19 @@
         <hikari.version>2.4.13</hikari.version>
         <p6spy.version>3.8.0</p6spy.version>
         <druid.version>1.1.10</druid.version>
-        <common.starter.version>0.0.1-SNAPSHOT</common.starter.version>
+        <com.eighteen.common.starter.version>0.0.2-SNAPSHOT</com.eighteen.common.starter.version>
     </properties>
 
     <distributionManagement>
         <!--<snapshotRepository>-->
-            <!--<id>maven-snapshots</id>-->
-            <!--<name>maven-snapshots</name>-->
-            <!--<url>http://172.17.0.1:8081/repository/maven-snapshots/</url>-->
+        <!--<id>maven-snapshots</id>-->
+        <!--<name>maven-snapshots</name>-->
+        <!--<url>http://172.17.0.1:8081/repository/maven-snapshots/</url>-->
         <!--</snapshotRepository>-->
         <!--<repository>-->
-            <!--<id>maven-releases</id>-->
-            <!--<name>maven-releases</name>-->
-            <!--<url>http://172.17.0.1:8081/repository/maven-releases/</url>-->
+        <!--<id>maven-releases</id>-->
+        <!--<name>maven-releases</name>-->
+        <!--<url>http://172.17.0.1:8081/repository/maven-releases/</url>-->
         <!--</repository>-->
 
         <repository>
@@ -60,7 +62,20 @@
             <url>http://192.168.2.233:8083/nexus/content/repositories/snapshots/</url>
         </snapshotRepository>
     </distributionManagement>
-
+    <dependencies>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.11</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>1.18.6</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
     <dependencyManagement>
         <dependencies>
             <dependency>
@@ -82,12 +97,12 @@
             </dependency>
             <dependency>
                 <groupId>com.eighteen</groupId>
-                <artifactId>common-spring-boot-autoconfigure</artifactId>
-                <version>${common.starter.version}</version>
+                <artifactId>com.eighteen.common-spring-boot-autoconfigure</artifactId>
+                <version>${com.eighteen.common.starter.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.eighteen</groupId>
-                <artifactId>common-spring-boot-starter</artifactId>
+                <artifactId>com.eighteen.common-spring-boot-starter</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
