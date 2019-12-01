@@ -7,6 +7,7 @@ import com.eighteen.common.feedback.service.impl.FeedbackServiceImpl;
 import com.eighteen.common.spring.boot.autoconfigure.job.Job;
 import com.eighteen.common.spring.boot.autoconfigure.job.JobAutoConfiguration;
 import com.eighteen.common.spring.boot.autoconfigure.mybatis.autoconfigure.MybatisAutoConfiguration;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.BeanFactory;
@@ -22,6 +23,8 @@ import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
 
+import javax.persistence.EntityManager;
+import javax.persistence.PersistenceContext;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -44,6 +47,8 @@ public class FeedbackAutoConfiguration {
     public static final Logger logger = LoggerFactory.getLogger(FeedbackAutoConfiguration.class);
     @Autowired
     EighteenProperties properties;
+    @PersistenceContext
+    EntityManager em;
     private BeanFactory beanFactory;
     private AnnotationMetadata importingClassMetadata;
     private BeanDefinitionRegistry registry;
@@ -56,6 +61,11 @@ public class FeedbackAutoConfiguration {
     @Bean
     ClickMonitorController clickMonitorController() {
         return new ClickMonitorController();
+    }
+
+    @Bean
+    JPAQueryFactory jpaQueryFactory() {
+        return new JPAQueryFactory(em);
     }
 
     @Bean

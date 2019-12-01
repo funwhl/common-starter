@@ -3,12 +3,13 @@ package com.eighteen.common.feedback.service.impl;
 
 import com.alibaba.fastjson.JSONObject;
 import com.eighteen.common.feedback.dao.FeedBackMapper;
-import com.eighteen.common.feedback.domain.DayImei;
-import com.eighteen.common.feedback.domain.ThirdRetentionLog;
+import com.eighteen.common.feedback.entity.DayHistory;
+import com.eighteen.common.feedback.entity.DayImei;
+import com.eighteen.common.feedback.entity.ThirdRetentionLog;
 import com.eighteen.common.feedback.service.FeedbackService;
 import com.eighteen.common.spring.boot.autoconfigure.cache.redis.Redis;
-
 import com.eighteen.common.utils.HttpClientUtils;
+import com.google.common.collect.Lists;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -140,8 +141,8 @@ public class FeedbackServiceImpl implements FeedbackService {
             } else data = feedBackMapper.getThirdActiveLogger(channel, feedBackMapper.getTableName());
 
             data = data.stream().sorted(Comparator.comparing(o -> ((Date) o.get("activetime")))).collect(
-                    Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei"))+
-                            String.valueOf(o2.get("coid"))+String.valueOf(o2.get("ncoid"))))), ArrayList::new)
+                    Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei")) +
+                            String.valueOf(o2.get("coid")) + String.valueOf(o2.get("ncoid"))))), ArrayList::new)
             );
             ListIterator<Map<String, Object>> it = data.listIterator();
             while (it.hasNext()) {
@@ -224,7 +225,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                         map.put("EventType", 7);
                         map.put("ANDROIDID", thirdRetentionLog.getAndroidId());
                         map.put("callback_url", url);
-                        success=  feedBackMapper.insertFeedback(map);
+                        success = feedBackMapper.insertFeedback(map);
                         feedBackMapper.insertDayLiucunImei(thirdRetentionLog.getImei(), thirdRetentionLog.getImeimd5());
                     }
 
@@ -234,7 +235,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                 }
             }
             return success;
-        },RETENTION);
+        }, RETENTION);
     }
 
     private void tryWork(Function<JobType, Integer> consumer, JobType type) {

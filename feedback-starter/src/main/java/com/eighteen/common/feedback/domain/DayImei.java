@@ -1,4 +1,4 @@
-package com.eighteen.common.feedback.domain;
+package com.eighteen.common.feedback.entity;
 
 import lombok.Data;
 

@@ -16,7 +16,6 @@
  */
 package com.eighteen.common.spring.boot.autoconfigure.ds.autoconfigure;
 
-import com.eighteen.common.spring.boot.autoconfigure.desp.tem.AnnotAsp;
 import com.eighteen.common.spring.boot.autoconfigure.ds.DynamicDataSourceConfigure;
 import com.eighteen.common.spring.boot.autoconfigure.ds.DynamicDataSourceCreator;
 import com.eighteen.common.spring.boot.autoconfigure.ds.DynamicRoutingDataSource;

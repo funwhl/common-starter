@@ -5,4 +5,5 @@ org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
 com.eighteen.common.spring.boot.autoconfigure.mybatis.autoconfigure.MybatisAutoConfiguration,\
 com.eighteen.common.spring.boot.autoconfigure.job.JobAutoConfiguration,\
 com.eighteen.common.spring.boot.autoconfigure.cache.redis.RedisAutoConfiguration,\
-com.eighteen.common.spring.boot.autoconfigure.rabbitmq.RabbitMqAutoConfiguration
+com.eighteen.common.spring.boot.autoconfigure.rabbitmq.RabbitMqAutoConfiguration,\
+com.eighteen.common.spring.boot.autoconfigure.ds.autoconfigure.DynamicDataSourceAutoConfiguration

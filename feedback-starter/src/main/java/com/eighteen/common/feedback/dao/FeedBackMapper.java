@@ -1,9 +1,9 @@
 package com.eighteen.common.feedback.dao;
 
 
-
-import com.eighteen.common.feedback.domain.DayImei;
-import com.eighteen.common.feedback.domain.ThirdRetentionLog;
+import com.eighteen.common.feedback.entity.DayImei;
+import com.eighteen.common.feedback.entity.ThirdRetentionLog;
+import com.eighteen.common.feedback.entity.DayHistory;
 import org.apache.ibatis.annotations.*;
 
 import java.util.Date;
@@ -17,9 +17,12 @@ import java.util.Map;
 
 @Mapper
 public interface FeedBackMapper {
-    @Select("select top ${num} a.*, click.* from ActiveLogger a with(nolock) " +
-            " INNER JOIN KuaiShouClickLog click with(nolock) " +
-            " ON a.imeimd5 = click.imei and a.activetime >= click.click_time and a.status = 0 "
+    @Select("<script>" +
+            " select top ${num} a.*, click.* from ActiveLogger a with(nolock) " +
+            " INNER JOIN ClickLog click with(nolock) " +
+            " ON a.imeimd5 = click.imei " +
+            " and a.activetime >= click.click_time and a.status = 0 " +
+            "</script>"
     )
     List<Map<String, Object>> getPreFetchData(@Param("num") Integer num);
 
@@ -75,7 +78,7 @@ public interface FeedBackMapper {
     List<Map<String, Object>> getThirdActiveLogger(@Param("channel") String channel, @Param("tableName") String tableName);
 
     @Insert("<script>" +
-            "insert  into KuaiShouClickLog" +
+            "insert  into ClickLog" +
             "        <foreach collection='params.keys' item='key' open='(' close=')' separator=','>" +
             "            ${key}" +
             "        </foreach>" +
@@ -109,7 +112,7 @@ public interface FeedBackMapper {
 //            "</script>")
 //    int syncActiveThird(@Param("list") Set<String> list, @Param("date") Date date, @Param("channel") String channel);
 
-    @Delete("DELETE FROM KuaiShouClickLog where create_time < #{end}")
+    @Delete("DELETE FROM ClickLog where create_time < #{end}")
     int cleanClickLog(@Param("end") Date end);
 
     @Insert("Insert into ActiveLogger_History select * from ActiveLogger " +
@@ -137,7 +140,7 @@ public interface FeedBackMapper {
     @Delete("DELETE FROM DayLiucunImei where CreateTime < #{date} ")
     int cleanDayLCImeis(@Param("date") Date date);
 
-    @Insert("insert into ActiveStatisticsDayReport select a.channel,'${date}' as 'date' ,count(*) as 'count' ${did} from ActiveLogger a inner join KuaiShouClickLog b " +
+    @Insert("insert into ActiveStatisticsDayReport select a.channel,'${date}' as 'date' ,count(*) as 'count' ${did} from ActiveLogger a inner join ClickLog b " +
             " on a.imeimd5 = b.imei and activetime > #{date} and activetime < dateadd(day,1,#{date}) and a.activetime > b.click_time " +
             "GROUP BY a.channel ${did}")
     int activeStaticesDay(@Param("date") String date, @Param("did") String did);
@@ -163,10 +166,12 @@ public interface FeedBackMapper {
             " select top 2000 a.*  from toutiaofeedback.dbo.ThirdRetentionLog a  " +
             " where  a.activetime >=  CAST( DATEADD(DAY,-1,GETDATE()) as date) and a.type ='kuaishouChannel'  " +
             " and not exists ( select imei from dayliucunimei d where a.imei = d.imei ) " +
-            " ) b INNER JOIN KuaiShouClickLog c on b.imeimd5 = c.imei ")
+            " ) b INNER JOIN ClickLog c on b.imeimd5 = c.imei ")
     List<ThirdRetentionLog> getSecondStay();
 
 
     @Insert("insert into DayLiucunImei(imei ,imeimd5, createTime) VALUES (#{imei}, #{imeimd5} , getdate())")
     int insertDayLiucunImei(@Param("imei") String imei, @Param("imeimd5") String imeimd5);
+
+    List<DayHistory> getDayHistorys(Date date, String s);
 }

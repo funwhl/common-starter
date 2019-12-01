@@ -232,6 +232,7 @@ public class MybatisAutoConfiguration implements InitializingBean {
 
             List<String> packages = AutoConfigurationPackages.get(this.beanFactory);
             packages.add("com.eighteen.**.dao");
+            packages.add("com.eighteen.kuaishou.dao");
             packages.add("com.wangwei.**.dao");
             packages.add("com.eighteen.common.spring.boot.autoconfigure.feedback.dao");
             if (logger.isDebugEnabled()) {

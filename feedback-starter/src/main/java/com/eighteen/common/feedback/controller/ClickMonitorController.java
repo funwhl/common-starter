@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Created by eighteen.
@@ -34,6 +35,8 @@ public class ClickMonitorController {
     RabbitTemplate rabbitTemplate;
     @Value("${18.feedback.channel}")
     private String channel;
+    @Value("${18.feedback.clickQueue:Agg.KuaiShouClickReport.Messages.KuaiShouClickReportMessages}")
+    private String clickQueue;
 
     @GetMapping(value = "clickMonitor")
     public void clickMonitor(@RequestParam Map<String, Object> params) {
@@ -49,7 +52,29 @@ public class ClickMonitorController {
                     .setContentEncoding("utf-8")
                     .setMessageId(UUID.randomUUID() + "")
                     .build();
-            rabbitTemplate.convertAndSend("Agg.KuaiShouClickReport.Messages.KuaiShouClickReportMessages", message);
+            rabbitTemplate.convertAndSend(clickQueue, message);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    @GetMapping(value = "clickMonitorExact")
+    public void clickMonitorExact(@RequestParam Map<String, Object> params) {
+        try {
+            Map<String,Object> fields = params.entrySet().stream().filter(o -> o.getKey().startsWith("@@"))
+                    .collect(Collectors.toMap(o -> o.getKey().substring(2,o.getKey().length()), Map.Entry::getValue));
+            logger.info("click monitor active->{}", params.toString());
+            fields.put("create_time", new Date());
+            if (NumberUtils.isCreatable(String.valueOf(fields.get("ts"))))
+                fields.put("click_time", new Date(Long.valueOf(String.valueOf(params.get("ts")))));
+            feedBackMapper.insertClickLog(fields);
+            String msg = JSONObject.toJSONString(fields);
+            Message message = MessageBuilder.withBody(msg.getBytes())
+                    .setContentType(MessageProperties.CONTENT_TYPE_JSON)
+                    .setContentEncoding("utf-8")
+                    .setMessageId(UUID.randomUUID() + "")
+                    .build();
+            rabbitTemplate.convertAndSend(clickQueue, message);
         } catch (Exception e) {
             e.printStackTrace();
         }
