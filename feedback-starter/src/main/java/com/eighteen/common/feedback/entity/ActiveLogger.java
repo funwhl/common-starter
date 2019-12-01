@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 
 import javax.persistence.*;
+import java.util.Date;
 
 /**
  * Created by wangwei.
@@ -31,6 +32,8 @@ public class ActiveLogger {
     private String ua;
     private String androidId;
     private Integer status;
+    private Date activeTime;
+    private Date createTime;
 //    @OneToOne(fetch = FetchType.EAGER)
 //    @JoinColumn(name = "imei")
     @Transient

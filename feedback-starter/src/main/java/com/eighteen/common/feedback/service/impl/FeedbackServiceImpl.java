@@ -3,13 +3,18 @@ package com.eighteen.common.feedback.service.impl;
 
 import com.alibaba.fastjson.JSONObject;
 import com.eighteen.common.feedback.dao.FeedBackMapper;
+import com.eighteen.common.feedback.entity.ActiveLogger;
 import com.eighteen.common.feedback.entity.DayHistory;
 import com.eighteen.common.feedback.entity.DayImei;
 import com.eighteen.common.feedback.entity.ThirdRetentionLog;
 import com.eighteen.common.feedback.service.FeedbackService;
 import com.eighteen.common.spring.boot.autoconfigure.cache.redis.Redis;
 import com.eighteen.common.utils.HttpClientUtils;
+import com.eighteen.common.utils.ReflectionUtils;
 import com.google.common.collect.Lists;
+import com.querydsl.core.types.dsl.BooleanExpression;
+import com.querydsl.core.types.dsl.BooleanOperation;
+import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +29,9 @@ import java.util.concurrent.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import static com.eighteen.common.feedback.entity.QActiveLogger.activeLogger;
+import static com.eighteen.common.feedback.entity.QClickLog.clickLog;
+import static com.eighteen.common.feedback.entity.QDayHistory.dayHistory;
 import static com.eighteen.common.feedback.service.impl.FeedbackServiceImpl.JobType.*;
 
 
@@ -48,6 +56,8 @@ public class FeedbackServiceImpl implements FeedbackService {
     private ExecutorService executor = new ThreadPoolExecutor(8, 8,
             0L, TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<>());
+    @Autowired
+    JPAQueryFactory dsl;
 
     @Override
     public void feedback() {
@@ -55,6 +65,24 @@ public class FeedbackServiceImpl implements FeedbackService {
             List<String> success = new ArrayList<>();
             List<String> history = new ArrayList<>();
             List<Map<String, Object>> results = feedBackMapper.getPreFetchData(1000);
+
+            ArrayList<BooleanExpression> wd = Lists.newArrayList(activeLogger.imei.eq(clickLog.imei)
+                    , activeLogger.androidId.eq(clickLog.androidId));
+            List<DayHistory> dayHistories = dsl.selectFrom(dayHistory).where(dayHistory.createTime.lt(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)))).fetch();
+            wd.forEach(e -> {
+                String type = ((BooleanOperation) e).getArg(0).toString().replace("activeLogger.", "");
+                dsl.select(activeLogger,clickLog).from(activeLogger).innerJoin(clickLog).on(e).fetch().stream()
+                        .sorted(Comparator.comparing(o -> o.get(activeLogger).getActiveTime()))
+                        .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> ReflectionUtils.getFieldValue(o2.get(activeLogger),type).toString()))), ArrayList::new)
+                        ).forEach(tuple -> {
+                    ActiveLogger al = tuple.get(activeLogger);
+                    if (!dayHistories.contains(new DayHistory().setCoid(al.getCoid()).setNcoid(al.getNcoid()).setWd(type).setValue(ReflectionUtils.getFieldValue(al,type).toString()))
+                            &&feedBackMapper.countFromStatistics(al.getImei(), al.getCoid(), al.getNcoid()) > 0) {
+
+                    }
+                });
+            });
+
 
             List<DayImei> imeis = feedBackMapper.getDayImeis(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)));
             results = results.stream().sorted((o1, o2) -> ((Date) o2.get("activetime")).compareTo((Date) o1.get("activetime")))
