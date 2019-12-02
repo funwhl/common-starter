@@ -1,4 +1,4 @@
-package com.eighteen.common.feedback.entity;
+package com.eighteen.common.feedback.domain;
 
 import lombok.Getter;
 import lombok.Setter;

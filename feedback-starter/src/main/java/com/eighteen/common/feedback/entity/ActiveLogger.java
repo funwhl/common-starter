@@ -31,6 +31,7 @@ public class ActiveLogger {
     private String type;
     private String ua;
     private String androidId;
+    private String oaid;
     private Integer status;
     private Date activeTime;
     private Date createTime;

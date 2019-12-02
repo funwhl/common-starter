@@ -29,6 +29,8 @@ public class ClickLog {
     private String oaid;
     private String mac;
     private String mac2;
+    private Integer channel;
+    private String callbackUrl;
     private Date clickTime;
     private Date createTime;
 

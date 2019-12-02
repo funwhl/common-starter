@@ -1,8 +1,8 @@
 package com.eighteen.common.feedback.dao;
 
 
-import com.eighteen.common.feedback.entity.DayImei;
-import com.eighteen.common.feedback.entity.ThirdRetentionLog;
+import com.eighteen.common.feedback.domain.DayImei;
+import com.eighteen.common.feedback.domain.ThirdRetentionLog;
 import com.eighteen.common.feedback.entity.DayHistory;
 import org.apache.ibatis.annotations.*;
 

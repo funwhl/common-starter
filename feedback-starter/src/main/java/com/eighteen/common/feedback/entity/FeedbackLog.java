@@ -24,6 +24,7 @@ public class FeedbackLog {
     private String cid;
     private String mac;
     private String ip;
+    private String oaid;
     private Date ts;
     private Integer channel;
     private Integer eventType;
