@@ -3,10 +3,13 @@ package com.eighteen.common.feedback.service.impl;
 
 import com.alibaba.fastjson.JSONObject;
 import com.eighteen.common.feedback.dao.FeedBackMapper;
+import com.eighteen.common.feedback.domain.DayImei;
+import com.eighteen.common.feedback.domain.ThirdRetentionLog;
 import com.eighteen.common.feedback.entity.ActiveLogger;
+import com.eighteen.common.feedback.entity.ClickLog;
 import com.eighteen.common.feedback.entity.DayHistory;
-import com.eighteen.common.feedback.entity.DayImei;
-import com.eighteen.common.feedback.entity.ThirdRetentionLog;
+import com.eighteen.common.feedback.entity.FeedbackLog;
+import com.eighteen.common.feedback.entity.dao2.FeedbackLogDao;
 import com.eighteen.common.feedback.service.FeedbackService;
 import com.eighteen.common.spring.boot.autoconfigure.cache.redis.Redis;
 import com.eighteen.common.utils.HttpClientUtils;
@@ -45,6 +48,10 @@ public class FeedbackServiceImpl implements FeedbackService {
     private static final Logger logger = LoggerFactory.getLogger(FeedbackServiceImpl.class);
     @Autowired(required = false)
     FeedBackMapper feedBackMapper;
+    @Autowired
+    JPAQueryFactory dsl;
+    @Autowired
+    FeedbackLogDao feedbackLogDao;
     @Autowired(required = false)
     private Redis redis;
     @Value("${18.feedback.channel}")
@@ -56,8 +63,6 @@ public class FeedbackServiceImpl implements FeedbackService {
     private ExecutorService executor = new ThreadPoolExecutor(8, 8,
             0L, TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<>());
-    @Autowired
-    JPAQueryFactory dsl;
 
     @Override
     public void feedback() {
@@ -65,21 +70,32 @@ public class FeedbackServiceImpl implements FeedbackService {
             List<String> success = new ArrayList<>();
             List<String> history = new ArrayList<>();
             List<Map<String, Object>> results = feedBackMapper.getPreFetchData(1000);
+            BooleanExpression imeiBe = activeLogger.imei.eq(clickLog.imei);
+            BooleanExpression oaidBe = activeLogger.oaid.eq(clickLog.oaid);
+            BooleanExpression androidIdBe = activeLogger.androidId.eq(clickLog.androidId);
+            BooleanExpression wifiMacBe = activeLogger.wifimac.in(clickLog.mac, clickLog.mac2);
 
-            ArrayList<BooleanExpression> wd = Lists.newArrayList(activeLogger.imei.eq(clickLog.imei)
-                    , activeLogger.androidId.eq(clickLog.androidId));
+            ArrayList<BooleanExpression> wd = Lists.newArrayList(imeiBe
+                    , oaidBe.and(imeiBe.not())
+                    , androidIdBe.and(imeiBe.not()).and(oaidBe.not())
+                    , wifiMacBe.and(imeiBe.not()).and(oaidBe.not()).and(androidIdBe.not()));
             List<DayHistory> dayHistories = dsl.selectFrom(dayHistory).where(dayHistory.createTime.lt(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)))).fetch();
             wd.forEach(e -> {
                 String type = ((BooleanOperation) e).getArg(0).toString().replace("activeLogger.", "");
-                dsl.select(activeLogger,clickLog).from(activeLogger).innerJoin(clickLog).on(e).fetch().stream()
+                dsl.select(activeLogger, clickLog).from(activeLogger).innerJoin(clickLog).on(e).fetch().stream()
                         .sorted(Comparator.comparing(o -> o.get(activeLogger).getActiveTime()))
-                        .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> ReflectionUtils.getFieldValue(o2.get(activeLogger),type).toString()))), ArrayList::new)
-                        ).forEach(tuple -> {
+                        .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> ReflectionUtils.getFieldValue(o2.get(activeLogger), type).toString()))), ArrayList::new)
+                        ).stream().filter(tuple -> {
                     ActiveLogger al = tuple.get(activeLogger);
-                    if (!dayHistories.contains(new DayHistory().setCoid(al.getCoid()).setNcoid(al.getNcoid()).setWd(type).setValue(ReflectionUtils.getFieldValue(al,type).toString()))
-                            &&feedBackMapper.countFromStatistics(al.getImei(), al.getCoid(), al.getNcoid()) > 0) {
-
-                    }
+                    return !dayHistories.contains(new DayHistory().setCoid(al.getCoid()).setNcoid(al.getNcoid()).setWd(type).setValue(ReflectionUtils.getFieldValue(al, type).toString()))
+                            && feedBackMapper.countFromStatistics(al.getImei(), al.getCoid(), al.getNcoid()) <= 0;
+                }).map(tuple -> {
+                    ActiveLogger a = tuple.get(activeLogger);
+                    ClickLog c = tuple.get(clickLog);
+                    return new FeedbackLog()
+                            .setAid(c.getAid()).setCid(c.getCid()).setAndroidId(c.getAndroidId())
+                            .setCallbackUrl(c.getCallbackUrl()).setCreateTime(new Date()).setChannel(c.getChannel()).setEventType(1)
+                            .setIp(a.getIp()).setImei(a.getImei()).setMac(c.getMac()).setMatchField(type).setOaid(c.getOaid());
                 });
             });
 
@@ -87,8 +103,8 @@ public class FeedbackServiceImpl implements FeedbackService {
             List<DayImei> imeis = feedBackMapper.getDayImeis(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)));
             results = results.stream().sorted((o1, o2) -> ((Date) o2.get("activetime")).compareTo((Date) o1.get("activetime")))
                     .collect(
-                            Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei"))+
-                                    String.valueOf(o2.get("coid"))+String.valueOf(o2.get("ncoid"))))), ArrayList::new)
+                            Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei")) +
+                                    String.valueOf(o2.get("coid")) + String.valueOf(o2.get("ncoid"))))), ArrayList::new)
                     );
             if (results != null) results.forEach(o -> {
                 Future future = executor.submit(() -> {
