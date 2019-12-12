@@ -91,4 +91,6 @@ public class ThirdRetentionLog implements Serializable{
 
     private String androidId;
 
+    private String oaid;
+
 }

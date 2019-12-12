@@ -26,4 +26,8 @@ public class DayHistory {
     private Integer coid;
     private Integer ncoid;
     private Date createTime;
+
+    @Transient
+    private Integer status;
+
 }

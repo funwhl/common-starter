@@ -3,12 +3,13 @@ package com.eighteen.common.feedback.service.impl;
 
 import com.alibaba.fastjson.JSONObject;
 import com.eighteen.common.feedback.dao.FeedBackMapper;
-import com.eighteen.common.feedback.domain.DayImei;
 import com.eighteen.common.feedback.domain.ThirdRetentionLog;
 import com.eighteen.common.feedback.entity.ActiveLogger;
 import com.eighteen.common.feedback.entity.ClickLog;
 import com.eighteen.common.feedback.entity.DayHistory;
 import com.eighteen.common.feedback.entity.FeedbackLog;
+import com.eighteen.common.feedback.entity.dao2.ActiveLoggerDao;
+import com.eighteen.common.feedback.entity.dao2.DayHistoryDao;
 import com.eighteen.common.feedback.entity.dao2.FeedbackLogDao;
 import com.eighteen.common.feedback.service.FeedbackService;
 import com.eighteen.common.spring.boot.autoconfigure.cache.redis.Redis;
@@ -28,7 +29,11 @@ import org.springframework.util.DigestUtils;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -52,6 +57,11 @@ public class FeedbackServiceImpl implements FeedbackService {
     JPAQueryFactory dsl;
     @Autowired
     FeedbackLogDao feedbackLogDao;
+    @Autowired
+    DayHistoryDao dayHistoryDao;
+    @Autowired
+    ActiveLoggerDao activeLoggerDao;
+
     @Autowired(required = false)
     private Redis redis;
     @Value("${18.feedback.channel}")
@@ -67,102 +77,56 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Override
     public void feedback() {
         tryWork(r -> {
-            List<String> success = new ArrayList<>();
-            List<String> history = new ArrayList<>();
-            List<Map<String, Object>> results = feedBackMapper.getPreFetchData(1000);
             BooleanExpression imeiBe = activeLogger.imei.eq(clickLog.imei);
             BooleanExpression oaidBe = activeLogger.oaid.eq(clickLog.oaid);
             BooleanExpression androidIdBe = activeLogger.androidId.eq(clickLog.androidId);
             BooleanExpression wifiMacBe = activeLogger.wifimac.in(clickLog.mac, clickLog.mac2);
+            AtomicInteger success = new AtomicInteger(0);
 
             ArrayList<BooleanExpression> wd = Lists.newArrayList(imeiBe
                     , oaidBe.and(imeiBe.not())
                     , androidIdBe.and(imeiBe.not()).and(oaidBe.not())
                     , wifiMacBe.and(imeiBe.not()).and(oaidBe.not()).and(androidIdBe.not()));
             List<DayHistory> dayHistories = dsl.selectFrom(dayHistory).where(dayHistory.createTime.lt(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)))).fetch();
+            List<DayHistory> histories = new ArrayList<>();
             wd.forEach(e -> {
                 String type = ((BooleanOperation) e).getArg(0).toString().replace("activeLogger.", "");
-                dsl.select(activeLogger, clickLog).from(activeLogger).innerJoin(clickLog).on(e).fetch().stream()
+                dsl.select(activeLogger, clickLog).from(activeLogger).innerJoin(clickLog).on(e).limit(1000L).fetch().stream()
                         .sorted(Comparator.comparing(o -> o.get(activeLogger).getActiveTime()))
                         .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> ReflectionUtils.getFieldValue(o2.get(activeLogger), type).toString()))), ArrayList::new)
-                        ).stream().filter(tuple -> {
-                    ActiveLogger al = tuple.get(activeLogger);
-                    return !dayHistories.contains(new DayHistory().setCoid(al.getCoid()).setNcoid(al.getNcoid()).setWd(type).setValue(ReflectionUtils.getFieldValue(al, type).toString()))
-                            && feedBackMapper.countFromStatistics(al.getImei(), al.getCoid(), al.getNcoid()) <= 0;
-                }).map(tuple -> {
+                        ).parallelStream().forEach(tuple -> {
                     ActiveLogger a = tuple.get(activeLogger);
                     ClickLog c = tuple.get(clickLog);
-                    return new FeedbackLog()
-                            .setAid(c.getAid()).setCid(c.getCid()).setAndroidId(c.getAndroidId())
-                            .setCallbackUrl(c.getCallbackUrl()).setCreateTime(new Date()).setChannel(c.getChannel()).setEventType(1)
-                            .setIp(a.getIp()).setImei(a.getImei()).setMac(c.getMac()).setMatchField(type).setOaid(c.getOaid());
-                });
-            });
-
-
-            List<DayImei> imeis = feedBackMapper.getDayImeis(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)));
-            results = results.stream().sorted((o1, o2) -> ((Date) o2.get("activetime")).compareTo((Date) o1.get("activetime")))
-                    .collect(
-                            Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei")) +
-                                    String.valueOf(o2.get("coid")) + String.valueOf(o2.get("ncoid"))))), ArrayList::new)
-                    );
-            if (results != null) results.forEach(o -> {
-                Future future = executor.submit(() -> {
-                    try {
-                        String imei = o.get("imei") == null ? null : String.valueOf(o.get("imei"));
-                        Integer coid = o.get("coid") == null ? null : Integer.valueOf(String.valueOf(o.get("coid")));
-                        Integer ncoid = o.get("ncoid") == null ? null : Integer.valueOf(String.valueOf(o.get("ncoid")));
-                        if (imeis.contains(new DayImei(imei, coid, ncoid))) return new String[]{imei, "2"};
-                        if (feedBackMapper.countFromStatistics(imei, coid, ncoid) > 0) {
-                            return new String[]{imei, "2"};
-                        } else {
-                            String url = o.get("call_back") + "&event_type=1&event_time=" + System.currentTimeMillis();
-                            String ret = HttpClientUtils.get(url);
+                    DayHistory history = new DayHistory().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setWd(type).setValue(ReflectionUtils.getFieldValue(a, type).toString());
+                    if (dayHistories.contains(history)) return;
+                    if (feedBackMapper.countFromStatistics(a.getImei(), a.getCoid(), a.getNcoid()) <= 0) {
+                        String url = c.getCallbackUrl() + "&event_type=1&event_time=" + System.currentTimeMillis();
+                        String ret;
+                        try {
+                            ret = HttpClientUtils.get(url);
                             JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
-                            logger.info("callback->url:{}, return:{}", url, ret);
                             if (jsonObject.get("result").equals(1)) {
-                                Map<String, Object> map = new HashMap<>();
-                                map.put("CreateTime", new Date());
-                                map.put("imei", o.get("imei"));
-                                map.put("aid", o.get("aid"));
-                                map.put("cid", o.get("cid"));
-                                map.put("mac", o.get("mac"));
-                                map.put("ip", o.get("ip"));
-                                map.put("ts", o.get("ts"));
-                                map.put("channel", o.get("channel"));
-                                map.put("EventType", 1);
-                                map.put("ANDROIDID", o.get("androidId"));
-                                map.put("callback_url", url);
-//                        try {
-//                            jedis.zadd(IMEIS_KEY, System.currentTimeMillis(), imei);
-//                        } catch (Exception e) {
-//                            logger.error(e.getMessage());
-//                        }
-                                feedBackMapper.insertFeedback(map);
-                                feedBackMapper.insertDayImei(imei,
-                                        o.get("imeimd5") == null ? null : String.valueOf(o.get("imeimd5")), new Date(),
-                                        coid, ncoid);
+                                executor.submit(() -> {
+                                    feedbackLogDao.save(new FeedbackLog()
+                                            .setAid(c.getAid()).setCid(c.getCid()).setAndroidId(c.getAndroidId())
+                                            .setCallbackUrl(c.getCallbackUrl()).setCreateTime(new Date()).setChannel(c.getChannel()).setEventType(1)
+                                            .setIp(a.getIp()).setImei(a.getImei()).setMac(c.getMac()).setMatchField(type).setOaid(c.getOaid()));
+                                });
+                                history.setStatus(1);
+                                success.incrementAndGet();
+                                histories.add(history);
                             }
+                        } catch (Exception e1) {
+                            e1.printStackTrace();
                         }
-                        return new String[]{imei, "1"};
-                    } catch (Exception e) {
-                        logger.error("feedback error:{}", e.getMessage());
-                        return null;
+                    } else {
+                        history.setStatus(2);
+                        histories.add(history);
                     }
                 });
-                try {
-                    String[] ret = (String[]) future.get();
-                    if (ret != null) {
-                        if (ret[1].equals("1")) success.add(ret[0]);
-                        else history.add(ret[0]);
-                    }
-                } catch (InterruptedException | ExecutionException e) {
-                    e.printStackTrace();
-                }
             });
-            if (success.size() > 0) feedBackMapper.updateFeedbackStatus(success, 1);
-            if (history.size() > 0) feedBackMapper.updateFeedbackStatus(history, 2);
-            return success.size();
+            executor.submit(() -> dayHistoryDao.saveAll(histories));
+            return success.get();
         }, FEED_BACK);
     }
 
@@ -171,12 +135,13 @@ public class FeedbackServiceImpl implements FeedbackService {
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
         tryWork(r -> {
             Date date = new Date();
-            Date before = new Date(date.getTime() - TimeUnit.DAYS.toMillis(1));
-            List<DayImei> imeis = feedBackMapper.getDayImeis(before);
+            List<DayHistory> histories = dsl.selectFrom(dayHistory)
+                    .where(dayHistory.createTime.lt(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1)))
+                            .and(dayHistory.wd.eq("imei"))).fetch();
 
             Long curent = date.getTime();
             Long offset = TimeUnit.MINUTES.toMillis(10);
-            List<Map<String, Object>> data;
+            List<ActiveLogger> data;
 
             // 跨天AB表处理
             if (!format.format(date).equals(format.format(new Date(curent + offset)))) {
@@ -184,24 +149,23 @@ public class FeedbackServiceImpl implements FeedbackService {
                 data.addAll(feedBackMapper.getThirdActiveLogger(channel, "ActiveLogger_B"));
             } else data = feedBackMapper.getThirdActiveLogger(channel, feedBackMapper.getTableName());
 
-            data = data.stream().sorted(Comparator.comparing(o -> ((Date) o.get("activetime")))).collect(
-                    Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei")) +
-                            String.valueOf(o2.get("coid")) + String.valueOf(o2.get("ncoid"))))), ArrayList::new)
+            data = data.stream().sorted(Comparator.comparing(o -> (o.getActiveTime()))).collect(
+                    Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> o2.getImei() +
+                            o2.getCoid() + o2.getNcoid()))), ArrayList::new)
             );
-            ListIterator<Map<String, Object>> it = data.listIterator();
+            ListIterator<ActiveLogger> it = data.listIterator();
             while (it.hasNext()) {
-                Map<String, Object> map = it.next();
-                String imei = String.valueOf(map.get("imei"));
-                if (imeis.contains(new DayImei(imei, Integer.valueOf(String.valueOf(map.get("coid"))), Integer.valueOf(String.valueOf(map.get("ncoid")))))) {
+                ActiveLogger activeLogger = it.next();
+                String imei = activeLogger.getImei();
+                if (histories.contains(new DayHistory().setWd("imei").setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()))) {
                     it.remove();
                     continue;
                 }
-                map.put("imeimd5", DigestUtils.md5DigestAsHex(imei.getBytes()));
-                map.put("wifimacmd5", DigestUtils.md5DigestAsHex(String.valueOf(map.get("wifimac")).getBytes()));
-                feedBackMapper.insertActiveLogger(map);
+                activeLogger.setImeiMd5(DigestUtils.md5DigestAsHex(imei.getBytes()));
+                activeLogger.setWifimacMd5(DigestUtils.md5DigestAsHex(activeLogger.getWifimac().getBytes()));
             }
-//            if (data.size()<=0) return 0;
-//            feedBackMapper.insert("ActiveLogger", data);
+
+            activeLoggerDao.saveAll(data);
             return data.size();
         }, SYNC_ACTIVE);
 
@@ -243,33 +207,23 @@ public class FeedbackServiceImpl implements FeedbackService {
 
     @Override
     public void secondStay(JobType type) {
-        // TODO
         tryWork(jobType -> {
             List<ThirdRetentionLog> list = feedBackMapper.getSecondStay();
             Map<String, ThirdRetentionLog> mapRetention = new HashMap<>();
             list.forEach(e -> mapRetention.put(e.getImei(), e));
             int success = 0;
-            // 去重回传，调用回调地址
             for (ThirdRetentionLog thirdRetentionLog : mapRetention.values()) {
-                // event_type= 7 回传事件，7为次留 数据回传
                 String url = thirdRetentionLog.getCallBack() + "&event_type=7&event_time=" + System.currentTimeMillis();
                 try {
                     String ret = HttpClientUtils.get(url);
                     JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
                     if (jsonObject.get("result").equals(1)) {
-                        Map<String, Object> map = new HashMap<>();
-                        map.put("CreateTime", new Date());
-                        map.put("imei", thirdRetentionLog.getImei());
-                        map.put("aid", thirdRetentionLog.getAid());
-                        map.put("cid", thirdRetentionLog.getCid());
-                        map.put("mac", thirdRetentionLog.getMac());
-                        map.put("ip", thirdRetentionLog.getIp());
-                        map.put("ts", thirdRetentionLog.getTs());
-                        map.put("channel", thirdRetentionLog.getChannel());
-                        map.put("EventType", 7);
-                        map.put("ANDROIDID", thirdRetentionLog.getAndroidId());
-                        map.put("callback_url", url);
-                        success = feedBackMapper.insertFeedback(map);
+                        feedbackLogDao.save(new FeedbackLog()
+                                .setAid(thirdRetentionLog.getAid()).setCid(thirdRetentionLog.getCid()).setAndroidId(thirdRetentionLog.getAndroidId())
+                                .setCallbackUrl(url).setCreateTime(new Date()).setChannel(thirdRetentionLog.getChannel()).setEventType(7)
+                                .setIp(thirdRetentionLog.getIp()).setImei(thirdRetentionLog.getImei()).setMac(thirdRetentionLog.getMac())
+                                .setMatchField("cl").setOaid(thirdRetentionLog.getOaid()));
+                        success += success;
                         feedBackMapper.insertDayLiucunImei(thirdRetentionLog.getImei(), thirdRetentionLog.getImeimd5());
                     }
 

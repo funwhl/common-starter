@@ -3,6 +3,7 @@ package com.eighteen.common.feedback.dao;
 
 import com.eighteen.common.feedback.domain.DayImei;
 import com.eighteen.common.feedback.domain.ThirdRetentionLog;
+import com.eighteen.common.feedback.entity.ActiveLogger;
 import com.eighteen.common.feedback.entity.DayHistory;
 import org.apache.ibatis.annotations.*;
 
@@ -75,7 +76,8 @@ public interface FeedBackMapper {
             "where type = #{channel} and activetime >= ( select max(activetime) FROM ActiveLogger ) " +
             "</script>"
     )
-    List<Map<String, Object>> getThirdActiveLogger(@Param("channel") String channel, @Param("tableName") String tableName);
+    @ResultType(ActiveLogger.class)
+    List<ActiveLogger> getThirdActiveLogger(@Param("channel") String channel, @Param("tableName") String tableName);
 
     @Insert("<script>" +
             "insert  into ClickLog" +
