@@ -41,6 +41,7 @@
         <com.eighteen.common.starter.version>0.0.2-SNAPSHOT</com.eighteen.common.starter.version>
         <poi.version>3.17</poi.version>
         <tk.version>4.0.3</tk.version>
+        <spring.cloud.version>Finchley.RELEASE</spring.cloud.version>
     </properties>
 
     <distributionManagement>
@@ -55,13 +56,31 @@
         <!--<url>http://172.17.0.1:8081/repository/maven-releases/</url>-->
         <!--</repository>-->
 
+        <!--<repository>-->
+            <!--<id>nexus-releases</id>-->
+            <!--<url>http://192.168.2.233:8083/nexus/content/repositories/releases/</url>-->
+        <!--</repository>-->
+        <!--<snapshotRepository>-->
+            <!--<id>nexus-snapshots</id>-->
+            <!--<url>http://192.168.2.233:8083/nexus/content/repositories/snapshots/</url>-->
+        <!--</snapshotRepository>-->
+
+        <!--<repository>-->
+            <!--<id>nexus-releases</id>-->
+            <!--<url>http://maven.30.net/nexus/content/repositories/releases/</url>-->
+        <!--</repository>-->
+        <!--<snapshotRepository>-->
+            <!--<id>nexus-snapshots</id>-->
+            <!--<url>http://maven.30.net/nexus/content/repositories/snapshots/</url>-->
+        <!--</snapshotRepository>-->
+
         <repository>
-            <id>nexus-releases</id>
-            <url>http://192.168.2.233:8083/nexus/content/repositories/releases/</url>
+            <id>maven-snapshots</id>
+            <url>http://119.3.18.38:30699/repository/maven-releases/</url>
         </repository>
         <snapshotRepository>
-            <id>nexus-snapshots</id>
-            <url>http://192.168.2.233:8083/nexus/content/repositories/snapshots/</url>
+            <id>maven-releases</id>
+            <url>http://119.3.18.38:30699/repository/maven-snapshots/</url>
         </snapshotRepository>
     </distributionManagement>
     <dependencies>
@@ -77,6 +96,13 @@
             <version>1.18.6</version>
             <scope>provided</scope>
         </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-dependencies</artifactId>
+            <version>Dalston.SR1</version>
+            <type>pom</type>
+            <!--<scope>import</scope>-->
+        </dependency>
     </dependencies>
     <dependencyManagement>
         <dependencies>
@@ -84,6 +110,13 @@
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
                 <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.springframework.cloud</groupId>
+                <artifactId>spring-cloud-dependencies</artifactId>
+                <version>${spring.cloud.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
