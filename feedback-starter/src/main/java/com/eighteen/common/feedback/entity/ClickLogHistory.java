@@ -12,7 +12,7 @@ import java.util.Date;
  * Time: 17:43
  */
 @Entity
-@Table(name = "t_click_log_History", catalog = "fbdb")
+@Table(name = "t_click_log_History", schema = "dbo", catalog = "Kuaishoufeedback")
 @Accessors(chain = true)
 @Data
 public class ClickLogHistory {

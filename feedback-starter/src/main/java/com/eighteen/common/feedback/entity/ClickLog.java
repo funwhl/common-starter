@@ -13,7 +13,7 @@ import java.util.Date;
  */
 
 @Entity
-@Table(name = "t_click_log", catalog = "fbdb")
+@Table(name = "t_click_log", schema = "dbo", catalog = "Kuaishoufeedback")
 @Accessors(chain = true)
 @Data
 public class ClickLog {

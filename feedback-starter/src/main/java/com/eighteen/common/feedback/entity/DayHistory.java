@@ -13,7 +13,7 @@ import java.util.Date;
  */
 
 @Entity
-@Table(name = "t_day_history", catalog = "fbdb")
+@Table(name = "t_day_history", schema = "dbo", catalog = "Kuaishoufeedback")
 @Accessors(chain = true)
 @Data
 public class DayHistory {

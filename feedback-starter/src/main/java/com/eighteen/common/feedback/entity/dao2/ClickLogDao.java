@@ -10,7 +10,6 @@ import org.springframework.stereotype.Repository;
  * Date: 2019/12/1
  * Time: 18:04
  */
-@DS("slave_1")
-@Repository
+@DS("master_")
 public interface ClickLogDao extends JpaRepository<ClickLog, Long> {
 }
