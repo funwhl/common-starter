@@ -12,7 +12,9 @@ import java.util.Date;
  * Time: 17:40
  */
 @Entity
-@Table(name = "t_feedback_Log", catalog = "fbdb")
+@Table(name = "t_feedback_Log", schema = "dbo", catalog = "Kuaishoufeedback",
+        indexes = {@Index(name = "imei",  columnList="imei")
+        })
 @Data
 @Accessors(chain = true)
 public class FeedbackLog {

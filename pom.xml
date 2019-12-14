@@ -65,29 +65,29 @@
             <!--<url>http://192.168.2.233:8083/nexus/content/repositories/snapshots/</url>-->
         <!--</snapshotRepository>-->
 
-        <!--<repository>-->
-            <!--<id>nexus-releases</id>-->
-            <!--<url>http://maven.30.net/nexus/content/repositories/releases/</url>-->
-        <!--</repository>-->
-        <!--<snapshotRepository>-->
-            <!--<id>nexus-snapshots</id>-->
-            <!--<url>http://maven.30.net/nexus/content/repositories/snapshots/</url>-->
-        <!--</snapshotRepository>-->
-
         <repository>
-            <id>maven-snapshots</id>
-            <url>http://119.3.18.38:30699/repository/maven-releases/</url>
+            <id>nexus-releases</id>
+            <url>http://maven.30.net/nexus/content/repositories/releases/</url>
         </repository>
         <snapshotRepository>
-            <id>maven-releases</id>
-            <url>http://119.3.18.38:30699/repository/maven-snapshots/</url>
+            <id>nexus-snapshots</id>
+            <url>http://maven.30.net/nexus/content/repositories/snapshots/</url>
         </snapshotRepository>
+
+        <!--<repository>-->
+            <!--<id>maven-snapshots</id>-->
+            <!--<url>http://119.3.18.38:30699/repository/maven-releases/</url>-->
+        <!--</repository>-->
+        <!--<snapshotRepository>-->
+            <!--<id>maven-releases</id>-->
+            <!--<url>http://119.3.18.38:30699/repository/maven-snapshots/</url>-->
+        <!--</snapshotRepository>-->
     </distributionManagement>
     <dependencies>
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit</artifactId>
-            <version>4.11</version>
+            <version>4.12</version>
             <scope>test</scope>
         </dependency>
         <dependency>
