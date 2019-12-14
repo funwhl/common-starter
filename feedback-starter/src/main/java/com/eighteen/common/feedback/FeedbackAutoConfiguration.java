@@ -74,6 +74,7 @@ public class FeedbackAutoConfiguration {
         return taskRegistrar -> {
             taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_IMEI), properties.getCleanImeiCron());
             taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_ACTIVE), properties.getCleanActiveCron());
+            taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_ACTIVE_HISTORY), properties.getCleanActiveHistoryCron());
             taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_CLICK), properties.getCleanClickCron());
             taskRegistrar.addCronTask(() -> feedbackService().syncActive(), properties.getSyncActiveCron());
             taskRegistrar.addCronTask(() -> feedbackService().feedback(), properties.getFeedbackCron());
@@ -98,6 +99,9 @@ public class FeedbackAutoConfiguration {
 
         jobs.put(CLEAN_CLICK.getKey(), Job.builder().jobName(CLEAN_CLICK.getKey()).cron(properties.getCleanClickCron()).failover(true)
                 .job(c -> feedbackService().clean(CLEAN_CLICK)).build());
+
+        jobs.put(CLEAN_ACTIVE_HISTORY.getKey(), Job.builder().jobName(CLEAN_ACTIVE_HISTORY.getKey()).cron(properties.getCleanActiveHistoryCron()).failover(true)
+                .job(c -> feedbackService().clean(CLEAN_ACTIVE_HISTORY)).build());
 
         jobs.put(SYNC_ACTIVE.getKey(), Job.builder().jobName(SYNC_ACTIVE.getKey()).cron(properties.getSyncActiveCron()).failover(true)
                 .job(c -> feedbackService().syncActive()).monitorExecution(false).build());

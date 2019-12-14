@@ -4,27 +4,24 @@ package com.eighteen.common.feedback.service.impl;
 import com.alibaba.fastjson.JSONObject;
 import com.eighteen.common.feedback.dao.FeedBackMapper;
 import com.eighteen.common.feedback.domain.ThirdRetentionLog;
-import com.eighteen.common.feedback.entity.ActiveLogger;
-import com.eighteen.common.feedback.entity.ClickLog;
-import com.eighteen.common.feedback.entity.DayHistory;
-import com.eighteen.common.feedback.entity.FeedbackLog;
-import com.eighteen.common.feedback.entity.dao2.ActiveLoggerDao;
-import com.eighteen.common.feedback.entity.dao2.DayHistoryDao;
-import com.eighteen.common.feedback.entity.dao2.FeedbackLogDao;
+import com.eighteen.common.feedback.entity.*;
+import com.eighteen.common.feedback.entity.dao2.*;
 import com.eighteen.common.feedback.service.FeedbackService;
 import com.eighteen.common.spring.boot.autoconfigure.cache.redis.Redis;
 import com.eighteen.common.utils.HttpClientUtils;
 import com.eighteen.common.utils.ReflectionUtils;
-import com.google.common.collect.Lists;
+import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
-import com.querydsl.core.types.dsl.BooleanOperation;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.CollectionUtils;
 import org.springframework.util.DigestUtils;
 
 import java.text.SimpleDateFormat;
@@ -33,7 +30,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -61,7 +58,12 @@ public class FeedbackServiceImpl implements FeedbackService {
     DayHistoryDao dayHistoryDao;
     @Autowired
     ActiveLoggerDao activeLoggerDao;
-
+    @Autowired
+    ClickLogDao clickLogDao;
+    @Autowired
+    ClickLogHistoryDao clickLogHistoryDao;
+    @Autowired
+    ActiveLoggerHistoryDao activeLoggerHistoryDao;
     @Autowired(required = false)
     private Redis redis;
     @Value("${18.feedback.channel}")
@@ -75,57 +77,93 @@ public class FeedbackServiceImpl implements FeedbackService {
             new LinkedBlockingQueue<>());
 
     @Override
+    @Transactional
     public void feedback() {
         tryWork(r -> {
             BooleanExpression imeiBe = activeLogger.imei.eq(clickLog.imei);
             BooleanExpression oaidBe = activeLogger.oaid.eq(clickLog.oaid);
             BooleanExpression androidIdBe = activeLogger.androidId.eq(clickLog.androidId);
-            BooleanExpression wifiMacBe = activeLogger.wifimac.in(clickLog.mac, clickLog.mac2);
-            AtomicInteger success = new AtomicInteger(0);
+//            BooleanExpression wifiMacBe = activeLogger.wifimac.eq(clickLog.mac);
+            AtomicLong success = new AtomicLong(0);
 
-            ArrayList<BooleanExpression> wd = Lists.newArrayList(imeiBe
-                    , oaidBe.and(imeiBe.not())
-                    , androidIdBe.and(imeiBe.not()).and(oaidBe.not())
-                    , wifiMacBe.and(imeiBe.not()).and(oaidBe.not()).and(androidIdBe.not()));
-            List<DayHistory> dayHistories = dsl.selectFrom(dayHistory).where(dayHistory.createTime.lt(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)))).fetch();
+            Map<String, BooleanExpression> wd = new HashMap<>();
+            wd.put("imei", imeiBe.and(activeLogger.imei.isNotNull()));
+            wd.put("oaid", oaidBe.and(imeiBe.not()).and(activeLogger.oaid.isNotNull()));
+            wd.put("androidId", androidIdBe.and(imeiBe.not()).and(oaidBe.not()).and(activeLogger.androidId.isNotNull()));
+//            wd.put("wifimac", wifiMacBe.and(imeiBe.not()).and(oaidBe.not()).and(androidIdBe.not()).and(activeLogger.wifimac.isNotNull()));
+
+            List<DayHistory> dayHistories = dsl.selectFrom(dayHistory).where(dayHistory.createTime.after(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)))).fetch();
             List<DayHistory> histories = new ArrayList<>();
-            wd.forEach(e -> {
-                String type = ((BooleanOperation) e).getArg(0).toString().replace("activeLogger.", "");
-                dsl.select(activeLogger, clickLog).from(activeLogger).innerJoin(clickLog).on(e).limit(1000L).fetch().stream()
+            wd.forEach((key, e) -> {
+                String type = key;
+//                if (type.equals("mac")) type = "wifimac";
+                String finalType = type;
+                ArrayList<Tuple> list = dsl.select(activeLogger, clickLog).from(activeLogger).innerJoin(clickLog).on(e.and(activeLogger.status.eq(0))).limit(1000L).fetch().stream()
                         .sorted(Comparator.comparing(o -> o.get(activeLogger).getActiveTime()))
-                        .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> ReflectionUtils.getFieldValue(o2.get(activeLogger), type).toString()))), ArrayList::new)
-                        ).parallelStream().forEach(tuple -> {
-                    ActiveLogger a = tuple.get(activeLogger);
-                    ClickLog c = tuple.get(clickLog);
-                    DayHistory history = new DayHistory().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setWd(type).setValue(ReflectionUtils.getFieldValue(a, type).toString());
-                    if (dayHistories.contains(history)) return;
-                    if (feedBackMapper.countFromStatistics(a.getImei(), a.getCoid(), a.getNcoid()) <= 0) {
-                        String url = c.getCallbackUrl() + "&event_type=1&event_time=" + System.currentTimeMillis();
-                        String ret;
-                        try {
-                            ret = HttpClientUtils.get(url);
-                            JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
-                            if (jsonObject.get("result").equals(1)) {
-                                executor.submit(() -> {
-                                    feedbackLogDao.save(new FeedbackLog()
-                                            .setAid(c.getAid()).setCid(c.getCid()).setAndroidId(c.getAndroidId())
-                                            .setCallbackUrl(c.getCallbackUrl()).setCreateTime(new Date()).setChannel(c.getChannel()).setEventType(1)
-                                            .setIp(a.getIp()).setImei(a.getImei()).setMac(c.getMac()).setMatchField(type).setOaid(c.getOaid()));
-                                });
-                                history.setStatus(1);
-                                success.incrementAndGet();
-                                histories.add(history);
+                        .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> {
+                                    Object fieldValue = ReflectionUtils.getFieldValue(o2.get(activeLogger), finalType);
+                                    return fieldValue == null ? "" : fieldValue.toString();
+                                }))), ArrayList::new)
+                        );
+                list.forEach(tuple -> {
+                    try {
+                        ActiveLogger a = tuple.get(activeLogger);
+                        ClickLog c = tuple.get(clickLog);
+                        String value = ReflectionUtils.getFieldValue(a, finalType).toString();
+                        DayHistory history = new DayHistory().setWd(finalType).setValue(value).setCreateTime(new Date());
+                        if (a.getCoid() != null) history.setCoid(a.getCoid());
+                        if (a.getNcoid() != null) history.setNcoid(a.getNcoid());
+                        if (!dayHistories.contains(history)) {
+                            try {
+                                //feedBackMapper.countFromStatistics(finalType, value, a.getCoid(), a.getNcoid()) <= 0
+                                if (true) {
+//                                    String url = c.getCallbackUrl() + "&event_type=1&event_time=" + System.currentTimeMillis();
+//                                    String ret;
+//                                    ret = HttpClientUtils.get(url);
+//                                    JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
+                                    //jsonObject.get("result").equals(1)
+                                    if (true) {
+                                        feedbackLogDao.save(new FeedbackLog()
+                                                .setAid(c.getAid()).setCid(c.getCid()).setAndroidId(c.getAndroidId())
+                                                .setCallbackUrl(c.getCallbackUrl()).setCreateTime(new Date()).setChannel(c.getChannel()).setEventType(1)
+                                                .setIp(a.getIp()).setImei(a.getImei()).setMac(c.getMac()).setMatchField(finalType).setOaid(c.getOaid()));
+                                        history.setStatus(1);
+
+                                        BooleanExpression eq = activeLogger.imei.eq(value);
+                                        if (finalType.equals("oaid")) eq = activeLogger.oaid.eq(value);
+                                        if (finalType.equals("androidId")) eq = activeLogger.androidId.eq(value);
+                                        if (finalType.equals("wifimac"))
+                                            eq = activeLogger.wifimac.in(c.getMac(), c.getMac2());
+                                        if (a.getCoid() != null) eq.and(activeLogger.coid.eq(a.getCoid()));
+                                        if (a.getNcoid() != null) eq.and(activeLogger.ncoid.eq(a.getNcoid()));
+                                        dsl.update(activeLogger).set(activeLogger.status, 1)
+                                                .where(eq).execute();
+                                        success.incrementAndGet();
+                                        histories.add(history);
+                                    }
+
+                                } else {
+                                    histories.add(history);
+                                }
+                            } catch (Exception e1) {
+                                e1.printStackTrace();
                             }
-                        } catch (Exception e1) {
-                            e1.printStackTrace();
+                        } else {
+                            BooleanExpression eq = activeLogger.imei.eq(value);
+                            if (finalType.equals("oaid")) eq = activeLogger.oaid.eq(value);
+                            if (finalType.equals("androidId")) eq = activeLogger.androidId.eq(value);
+                            if (finalType.equals("wifimac")) eq = activeLogger.wifimac.in(c.getMac(), c.getMac2());
+                            if (a.getCoid() != null) eq.and(activeLogger.coid.eq(a.getCoid()));
+                            if (a.getNcoid() != null) eq.and(activeLogger.ncoid.eq(a.getNcoid()));
+
+                            dsl.update(activeLogger).set(activeLogger.status, 2).where(eq).execute();
                         }
-                    } else {
-                        history.setStatus(2);
-                        histories.add(history);
+                    } catch (Exception e1) {
+                        e1.printStackTrace();
                     }
                 });
             });
-            executor.submit(() -> dayHistoryDao.saveAll(histories));
+            dayHistoryDao.saveAll(histories);
             return success.get();
         }, FEED_BACK);
     }
@@ -136,7 +174,7 @@ public class FeedbackServiceImpl implements FeedbackService {
         tryWork(r -> {
             Date date = new Date();
             List<DayHistory> histories = dsl.selectFrom(dayHistory)
-                    .where(dayHistory.createTime.lt(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(1)))
+                    .where(dayHistory.createTime.after(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)))
                             .and(dayHistory.wd.eq("imei"))).fetch();
 
             Long curent = date.getTime();
@@ -172,27 +210,69 @@ public class FeedbackServiceImpl implements FeedbackService {
     }
 
     @Override
+    @Transactional
     public void clean(JobType type) {
         switch (type) {
             case CLEAN_IMEI:
                 Long current = System.currentTimeMillis();
-                tryWork(r -> feedBackMapper.cleanDayImeis(new Date(
-                                current - TimeUnit.DAYS.toMillis(1))),
+                tryWork(r -> dsl.delete(dayHistory).where(dayHistory.createTime.before(new Date(
+                                current - TimeUnit.DAYS.toMillis(1)))).execute(),
                         CLEAN_IMEI);
                 tryWork(r -> feedBackMapper.cleanDayLCImeis(new Date(
                                 current - TimeUnit.DAYS.toMillis(2))),
                         CLEAN_LC_IMEI);
                 break;
             case CLEAN_ACTIVE:
+//                tryWork(r -> {
+//                    Date before = new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2));
+//                    Long to = feedBackMapper.transferActiveToHistory(before);
+//                    feedBackMapper.deleteActiveThird(before);
+//                    return to;
+//                }, CLEAN_ACTIVE);
                 tryWork(r -> {
-                    Date before = new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2));
-                    Integer to = feedBackMapper.transferActiveToHistory(before);
-                    feedBackMapper.deleteActiveThird(before);
-                    return to;
+                    List<ActiveLogger> activeLoggers = dsl.selectFrom(activeLogger)
+                            .where(activeLogger.createTime.before(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)))).fetch();
+                    if (CollectionUtils.isEmpty(activeLoggers)) return 0l;
+                    activeLoggerHistoryDao.saveAll(activeLoggers.stream().map(a -> {
+                        ActiveLoggerHistory activeLoggerHistory = new ActiveLoggerHistory();
+                        BeanUtils.copyProperties(a, activeLoggerHistory);
+                        activeLoggerHistory.setId(null);
+                        return activeLoggerHistory;
+                    }).collect(Collectors.toList()));
+                    activeLoggerDao.deleteAll(activeLoggers);
+                    return (long)activeLoggers.size();
                 }, CLEAN_ACTIVE);
                 break;
+            case CLEAN_ACTIVE_HISTORY:
+                tryWork(r -> {
+                    List<ActiveLogger> activeLoggers = dsl.selectFrom(activeLogger)
+                            .where(activeLogger.status.ne(0)).fetch();
+                    if (CollectionUtils.isEmpty(activeLoggers)) return 0L;
+                    activeLoggerHistoryDao.saveAll(activeLoggers.stream().map(a -> {
+                        ActiveLoggerHistory activeLoggerHistory = new ActiveLoggerHistory();
+                        BeanUtils.copyProperties(a, activeLoggerHistory);
+                        activeLoggerHistory.setId(null);
+                        return activeLoggerHistory;
+                    }).collect(Collectors.toList()));
+                    activeLoggerDao.deleteAll(activeLoggers);
+                    return (long)activeLoggers.size();
+                }, CLEAN_ACTIVE_HISTORY);
+                break;
             case CLEAN_CLICK:
-                tryWork(r -> feedBackMapper.cleanClickLog(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7))),
+//                tryWork(r -> feedBackMapper.cleanClickLog(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7))),
+//                        CLEAN_CLICK);
+                tryWork(r -> {
+                            List<ClickLog> clickLogs = dsl.selectFrom(clickLog)
+                                    .where(clickLog.clickTime.after(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)))).fetch();
+                            if (CollectionUtils.isEmpty(clickLogs)) return 0;
+                            clickLogHistoryDao.saveAll(clickLogs.stream().map(clickLog1 -> {
+                                ClickLogHistory clickLogHistory = new ClickLogHistory();
+                                BeanUtils.copyProperties(clickLog1, clickLogHistory);
+                                return clickLogHistory;
+                            }).collect(Collectors.toList()));
+                            clickLogDao.deleteAll(clickLogs);
+                            return (long)clickLogs.size();
+                        },
                         CLEAN_CLICK);
                 break;
         }
@@ -222,7 +302,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                                 .setAid(thirdRetentionLog.getAid()).setCid(thirdRetentionLog.getCid()).setAndroidId(thirdRetentionLog.getAndroidId())
                                 .setCallbackUrl(url).setCreateTime(new Date()).setChannel(thirdRetentionLog.getChannel()).setEventType(7)
                                 .setIp(thirdRetentionLog.getIp()).setImei(thirdRetentionLog.getImei()).setMac(thirdRetentionLog.getMac())
-                                .setMatchField("cl").setOaid(thirdRetentionLog.getOaid()));
+                                .setMatchField("imei").setOaid(thirdRetentionLog.getOaid()));
                         success += success;
                         feedBackMapper.insertDayLiucunImei(thirdRetentionLog.getImei(), thirdRetentionLog.getImeimd5());
                     }
@@ -236,14 +316,14 @@ public class FeedbackServiceImpl implements FeedbackService {
         }, RETENTION);
     }
 
-    private void tryWork(Function<JobType, Integer> consumer, JobType type) {
+    private void tryWork(Function<JobType, Object> consumer, JobType type) {
         String k = String.format("%s#%s", channel, type.getKey());
         try {
             logger.info("start {}", k);
             Long start = System.currentTimeMillis();
             if (mode == 2 && redis.process(jedis -> jedis.setnx(k, "")).equals(0L))
                 throw new RuntimeException(type.getKey() + " failed because redis setnx return 0");
-            Integer r = consumer.apply(type);
+            Long r = (Long) consumer.apply(type);
             if (mode == 2) redis.expire(k, type.getExpire().intValue());
             logger.info("finished {} in {}ms,count:{}", k, System.currentTimeMillis() - start, r);
         } catch (RuntimeException e) {
@@ -257,6 +337,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     public enum JobType {
         CLEAN_CLICK("CLEAN_CLICK", TimeUnit.DAYS.toMillis(1) - 60 * 60),
         CLEAN_ACTIVE("CLEAN_ACTIVE", TimeUnit.DAYS.toMillis(1) - 60 * 60),
+        CLEAN_ACTIVE_HISTORY("CLEAN_ACTIVE_HISTORY", TimeUnit.DAYS.toMillis(1) - 60 * 60),
         CLEAN_IMEI("CLEAN_IMEI", TimeUnit.DAYS.toSeconds(1) - 60 * 5),
         CLEAN_LC_IMEI("CLEAN_LC_IMEI", TimeUnit.DAYS.toSeconds(2) - 60 * 5),
         FEED_BACK("FEED_BACK", TimeUnit.MINUTES.toMillis(5) - 60),

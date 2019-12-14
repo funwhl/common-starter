@@ -33,5 +33,6 @@ public class ClickLog {
     private String callbackUrl;
     private Date clickTime;
     private Date createTime;
+    private Long ts;
 
 }

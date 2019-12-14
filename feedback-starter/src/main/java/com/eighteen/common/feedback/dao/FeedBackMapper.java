@@ -33,19 +33,31 @@ public interface FeedBackMapper {
             "#{item}" +
             "</foreach>" +
             "</script>")
-    int updateFeedbackStatus(@Param("imeis") List<String> imeis, @Param("status") Integer status);
+    long updateFeedbackStatus(@Param("imeis") List<String> imeis, @Param("status") Integer status);
 
     @Select("<script>" +
             "select count(1) from LinkStatistics.dbo.LinkStatistics " +
-            " where imei = #{imei} " +
-            "        <if test='coid != null'>" +
+            " where 1=1 " +
+            "<if test='wd == \"imei\"'>" +
+            " and imei = #{value}" +
+            "</if>" +
+            "<if test='wd == \"oaid\"'>" +
+            " and oaid = #{value}" +
+            "</if>" +
+            "<if test='wd == \"androidId\"'>" +
+            " and androidId = #{value}" +
+            "</if>" +
+            "<if test='wd == \"wifimac\"'>" +
+            " and wifimac = #{value}" +
+            "</if>" +
+            "<if test='coid != null'>" +
             " and ncoid = #{ncoid}" +
-            "        </if>" +
-            "        <if test='ncoid != null'>" +
+            "</if>" +
+            "<if test='ncoid != null'>" +
             " and ncoid = #{ncoid} " +
-            "        </if>" +
+            "</if>" +
             "</script>")
-    Integer countFromStatistics(@Param("imei") String imei, @Param("coid") Integer coid, @Param("ncoid") Integer ncoid);
+    long countFromStatistics(@Param("wd") String wd,@Param("value") String value, @Param("coid") Integer coid, @Param("ncoid") Integer ncoid);
 
     @Insert("<script>" +
             " insert  into FeedbackLog" +
@@ -57,7 +69,7 @@ public interface FeedBackMapper {
             "            #{params.${key}}" +
             "        </foreach>" +
             "</script>")
-    int insertFeedback(@Param("params") Map params);
+    long insertFeedback(@Param("params") Map params);
 
     @Insert("<script>" +
             " insert  into ActiveLogger " +
@@ -69,11 +81,11 @@ public interface FeedBackMapper {
             "            #{params.${key}}" +
             "        </foreach>" +
             "</script>")
-    int insertActiveLogger(@Param("params") Map params);
+    long insertActiveLogger(@Param("params") Map params);
 
     @Select("<script>" +
-            "select imei,channel, versionname, coid, ncoid, wifimac,ip, activetime, type, ua, androidId from ThirdActive.dbo.${tableName} " +
-            "where type = #{channel} and activetime >= ( select max(activetime) FROM ActiveLogger ) " +
+            "select imei,channel, versionname versionName, coid, ncoid, wifimac,ip, activetime activeTime, type, ua, androidId, oaid from ThirdActive.dbo.${tableName} " +
+            "where type = #{channel} and activetime >= ( select max(active_time) FROM t_active_logger ) " +
             "</script>"
     )
     @ResultType(ActiveLogger.class)
@@ -89,7 +101,7 @@ public interface FeedBackMapper {
             "            #{params.${key}}" +
             "        </foreach>" +
             "</script>")
-    int insertClickLog(@Param("params") Map params);
+    long insertClickLog(@Param("params") Map params);
 
 //    @Insert("<script>" +
 //            "Insert into ActiveLogger  " +
@@ -115,14 +127,14 @@ public interface FeedBackMapper {
 //    int syncActiveThird(@Param("list") Set<String> list, @Param("date") Date date, @Param("channel") String channel);
 
     @Delete("DELETE FROM ClickLog where create_time < #{end}")
-    int cleanClickLog(@Param("end") Date end);
+    long cleanClickLog(@Param("end") Date end);
 
     @Insert("Insert into ActiveLogger_History select * from ActiveLogger " +
             " where ActiveLogger.activetime < #{end} ")
-    int transferActiveToHistory(@Param("end") Date end);
+    long transferActiveToHistory(@Param("end") Date end);
 
     @Delete("delete from ActiveLogger where activetime < #{end}")
-    int deleteActiveThird(@Param("end") Date end);
+    long deleteActiveThird(@Param("end") Date end);
 
     @Insert("insert into DayImei (" +
             "      imei, imeimd5, CreateTime, coid, ncoid " +
@@ -130,22 +142,22 @@ public interface FeedBackMapper {
             "    values (" +
             "      #{imei}, #{imeimd5}, #{createTime}, #{coid}, #{ncoid} " +
             "    )")
-    int insertDayImei(@Param("imei") String imei, @Param("imeimd5") String imeimd5, @Param("createTime") Date createTime, @Param("coid") Integer coid, @Param("ncoid") Integer ncoid);
+    long insertDayImei(@Param("imei") String imei, @Param("imeimd5") String imeimd5, @Param("createTime") Date createTime, @Param("coid") Integer coid, @Param("ncoid") Integer ncoid);
 
     @Select("SELECT imei,coid,ncoid,imeimd5,createTime FROM DayImei where CreateTime > #{date} ")
     @ResultType(DayImei.class)
     List<DayImei> getDayImeis(@Param("date") Date date);
 
     @Delete("DELETE FROM DayImei where CreateTime < #{date} ")
-    int cleanDayImeis(@Param("date") Date date);
+    long cleanDayImeis(@Param("date") Date date);
 
     @Delete("DELETE FROM DayLiucunImei where CreateTime < #{date} ")
-    int cleanDayLCImeis(@Param("date") Date date);
+    long cleanDayLCImeis(@Param("date") Date date);
 
     @Insert("insert into ActiveStatisticsDayReport select a.channel,'${date}' as 'date' ,count(*) as 'count' ${did} from ActiveLogger a inner join ClickLog b " +
             " on a.imeimd5 = b.imei and activetime > #{date} and activetime < dateadd(day,1,#{date}) and a.activetime > b.click_time " +
             "GROUP BY a.channel ${did}")
-    int activeStaticesDay(@Param("date") String date, @Param("did") String did);
+    long activeStaticesDay(@Param("date") String date, @Param("did") String did);
 
     @Select("<script>" +
             "     insert into ${tableName} " +
@@ -159,7 +171,7 @@ public interface FeedBackMapper {
             "      </foreach> " +
             "    </foreach >" +
             "</script>")
-    int insert(@Param("tableName") String tableName, @Param("params") List<Map<String, Object>> list);
+    long insert(@Param("tableName") String tableName, @Param("params") List<Map<String, Object>> list);
 
     @Select(" select CASE datediff(day,'2019-09-09',getdate()) % 2   WHEN 0 THEN 'ActiveLogger' else 'ActiveLogger_B' end ")
     String getTableName();
@@ -173,7 +185,7 @@ public interface FeedBackMapper {
 
 
     @Insert("insert into DayLiucunImei(imei ,imeimd5, createTime) VALUES (#{imei}, #{imeimd5} , getdate())")
-    int insertDayLiucunImei(@Param("imei") String imei, @Param("imeimd5") String imeimd5);
+    long insertDayLiucunImei(@Param("imei") String imei, @Param("imeimd5") String imeimd5);
 
     List<DayHistory> getDayHistorys(Date date, String s);
 }

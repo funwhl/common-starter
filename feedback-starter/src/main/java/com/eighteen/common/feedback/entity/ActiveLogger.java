@@ -13,20 +13,20 @@ import java.util.Date;
  */
 @Entity
 @Table(name = "t_active_Logger", schema = "dbo", catalog = "Kuaishoufeedback",
-        indexes = {@Index(name = "imei",  columnList="imei", unique = true),
-                @Index(name = "coid", columnList="coid"),
-                @Index(name = "ncoid", columnList="coid"),
-                @Index(name = "oaid", columnList="oaid")
-//                ,@Index(name = "activeTime", columnList="active_time"),
-//                @Index(name = "androidId", columnList="android_id")
-})
+        indexes = {@Index(name = "imei", columnList = "imei"),
+                @Index(name = "coid", columnList = "coid"),
+                @Index(name = "ncoid", columnList = "coid"),
+                @Index(name = "oaid", columnList = "oaid")
+                , @Index(name = "activeTime", columnList = "activeTime"),
+                @Index(name = "androidId", columnList = "androidId")
+        })
 @Accessors(chain = true)
 @Data
 public class ActiveLogger {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(name = "imei", columnDefinition="varchar(50) COMMENT 'imei'")
+    @Column(name = "imei", columnDefinition = "varchar(50) COMMENT 'imei'")
     private String imei;
     private String imeiMd5;
     private String channel;
@@ -43,7 +43,8 @@ public class ActiveLogger {
     private Integer status;
     private Date activeTime;
     private Date createTime;
-//    @OneToOne(fetch = FetchType.EAGER)
+    private String mid;
+    //    @OneToOne(fetch = FetchType.EAGER)
 //    @JoinColumn(name = "imei")
     @Transient
     private ClickLog clickLog;

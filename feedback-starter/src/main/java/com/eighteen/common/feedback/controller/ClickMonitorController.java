@@ -2,6 +2,8 @@ package com.eighteen.common.feedback.controller;
 
 import com.alibaba.fastjson.JSONObject;
 import com.eighteen.common.feedback.dao.FeedBackMapper;
+import com.eighteen.common.feedback.entity.ClickLog;
+import com.eighteen.common.feedback.entity.dao2.ClickLogDao;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,15 +39,22 @@ public class ClickMonitorController {
     private String channel;
     @Value("${18.feedback.clickQueue:Agg.KuaiShouClickReport.Messages.KuaiShouClickReportMessages}")
     private String clickQueue;
+    @Autowired
+    ClickLogDao clickLogDao;
 
     @GetMapping(value = "clickMonitor")
-    public void clickMonitor(@RequestParam Map<String, Object> params) {
+    public void clickMonitor(@RequestParam Map<String, Object> params,  ClickLog clickLog) {
         try {
             logger.info("click monitor active->{}", params.toString());
             params.put("create_time", new Date());
             if (NumberUtils.isCreatable(String.valueOf(params.get("ts"))))
-                params.put("click_time", new Date(Long.valueOf(String.valueOf(params.get("ts")))));
-            feedBackMapper.insertClickLog(params);
+//                params.put("click_time", new Date(Long.valueOf(String.valueOf(params.get("ts")))));
+                clickLog.setClickTime(new Date(Long.valueOf(String.valueOf(params.get("ts")))));
+//            feedBackMapper.insertClickLog(params);
+            clickLog.setAndroidId(params.get("android_Id")==null?"":params.get("android_Id").toString());
+            clickLog.setCallbackUrl(params.get("call_back")==null?"":params.get("call_back").toString());
+            clickLog.setCreateTime(new Date());
+            clickLogDao.save(clickLog);
             String msg = JSONObject.toJSONString(params);
             Message message = MessageBuilder.withBody(msg.getBytes())
                     .setContentType(MessageProperties.CONTENT_TYPE_JSON)
