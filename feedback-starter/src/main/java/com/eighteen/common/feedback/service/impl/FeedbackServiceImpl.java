@@ -323,9 +323,9 @@ public class FeedbackServiceImpl implements FeedbackService {
             Long start = System.currentTimeMillis();
             if (mode == 2 && redis.process(jedis -> jedis.setnx(k, "")).equals(0L))
                 throw new RuntimeException(type.getKey() + " failed because redis setnx return 0");
-            Long r = (Long) consumer.apply(type);
+            Object r = consumer.apply(type);
             if (mode == 2) redis.expire(k, type.getExpire().intValue());
-            logger.info("finished {} in {}ms,count:{}", k, System.currentTimeMillis() - start, r);
+            logger.info("finished {} in {}ms,count:{}", k, System.currentTimeMillis() - start, r.toString());
         } catch (RuntimeException e) {
             logger.info(e.getMessage());
         } catch (Exception e) {
