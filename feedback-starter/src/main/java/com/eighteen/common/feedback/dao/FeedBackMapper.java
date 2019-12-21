@@ -85,7 +85,7 @@ public interface FeedBackMapper {
 
     @Select("<script>" +
             "select imei,channel, versionname versionName, coid, ncoid, wifimac,ip, activetime activeTime, type, ua, androidId, oaid from ThirdActive.dbo.${tableName} " +
-            "where type = #{channel} and activetime >= ( select max(active_time) FROM t_active_logger ) " +
+            "where type = #{channel} and activetime >= ( select CASE  when max(active_time) is null then cast(getdate() as date) else max(active_time) end FROM t_active_logger ) " +
             "</script>"
     )
     @ResultType(ActiveLogger.class)
