@@ -2,6 +2,7 @@ package com.eighteen.common.feedback.service.impl;
 
 
 import com.alibaba.fastjson.JSONObject;
+import com.eighteen.common.feedback.dao.ActiveLoggerMapper;
 import com.eighteen.common.feedback.dao.FeedBackMapper;
 import com.eighteen.common.feedback.domain.ThirdRetentionLog;
 import com.eighteen.common.feedback.entity.*;
@@ -203,12 +204,15 @@ public class FeedbackServiceImpl implements FeedbackService {
                 if (activeLogger.getWifimac()!=null)activeLogger.setWifimacMd5(DigestUtils.md5DigestAsHex(activeLogger.getWifimac().getBytes()));
             }
 
-            activeLoggerDao.saveAll(data);
+//            activeLoggerDao.saveAll(data);
+            activeLoggerMapper.insertList(data);
             return data.size();
         }, SYNC_ACTIVE);
 
     }
 
+    @Autowired
+    ActiveLoggerMapper activeLoggerMapper;
     @Override
     @Transactional
     public void clean(JobType type) {
