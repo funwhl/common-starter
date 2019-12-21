@@ -199,8 +199,8 @@ public class FeedbackServiceImpl implements FeedbackService {
                     it.remove();
                     continue;
                 }
-                activeLogger.setImeiMd5(DigestUtils.md5DigestAsHex(imei.getBytes()));
-                activeLogger.setWifimacMd5(DigestUtils.md5DigestAsHex(activeLogger.getWifimac().getBytes()));
+                if (imei!=null)activeLogger.setImeiMd5(DigestUtils.md5DigestAsHex(imei.getBytes()));
+                if (activeLogger.getWifimac()!=null)activeLogger.setWifimacMd5(DigestUtils.md5DigestAsHex(activeLogger.getWifimac().getBytes()));
             }
 
             activeLoggerDao.saveAll(data);
