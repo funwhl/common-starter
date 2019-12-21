@@ -13,13 +13,20 @@ import java.util.Date;
  */
 
 @Entity
-@Table(name = "t_click_log", schema = "dbo", catalog = "Kuaishoufeedback")
+@Table(name = "t_click_log", schema = "dbo", catalog = "Kuaishoufeedback",
+        indexes = {@Index(name = "imei", columnList = "imei"),
+                @Index(name = "clickTime", columnList = "clickTime"),
+                @Index(name = "androidId", columnList = "androidId"),
+                @Index(name = "oaid", columnList = "oaid"),
+                @Index(name = "mac", columnList = "mac")
+        })
 @Accessors(chain = true)
 @Data
 public class ClickLog {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(name = "imei", columnDefinition = "varchar(50)")
     private String imei;
     private String aid;
     private String cid;

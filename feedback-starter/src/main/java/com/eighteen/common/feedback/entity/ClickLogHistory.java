@@ -19,6 +19,7 @@ public class ClickLogHistory {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(name = "imei", columnDefinition = "varchar(50)")
     private String imei;
     private String aid;
     private String cid;

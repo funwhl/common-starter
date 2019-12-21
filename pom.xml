@@ -75,6 +75,15 @@
         </snapshotRepository>
 
         <!--<repository>-->
+            <!--<id>maven-releases</id>-->
+            <!--<url>http://139.159.203.149:31218/repository/maven-releases/</url>-->
+        <!--</repository>-->
+        <!--<snapshotRepository>-->
+            <!--<id>maven-snapshots</id>-->
+            <!--<url>http://139.159.203.149:31218/repository/maven-snapshots/</url>-->
+        <!--</snapshotRepository>-->
+
+        <!--<repository>-->
             <!--<id>maven-snapshots</id>-->
             <!--<url>http://119.3.18.38:30699/repository/maven-releases/</url>-->
         <!--</repository>-->

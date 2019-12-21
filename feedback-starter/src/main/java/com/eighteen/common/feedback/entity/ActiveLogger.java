@@ -26,7 +26,7 @@ public class ActiveLogger {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    @Column(name = "imei", columnDefinition = "varchar(50) COMMENT 'imei'")
+    @Column(name = "imei", columnDefinition = "varchar(50)")
     private String imei;
     private String imeiMd5;
     private String channel;

@@ -21,12 +21,14 @@ public class FeedbackLog {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+    @Column(name = "imei", columnDefinition = "varchar(50)")
     private String imei;
     private String aid;
     private String cid;
     private String mac;
     private String ip;
     private String oaid;
+    private String mid;
     private Date ts;
     private Integer channel;
     private Integer eventType;

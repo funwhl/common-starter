@@ -176,11 +176,11 @@ public interface FeedBackMapper {
     @Select(" select CASE datediff(day,'2019-09-09',getdate()) % 2   WHEN 0 THEN 'ActiveLogger' else 'ActiveLogger_B' end ")
     String getTableName();
 
-    @Select("select b.*, c.call_back as callBack,c.aid,c.cid,c.mac,c.ts,c.android_id as androidId from ( " +
+    @Select("select b.*, c.callback_url as callBack,c.aid,c.cid,c.mac,c.ts,c.android_id as androidId from ( " +
             " select top 2000 a.*  from toutiaofeedback.dbo.ThirdRetentionLog a  " +
             " where  a.activetime >=  CAST( DATEADD(DAY,-1,GETDATE()) as date) and a.type ='kuaishouChannel'  " +
             " and not exists ( select imei from dayliucunimei d where a.imei = d.imei ) " +
-            " ) b INNER JOIN ClickLog c on b.imeimd5 = c.imei ")
+            " ) b INNER JOIN t_click_log c on b.imeimd5 = c.imei ")
     List<ThirdRetentionLog> getSecondStay();
 
 
