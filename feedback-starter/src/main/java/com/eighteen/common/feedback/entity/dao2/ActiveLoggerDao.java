@@ -15,6 +15,5 @@ import java.util.List;
  */
 @DS("master_")
 public interface ActiveLoggerDao extends JpaRepository<ActiveLogger, Long> {
-    @Query(value = "select t from ActiveLogger t")
-    List<ActiveLogger> findTest2();
+
 }

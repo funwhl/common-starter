@@ -12,7 +12,8 @@ import java.util.Date;
  * Time: 17:34
  */
 @Entity
-@Table(name = "t_active_Logger", schema = "dbo", catalog = "Kuaishoufeedback",
+@Table(name = "t_active_Logger",
+//        schema = "dbo", catalog = "Kuaishoufeedback",
         indexes = {@Index(name = "imei", columnList = "imei"),
                 @Index(name = "coid", columnList = "coid"),
                 @Index(name = "ncoid", columnList = "coid"),

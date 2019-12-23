@@ -29,6 +29,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.util.StringValueResolver;
+import org.springframework.web.context.support.GenericWebApplicationContext;
 
 import javax.sql.DataSource;
 import java.util.Map;
@@ -112,6 +113,9 @@ public class JobAutoConfiguration implements EmbeddedValueResolverAware {
             if (applicationContext.containsBean("simple18Jobs")) {
                 Map<String, Job> simpleJobs = (Map<String, Job>) applicationContext.getBean("simple18Jobs");
                 registerJobs.putAll(simpleJobs);
+                if (applicationContext instanceof GenericWebApplicationContext) {
+                    ((GenericWebApplicationContext) applicationContext).removeBeanDefinition("simple18Jobs");
+                }else
                 ((AnnotationConfigServletWebServerApplicationContext) applicationContext).getDefaultListableBeanFactory().removeBeanDefinition("simple18Jobs");
             }
             for (Map.Entry<String, Object> entry : registerJobs.entrySet()) {
