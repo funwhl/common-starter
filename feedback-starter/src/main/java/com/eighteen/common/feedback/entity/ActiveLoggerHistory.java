@@ -30,7 +30,7 @@ public class ActiveLoggerHistory {
     @Column(name = "imei", columnDefinition = "varchar(50)")
     private String imei;
     private String imeiMd5;
-    private String channel;
+    private Integer channel;
     private String versionName;
     private Integer coid;
     private Integer ncoid;
