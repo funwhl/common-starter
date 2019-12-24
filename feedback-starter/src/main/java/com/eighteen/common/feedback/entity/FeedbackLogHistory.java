@@ -31,6 +31,7 @@ public class FeedbackLogHistory {
     private Integer channel;
     private Integer eventType;
     private String androidId;
+    @Column(name = "callback_url", columnDefinition = "varchar(1500)")
     private String callbackUrl;
     private Date createTime;
 }
