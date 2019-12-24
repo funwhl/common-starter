@@ -112,11 +112,11 @@
             <version>4.2.1</version>
         </dependency>
 
-        <dependency>
-            <groupId>com.eighteen.impala</groupId>
-            <artifactId>api</artifactId>
-            <version>1.0-SNAPSHOT</version>
-        </dependency>
+        <!--<dependency>-->
+            <!--<groupId>com.eighteen.impala</groupId>-->
+            <!--<artifactId>api</artifactId>-->
+            <!--<version>1.0-SNAPSHOT</version>-->
+        <!--</dependency>-->
 
         <dependency>
             <groupId>org.springframework.boot</groupId>

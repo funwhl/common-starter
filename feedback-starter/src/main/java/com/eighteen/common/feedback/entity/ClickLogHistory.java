@@ -12,7 +12,9 @@ import java.util.Date;
  * Time: 17:43
  */
 @Entity
-@Table(name = "t_click_log_History", schema = "dbo", catalog = "Kuaishoufeedback")
+@Table(name = "t_click_log_History"
+//        ,schema = "dbo", catalog = "Kuaishoufeedback"
+)
 @Accessors(chain = true)
 @Data
 public class ClickLogHistory {
@@ -29,6 +31,8 @@ public class ClickLogHistory {
     private String oaid;
     private String mac;
     private String mac2;
+    @Column(name = "callback_url", columnDefinition = "varchar(1500)")
+    private String callbackUrl;
     private Date clickTime;
     private Date createTime;
 

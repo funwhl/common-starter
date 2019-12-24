@@ -13,7 +13,9 @@ import java.util.Date;
  */
 
 @Entity
-@Table(name = "t_feedback_Log_History", schema = "dbo", catalog = "Kuaishoufeedback")
+@Table(name = "t_feedback_Log_History"
+//        , schema = "dbo", catalog = "Kuaishoufeedback"
+)
 @Data
 @Accessors(chain = true)
 public class FeedbackLogHistory {

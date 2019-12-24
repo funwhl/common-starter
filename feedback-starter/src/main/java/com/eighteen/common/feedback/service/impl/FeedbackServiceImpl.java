@@ -5,15 +5,12 @@ import com.alibaba.fastjson.JSONObject;
 import com.eighteen.common.feedback.dao.*;
 import com.eighteen.common.feedback.domain.ThirdRetentionLog;
 import com.eighteen.common.feedback.entity.*;
-import com.eighteen.common.feedback.entity.dao2.ActiveLoggerDao;
-import com.eighteen.common.feedback.entity.dao2.ClickLogDao;
-import com.eighteen.common.feedback.entity.dao2.ClickLogHistoryDao;
-import com.eighteen.common.feedback.entity.dao2.FeedbackLogDao;
 import com.eighteen.common.feedback.service.FeedbackService;
 import com.eighteen.common.spring.boot.autoconfigure.cache.redis.Redis;
 import com.eighteen.common.utils.HttpClientUtils;
 import com.eighteen.common.utils.Page;
 import com.eighteen.common.utils.ReflectionUtils;
+import com.google.common.collect.Lists;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
@@ -58,28 +55,24 @@ public class FeedbackServiceImpl implements FeedbackService {
     FeedBackMapper feedBackMapper;
     @Autowired
     JPAQueryFactory dsl;
-    //    @Autowired
-//    FeedbackLogDao feedbackLogDao;
     @Autowired
     FeedbackLogMapper feedbackLogMapper;
-
     @Autowired
     DayHistoryMapper dayHistoryMapper;
-//    @Autowired
-//    ActiveLoggerDao activeLoggerDao;
     @Autowired
     ClickLogMapper clickLogMapper;
-    //    @Autowired
-//    ClickLogHistoryDao clickLogHistoryDao;
     @Autowired
     ClickLogHistoryMapper clickLogHistoryMapper;
     @Autowired
     ActiveLoggerHistoryMapper activeLoggerHistoryMapper;
+    @Autowired
+    ActiveLoggerMapper activeLoggerMapper;
+
     @Autowired(required = false)
     private Redis redis;
     @Value("${18.feedback.channel}")
     private String channel;
-    @Value("${18.feedback.mode}")
+    @Value("${18.feedback.mode:1}")
     private int mode;
     @Value("${spring.application.name}")
     private String appName;
@@ -91,7 +84,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Transactional
     public void feedback() {
         tryWork(r -> {
-            BooleanExpression imeiBe = activeLogger.imei.eq(clickLog.imei);
+            BooleanExpression imeiBe = activeLogger.imeiMd5.eq(clickLog.imei);
             BooleanExpression oaidBe = activeLogger.oaid.eq(clickLog.oaid);
             BooleanExpression androidIdBe = activeLogger.androidId.eq(clickLog.androidId);
 //            BooleanExpression wifiMacBe = activeLogger.wifimac.eq(clickLog.mac);
@@ -126,18 +119,17 @@ public class FeedbackServiceImpl implements FeedbackService {
                         if (a.getNcoid() != null) history.setNcoid(a.getNcoid());
                         if (!dayHistories.contains(history)) {
                             try {
-                                //feedBackMapper.countFromStatistics(finalType, value, a.getCoid(), a.getNcoid()) <= 0
-                                if (true) {
+                                if (feedBackMapper.countFromStatistics(finalType, value, a.getCoid(), a.getNcoid()) <= 0) {
 //                                    String url = c.getCallbackUrl() + "&event_type=1&event_time=" + System.currentTimeMillis();
 //                                    String ret;
 //                                    ret = HttpClientUtils.get(url);
 //                                    JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
                                     //jsonObject.get("result").equals(1)
                                     if (true) {
-                                        feedbackLogMapper.insert(new FeedbackLog()
+                                        feedbackLogMapper.insertList(Lists.newArrayList(new FeedbackLog()
                                                 .setAid(c.getAid()).setCid(c.getCid()).setAndroidId(c.getAndroidId())
                                                 .setCallbackUrl(c.getCallbackUrl()).setCreateTime(new Date()).setChannel(c.getChannel()).setEventType(1)
-                                                .setIp(a.getIp()).setImei(a.getImei()).setMac(c.getMac()).setMatchField(finalType).setOaid(c.getOaid()));
+                                                .setIp(a.getIp()).setImei(a.getImei()).setMac(c.getMac()).setMatchField(finalType).setOaid(c.getOaid()).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setTs(new Date(c.getTs()))));
 
 //                                        feedbackLogDao.save(new FeedbackLog()
 //                                                .setAid(c.getAid()).setCid(c.getCid()).setAndroidId(c.getAndroidId())
@@ -181,7 +173,8 @@ public class FeedbackServiceImpl implements FeedbackService {
                 });
             });
             Page<DayHistory> page = Page.create(1, 100, i -> histories);
-            page.forEach(historyList -> dayHistoryMapper.insertList(histories));
+            if (!CollectionUtils.isEmpty(histories))
+                page.forEach(historyList -> dayHistoryMapper.insertList(histories));
             return success.get();
         }, FEED_BACK);
     }
@@ -221,18 +214,18 @@ public class FeedbackServiceImpl implements FeedbackService {
                 if (activeLogger.getWifimac() != null)
                     activeLogger.setWifimacMd5(DigestUtils.md5DigestAsHex(activeLogger.getWifimac().getBytes()));
                 activeLogger.setCreateTime(new Date());
+                activeLogger.setStatus(0);
             }
 
             List<ActiveLogger> finalData = data;
             Page<ActiveLogger> page = Page.create(1, 100, i -> finalData);
-            page.forEach(activeLoggers -> activeLoggerMapper.insertList(activeLoggers));
+            if (!CollectionUtils.isEmpty(finalData))
+                page.forEach(activeLoggers -> activeLoggerMapper.insertList(activeLoggers));
             return data.size();
         }, SYNC_ACTIVE);
 
     }
 
-    @Autowired
-    ActiveLoggerMapper activeLoggerMapper;
 
     @Override
     @Transactional
@@ -261,10 +254,17 @@ public class FeedbackServiceImpl implements FeedbackService {
                     if (CollectionUtils.isEmpty(histories)) return 0;
                     Page<ActiveLoggerHistory> page = Page.create(1, 100, i -> histories);
                     page.forEach(list -> activeLoggerHistoryMapper.insertList(list));
-                    Example example = new Example(ActiveLogger.class);
-                    Example.Criteria criteria = example.createCriteria();
-                    criteria.andIn("id", activeLoggers.stream().map(ActiveLogger::getId).collect(Collectors.toList()));
-                    activeLoggerMapper.deleteByExample(example);
+
+                    List<Long> ids = activeLoggers.stream().map(ActiveLogger::getId).collect(Collectors.toList());
+                    //sqlserver 支持最多 2100 个参数 分批处理
+                    Page<Long> idPage = Page.create(1, 1000, i -> ids);
+                    idPage.forEach(list -> {
+                        Example example = new Example(ActiveLogger.class);
+                        Example.Criteria criteria = example.createCriteria();
+                        criteria.andIn("id", list);
+                        activeLoggerMapper.deleteByExample(example);
+                    });
+
                     return (long) activeLoggers.size();
                 }, CLEAN_ACTIVE);
                 break;
@@ -305,7 +305,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                                 BeanUtils.copyProperties(clickLog1, clickLogHistory);
                                 return clickLogHistory;
                             }).collect(Collectors.toList());
-
+                            if (CollectionUtils.isEmpty(list)) return 0;
                             clickLogHistoryMapper.insertList(list);
 
                             Example example = new Example(ActiveLogger.class);
@@ -341,17 +341,11 @@ public class FeedbackServiceImpl implements FeedbackService {
                     JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
                     if (jsonObject.get("result").equals(1)) {
 
-                        feedbackLogMapper.insert(new FeedbackLog()
+                        feedbackLogMapper.insertList(Lists.newArrayList(new FeedbackLog()
                                 .setAid(thirdRetentionLog.getAid()).setCid(thirdRetentionLog.getCid()).setAndroidId(thirdRetentionLog.getAndroidId())
                                 .setCallbackUrl(url).setCreateTime(new Date()).setChannel(thirdRetentionLog.getChannel()).setEventType(7)
                                 .setIp(thirdRetentionLog.getIp()).setImei(thirdRetentionLog.getImei()).setMac(thirdRetentionLog.getMac())
-                                .setMatchField("imei").setOaid(thirdRetentionLog.getOaid()));
-
-//                        feedbackLogDao.save(new FeedbackLog()
-//                                .setAid(thirdRetentionLog.getAid()).setCid(thirdRetentionLog.getCid()).setAndroidId(thirdRetentionLog.getAndroidId())
-//                                .setCallbackUrl(url).setCreateTime(new Date()).setChannel(thirdRetentionLog.getChannel()).setEventType(7)
-//                                .setIp(thirdRetentionLog.getIp()).setImei(thirdRetentionLog.getImei()).setMac(thirdRetentionLog.getMac())
-//                                .setMatchField("imei").setOaid(thirdRetentionLog.getOaid()));
+                                .setMatchField("imei").setOaid(thirdRetentionLog.getOaid()).setTs(new Date())));
                         success += success;
                         feedBackMapper.insertDayLiucunImei(thirdRetentionLog.getImei(), thirdRetentionLog.getImeimd5());
                     }

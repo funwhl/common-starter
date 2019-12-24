@@ -13,7 +13,8 @@ import java.util.Date;
  */
 
 @Entity
-@Table(name = "t_click_log", schema = "dbo", catalog = "Kuaishoufeedback",
+@Table(name = "t_click_log",
+//        schema = "dbo", catalog = "Kuaishoufeedback",
         indexes = {@Index(name = "imei", columnList = "imei"),
                 @Index(name = "clickTime", columnList = "clickTime"),
                 @Index(name = "androidId", columnList = "androidId"),
@@ -37,6 +38,7 @@ public class ClickLog {
     private String mac;
     private String mac2;
     private Integer channel;
+    @Column(name = "callback_url", columnDefinition = "varchar(1500)")
     private String callbackUrl;
     private Date clickTime;
     private Date createTime;

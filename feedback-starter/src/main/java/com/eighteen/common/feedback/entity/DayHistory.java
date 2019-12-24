@@ -16,7 +16,9 @@ import java.util.Objects;
  */
 
 @Entity
-@Table(name = "t_day_history", schema = "dbo", catalog = "Kuaishoufeedback", indexes = {
+@Table(name = "t_day_history",
+//        schema = "dbo", catalog = "Kuaishoufeedback",
+        indexes = {
         @Index(name = "coid", columnList = "coid"),
         @Index(name = "ncoid", columnList = "coid"),
         @Index(name = "value", columnList = "value")

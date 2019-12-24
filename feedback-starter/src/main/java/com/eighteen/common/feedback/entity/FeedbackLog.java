@@ -12,7 +12,8 @@ import java.util.Date;
  * Time: 17:40
  */
 @Entity
-@Table(name = "t_feedback_Log", schema = "dbo", catalog = "Kuaishoufeedback",
+@Table(name = "t_feedback_Log",
+//        schema = "dbo", catalog = "Kuaishoufeedback",
         indexes = {@Index(name = "imei",  columnList="imei")
         })
 @Data
@@ -34,7 +35,10 @@ public class FeedbackLog {
     private Integer eventType;
     private String androidId;
     private String MatchField;
+    @Column(name = "callback_url", columnDefinition = "varchar(1500)")
     private String callbackUrl;
+    private Integer coid;
+    private Integer ncoid;
     private Date createTime;
 }
 
