@@ -5,6 +5,7 @@ import com.alibaba.fastjson.JSONObject;
 import com.eighteen.common.feedback.dao.*;
 import com.eighteen.common.feedback.domain.ThirdRetentionLog;
 import com.eighteen.common.feedback.entity.*;
+import com.eighteen.common.feedback.handler.FeedbackHandler;
 import com.eighteen.common.feedback.service.FeedbackService;
 import com.eighteen.common.spring.boot.autoconfigure.cache.redis.Redis;
 import com.eighteen.common.utils.HttpClientUtils;
@@ -80,6 +81,9 @@ public class FeedbackServiceImpl implements FeedbackService {
             0L, TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<>());
 
+    @Autowired(required = false)
+    FeedbackHandler feedbackHandler;
+
     @Override
     @Transactional
     public void feedback() {
@@ -120,23 +124,22 @@ public class FeedbackServiceImpl implements FeedbackService {
                         if (!dayHistories.contains(history)) {
                             try {
                                 if (feedBackMapper.countFromStatistics(finalType, value, a.getCoid(), a.getNcoid()) <= 0) {
-//                                    String url = c.getCallbackUrl() + "&event_type=1&event_time=" + System.currentTimeMillis();
-//                                    String ret;
-//                                    ret = HttpClientUtils.get(url);
-//                                    JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
-                                    //jsonObject.get("result").equals(1)
-                                    if (true) {
+                                    Boolean flag;
+                                    String url = c.getCallbackUrl();
+                                    if (feedbackHandler != null) {
+                                        flag = feedbackHandler.handler(url);
+                                    }
+                                    else {
+                                        String ret;
+                                        ret = HttpClientUtils.get(url + "&event_type=1&event_time=" + System.currentTimeMillis());
+                                        JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
+                                        flag = jsonObject.get("result").equals(1);
+                                    }
+                                    if (flag) {
                                         feedbackLogMapper.insertList(Lists.newArrayList(new FeedbackLog()
                                                 .setAid(c.getAid()).setCid(c.getCid()).setAndroidId(c.getAndroidId())
                                                 .setCallbackUrl(c.getCallbackUrl()).setCreateTime(new Date()).setChannel(c.getChannel()).setEventType(1)
                                                 .setIp(a.getIp()).setImei(a.getImei()).setMac(c.getMac()).setMatchField(finalType).setOaid(c.getOaid()).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setTs(new Date(c.getTs()))));
-
-//                                        feedbackLogDao.save(new FeedbackLog()
-//                                                .setAid(c.getAid()).setCid(c.getCid()).setAndroidId(c.getAndroidId())
-//                                                .setCallbackUrl(c.getCallbackUrl()).setCreateTime(new Date()).setChannel(c.getChannel()).setEventType(1)
-//                                                .setIp(a.getIp()).setImei(a.getImei()).setMac(c.getMac()).setMatchField(finalType).setOaid(c.getOaid()));
-
-                                        history.setStatus(1);
 
                                         BooleanExpression eq = activeLogger.imei.eq(value);
                                         if (finalType.equals("oaid")) eq = activeLogger.oaid.eq(value);
