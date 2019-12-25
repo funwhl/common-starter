@@ -51,7 +51,7 @@ public class ClickMonitorController {
         try {
             logger.info("click monitor active->{}", params.toString());
             if (clickLogHandler != null) {
-                clickLogHandler.handler(params);
+                clickLogHandler.handler(params,clickLog);
             } else {
                 Date date = new Date();
                 params.put("create_time", date);

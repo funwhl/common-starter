@@ -109,10 +109,22 @@ public class FeedbackServiceImpl implements FeedbackService {
 //                if (type.equals("mac")) type = "wifimac";
                 String finalType = type;
                 ArrayList<Tuple> list = dsl.select(activeLogger, clickLog).from(activeLogger).innerJoin(clickLog).on(e.and(activeLogger.status.eq(0))).limit(1000L).fetch().stream()
+                        // 获取激活时间最近的一条，其它过滤掉
                         .sorted(Comparator.comparing(o -> o.get(activeLogger).getActiveTime()))
                         .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> {
-                                    Object fieldValue = ReflectionUtils.getFieldValue(o2.get(activeLogger), finalType);
-                                    return fieldValue == null ? "" : fieldValue.toString();
+                                    ActiveLogger activeLogger = o2.get(QActiveLogger.activeLogger);
+                                    switch (key) {
+                                        case "imei":
+                                            return activeLogger.getImei() + activeLogger.getCoid() + activeLogger.getNcoid();
+                                        case "oaid":
+                                            return o2.get(QActiveLogger.activeLogger).getOaid() + activeLogger.getCoid() + activeLogger.getNcoid();
+                                        case "androidId":
+                                            return o2.get(QActiveLogger.activeLogger).getAndroidId() + activeLogger.getCoid() + activeLogger.getNcoid();
+                                        default:
+                                            return o2.get(QActiveLogger.activeLogger).getWifimac() + activeLogger.getCoid() + activeLogger.getNcoid();
+                                    }
+//                                    Object fieldValue = ReflectionUtils.getFieldValue(o2.get(activeLogger), finalType);
+//                                    return fieldValue == null ? "" : fieldValue.toString();
                                 }))), ArrayList::new)
                         );
                 list.forEach(tuple -> {
@@ -130,8 +142,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                                     String url = c.getCallbackUrl();
                                     if (feedbackHandler != null) {
                                         flag = feedbackHandler.handler(url);
-                                    }
-                                    else {
+                                    } else {
                                         String ret;
                                         ret = HttpClientUtils.get(url + "&event_type=1&event_time=" + System.currentTimeMillis());
                                         JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
