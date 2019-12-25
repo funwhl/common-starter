@@ -47,20 +47,26 @@ public class ClickMonitorController {
 
 
     @GetMapping(value = "clickMonitor")
-    public void clickMonitor(@RequestParam Map<String, Object> params,  ClickLog clickLog) {
+    public void clickMonitor(@RequestParam Map<String, Object> params, ClickLog clickLog) {
         try {
             logger.info("click monitor active->{}", params.toString());
             if (clickLogHandler != null) {
                 clickLogHandler.handler(params);
             } else {
-                params.put("create_time", new Date());
-                if (NumberUtils.isCreatable(String.valueOf(params.get("ts"))))
-//                params.put("click_time", new Date(Long.valueOf(String.valueOf(params.get("ts")))));
-                    clickLog.setClickTime(new Date(Long.valueOf(String.valueOf(params.get("ts")))));
-//            feedBackMapper.insertClickLog(params);
-                clickLog.setAndroidId(params.get("android_Id")==null?"":params.get("android_Id").toString());
-                clickLog.setCallbackUrl(params.get("call_back")==null?"":params.get("call_back").toString());
-                clickLog.setCreateTime(new Date());
+                Date date = new Date();
+                params.put("create_time", date);
+
+                if (NumberUtils.isCreatable(String.valueOf(params.get("ts")))) {
+                    Long ts = Long.valueOf(String.valueOf(params.get("ts")));
+                    clickLog.setClickTime(new Date(ts));
+                    clickLog.setTs(ts);
+                } else {
+                    clickLog.setClickTime(date);
+                    clickLog.setTs(date.getTime());
+                }
+                clickLog.setAndroidId(params.get("android_Id") == null ? "" : params.get("android_Id").toString());
+                clickLog.setCallbackUrl(params.get("call_back") == null ? "" : params.get("call_back").toString());
+                clickLog.setCreateTime(date);
                 clickLogDao.save(clickLog);
                 String msg = JSONObject.toJSONString(params);
                 Message message = MessageBuilder.withBody(msg.getBytes())
@@ -78,8 +84,8 @@ public class ClickMonitorController {
     @GetMapping(value = "clickMonitorExact")
     public void clickMonitorExact(@RequestParam Map<String, Object> params) {
         try {
-            Map<String,Object> fields = params.entrySet().stream().filter(o -> o.getKey().startsWith("@@"))
-                    .collect(Collectors.toMap(o -> o.getKey().substring(2,o.getKey().length()), Map.Entry::getValue));
+            Map<String, Object> fields = params.entrySet().stream().filter(o -> o.getKey().startsWith("@@"))
+                    .collect(Collectors.toMap(o -> o.getKey().substring(2, o.getKey().length()), Map.Entry::getValue));
             logger.info("click monitor active->{}", params.toString());
             fields.put("create_time", new Date());
             if (NumberUtils.isCreatable(String.valueOf(fields.get("ts"))))
