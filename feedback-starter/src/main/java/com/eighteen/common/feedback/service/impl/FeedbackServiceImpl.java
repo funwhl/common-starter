@@ -75,6 +75,8 @@ public class FeedbackServiceImpl implements FeedbackService {
     private String channel;
     @Value("${18.feedback.mode:1}")
     private int mode;
+    @Value("${18.feedback.retention:true}")
+    private Boolean isRetention;
     @Value("${spring.application.name}")
     private String appName;
     private ExecutorService executor = new ThreadPoolExecutor(8, 8,
@@ -239,9 +241,12 @@ public class FeedbackServiceImpl implements FeedbackService {
                 tryWork(r -> dsl.delete(dayHistory).where(dayHistory.createTime.before(new Date(
                                 current - TimeUnit.DAYS.toMillis(1)))).execute(),
                         CLEAN_IMEI);
-                tryWork(r -> feedBackMapper.cleanDayLCImeis(new Date(
-                                current - TimeUnit.DAYS.toMillis(2))),
-                        CLEAN_LC_IMEI);
+
+                if (isRetention) {
+                    tryWork(r -> feedBackMapper.cleanDayLCImeis(new Date(
+                                    current - TimeUnit.DAYS.toMillis(2))),
+                            CLEAN_LC_IMEI);
+                }
                 break;
             case CLEAN_ACTIVE:
                 tryWork(r -> {

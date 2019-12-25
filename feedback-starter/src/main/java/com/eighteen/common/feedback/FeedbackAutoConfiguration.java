@@ -80,7 +80,7 @@ public class FeedbackAutoConfiguration {
             taskRegistrar.addCronTask(() -> feedbackService().feedback(), properties.getFeedbackCron());
             taskRegistrar.addCronTask(() -> feedbackService().stat(STAT_DAY), properties.getDayStatCron());
             // 次留存 定时任务
-            taskRegistrar.addCronTask(() -> feedbackService().secondStay(RETENTION), properties.getDayStatCron());
+            if (properties.getRetention())taskRegistrar.addCronTask(() -> feedbackService().secondStay(RETENTION), properties.getDayStatCron());
 
         };
 //        return new Scheduling18Configurer();
@@ -112,6 +112,7 @@ public class FeedbackAutoConfiguration {
         jobs.put(STAT_DAY.getKey(), Job.builder().jobName(STAT_DAY.getKey()).cron(properties.getDayStatCron()).failover(true)
                 .job(c -> feedbackService().stat(STAT_DAY)).build());
 
+        if (properties.getRetention())
         jobs.put(RETENTION.getKey(), Job.builder().jobName(RETENTION.getKey()).cron(properties.getRetentionCron()).failover(true)
                 .job(c -> feedbackService().secondStay(RETENTION)).monitorExecution(false).build());
 

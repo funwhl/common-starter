@@ -41,5 +41,6 @@ public class EighteenProperties {
     private String retentionCron ="0 1/10 * * * ?";
 
     private Integer mode;
+    private Boolean retention = true;
 
 }
