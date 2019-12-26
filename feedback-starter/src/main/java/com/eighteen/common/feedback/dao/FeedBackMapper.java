@@ -51,7 +51,7 @@ public interface FeedBackMapper {
             " and wifimac = #{value}" +
             "</if>" +
             "<if test='coid != null'>" +
-            " and ncoid = #{ncoid}" +
+            " and coid = #{coid}" +
             "</if>" +
             "<if test='ncoid != null'>" +
             " and ncoid = #{ncoid} " +
