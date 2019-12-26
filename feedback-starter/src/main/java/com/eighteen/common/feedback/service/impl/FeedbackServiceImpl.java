@@ -92,14 +92,15 @@ public class FeedbackServiceImpl implements FeedbackService {
         tryWork(r -> {
             BooleanExpression imeiBe = activeLogger.imeiMd5.eq(clickLog.imei);
             BooleanExpression oaidBe = activeLogger.oaid.eq(clickLog.oaid);
-            BooleanExpression androidIdBe = activeLogger.androidId.eq(clickLog.androidId);
+            // 数据库查android新用户太慢先过滤掉
+            BooleanExpression androidIdBe = activeLogger.androidIdMd5.eq(clickLog.androidId);
 //            BooleanExpression wifiMacBe = activeLogger.wifimac.eq(clickLog.mac);
             AtomicLong success = new AtomicLong(0);
 
             Map<String, BooleanExpression> wd = new HashMap<>();
             wd.put("imei", imeiBe.and(activeLogger.imei.isNotNull()));
             wd.put("oaid", oaidBe.and(imeiBe.not()).and(activeLogger.oaid.isNotNull()));
-            wd.put("androidId", androidIdBe.and(imeiBe.not()).and(oaidBe.not()).and(activeLogger.androidId.isNotNull()));
+//            wd.put("androidId", androidIdBe.and(imeiBe.not()).and(oaidBe.not()).and(activeLogger.androidId.isNotNull()));
 //            wd.put("wifimac", wifiMacBe.and(imeiBe.not()).and(oaidBe.not()).and(androidIdBe.not()).and(activeLogger.wifimac.isNotNull()));
 
             List<DayHistory> dayHistories = dsl.selectFrom(dayHistory).where(dayHistory.createTime.after(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)))).fetch();
@@ -159,10 +160,8 @@ public class FeedbackServiceImpl implements FeedbackService {
                                         if (finalType.equals("androidId")) eq = activeLogger.androidId.eq(value);
                                         if (finalType.equals("wifimac"))
                                             eq = activeLogger.wifimac.in(c.getMac(), c.getMac2());
-                                        if (a.getCoid() != null) eq.and(activeLogger.coid.eq(a.getCoid()));
-                                        if (a.getNcoid() != null) eq.and(activeLogger.ncoid.eq(a.getNcoid()));
                                         dsl.update(activeLogger).set(activeLogger.status, 1)
-                                                .where(eq).execute();
+                                                .where(eq.and(activeLogger.ncoid.eq(a.getNcoid())).and(activeLogger.coid.eq(a.getCoid()))).execute();
                                         success.incrementAndGet();
                                         histories.add(history);
                                     }
@@ -178,10 +177,8 @@ public class FeedbackServiceImpl implements FeedbackService {
                             if (finalType.equals("oaid")) eq = activeLogger.oaid.eq(value);
                             if (finalType.equals("androidId")) eq = activeLogger.androidId.eq(value);
                             if (finalType.equals("wifimac")) eq = activeLogger.wifimac.in(c.getMac(), c.getMac2());
-                            if (a.getCoid() != null) eq.and(activeLogger.coid.eq(a.getCoid()));
-                            if (a.getNcoid() != null) eq.and(activeLogger.ncoid.eq(a.getNcoid()));
 
-                            dsl.update(activeLogger).set(activeLogger.status, 2).where(eq).execute();
+                            dsl.update(activeLogger).set(activeLogger.status, 2).where(eq.and(activeLogger.ncoid.eq(a.getNcoid())).and(activeLogger.coid.eq(a.getCoid()))).execute();
                         }
                     } catch (Exception e1) {
                         e1.printStackTrace();
@@ -227,6 +224,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                     continue;
                 }
                 if (imei != null) activeLogger.setImeiMd5(DigestUtils.md5DigestAsHex(imei.getBytes()));
+                if (activeLogger.getAndroidId() != null) activeLogger.setAndroidIdMd5(DigestUtils.md5DigestAsHex(activeLogger.getAndroidId().getBytes()));
                 if (activeLogger.getWifimac() != null)
                     activeLogger.setWifimacMd5(DigestUtils.md5DigestAsHex(activeLogger.getWifimac().getBytes()));
                 activeLogger.setCreateTime(new Date());
@@ -276,13 +274,8 @@ public class FeedbackServiceImpl implements FeedbackService {
 
                     List<Long> ids = activeLoggers.stream().map(ActiveLogger::getId).collect(Collectors.toList());
                     //sqlserver 支持最多 2100 个参数 分批处理
-                    Page<Long> idPage = Page.create(1, 1000, i -> ids);
-                    idPage.forEach(list -> {
-                        Example example = new Example(ActiveLogger.class);
-                        Example.Criteria criteria = example.createCriteria();
-                        criteria.andIn("id", list);
-                        activeLoggerMapper.deleteByExample(example);
-                    });
+                    Page<Long> idPage = Page.create(1, 100, i -> ids);
+                    idPage.forEach(list -> dsl.delete(activeLogger).where(activeLogger.id.in(list)).execute());
 
                     return (long) activeLoggers.size();
                 }, CLEAN_ACTIVE);
@@ -304,10 +297,10 @@ public class FeedbackServiceImpl implements FeedbackService {
 
                     Page<ActiveLoggerHistory> page = Page.create(1, 100, i -> histories);
                     page.forEach(list -> activeLoggerHistoryMapper.insertList(list));
-                    Example example = new Example(ActiveLogger.class);
-                    Example.Criteria criteria = example.createCriteria();
-                    criteria.andIn("id", activeLoggers.stream().map(ActiveLogger::getId).collect(Collectors.toList()));
-                    activeLoggerMapper.deleteByExample(example);
+
+                    List<Long> ids = activeLoggers.stream().map(ActiveLogger::getId).collect(Collectors.toList());
+                    Page<Long> idPage = Page.create(1, 100, i -> ids);
+                    idPage.forEach(list -> dsl.delete(activeLogger).where(activeLogger.id.in(list)).execute());
 
                     return (long) activeLoggers.size();
                 }, CLEAN_ACTIVE_HISTORY);
@@ -316,22 +309,23 @@ public class FeedbackServiceImpl implements FeedbackService {
             case CLEAN_CLICK:
                 tryWork(r -> {
                             List<ClickLog> clickLogs = dsl.selectFrom(clickLog)
-                                    .where(clickLog.clickTime.after(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(7)))).fetch();
+                                    .where(clickLog.createTime.before(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)))).fetch();
                             if (CollectionUtils.isEmpty(clickLogs)) return 0;
 
                             List<ClickLogHistory> list = clickLogs.stream().map(clickLog1 -> {
                                 ClickLogHistory clickLogHistory = new ClickLogHistory();
                                 BeanUtils.copyProperties(clickLog1, clickLogHistory);
+                                clickLogHistory.setId(null);
                                 return clickLogHistory;
                             }).collect(Collectors.toList());
                             if (CollectionUtils.isEmpty(list)) return 0;
-                            clickLogHistoryMapper.insertList(list);
 
-                            Example example = new Example(ActiveLogger.class);
-                            Example.Criteria criteria = example.createCriteria();
-                            criteria.andIn("id", clickLogs.stream().map(ClickLog::getId).collect(Collectors.toList()));
+                            Page<ClickLogHistory> pageList = Page.create(1, 100, i -> list);
+                            pageList.forEach(data -> clickLogHistoryMapper.insertList(data));
 
-                            clickLogMapper.deleteByExample(example);
+                            List<Long> ids = clickLogs.stream().map(ClickLog::getId).collect(Collectors.toList());
+                            Page<Long> pageIds = Page.create(1, 100, i -> ids);
+                            pageIds.forEach(o -> dsl.delete(clickLog).where(clickLog.id.in(o)).execute());
                             return (long) clickLogs.size();
                         },
                         CLEAN_CLICK);

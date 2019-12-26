@@ -19,7 +19,8 @@ import java.util.Date;
                 @Index(name = "ncoid", columnList = "coid"),
                 @Index(name = "oaid", columnList = "oaid")
                 , @Index(name = "activeTime", columnList = "activeTime"),
-                @Index(name = "androidId", columnList = "androidId")
+                @Index(name = "androidId", columnList = "androidId"),
+                @Index(name = "androidIdMd5", columnList = "androidIdMd5"),
         })
 @Accessors(chain = true)
 @Data
@@ -40,6 +41,7 @@ public class ActiveLoggerHistory {
     private String type;
     private String ua;
     private String androidId;
+    private String androidIdMd5;
     private String oaid;
     private Integer status;
     private Date activeTime;

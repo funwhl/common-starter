@@ -15,11 +15,13 @@ import java.util.Date;
 @Table(name = "t_active_Logger",
 //        schema = "dbo", catalog = "Kuaishoufeedback",
         indexes = {@Index(name = "imei", columnList = "imei"),
+                @Index(name = "imeiMd5", columnList = "imeiMd5"),
                 @Index(name = "coid", columnList = "coid"),
                 @Index(name = "ncoid", columnList = "coid"),
-                @Index(name = "oaid", columnList = "oaid")
-                , @Index(name = "activeTime", columnList = "activeTime"),
-                @Index(name = "androidId", columnList = "androidId")
+                @Index(name = "oaid", columnList = "oaid"),
+                @Index(name = "activeTime", columnList = "activeTime"),
+                @Index(name = "androidId", columnList = "androidId"),
+                @Index(name = "androidIdMd5", columnList = "androidIdMd5")
         })
 @Accessors(chain = true)
 @Data
@@ -40,6 +42,7 @@ public class ActiveLogger {
     private String type;
     private String ua;
     private String androidId;
+    private String androidIdMd5;
     private String oaid;
     private Integer status;
     private Date activeTime;
