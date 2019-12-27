@@ -26,7 +26,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.DigestUtils;
-import tk.mybatis.mapper.entity.Example;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -90,9 +89,9 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Transactional
     public void feedback() {
         tryWork(r -> {
+            // 匹配规则 imei -> oaid -> androidId ->mac
             BooleanExpression imeiBe = activeLogger.imeiMd5.eq(clickLog.imei);
             BooleanExpression oaidBe = activeLogger.oaid.eq(clickLog.oaid);
-            // 数据库查android新用户太慢先过滤掉
             BooleanExpression androidIdBe = activeLogger.androidIdMd5.eq(clickLog.androidId);
 //            BooleanExpression wifiMacBe = activeLogger.wifimac.eq(clickLog.mac);
             AtomicLong success = new AtomicLong(0);
@@ -100,7 +99,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             Map<String, BooleanExpression> wd = new HashMap<>();
             wd.put("imei", imeiBe.and(activeLogger.imei.isNotNull()));
             wd.put("oaid", oaidBe.and(imeiBe.not()).and(activeLogger.oaid.isNotNull()));
-//            wd.put("androidId", androidIdBe.and(imeiBe.not()).and(oaidBe.not()).and(activeLogger.androidId.isNotNull()));
+            wd.put("androidId", androidIdBe.and(imeiBe.not()).and(oaidBe.not()).and(activeLogger.androidId.isNotNull()));
 //            wd.put("wifimac", wifiMacBe.and(imeiBe.not()).and(oaidBe.not()).and(androidIdBe.not()).and(activeLogger.wifimac.isNotNull()));
 
             List<DayHistory> dayHistories = dsl.selectFrom(dayHistory).where(dayHistory.createTime.after(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)))).fetch();
@@ -109,8 +108,9 @@ public class FeedbackServiceImpl implements FeedbackService {
                 String type = key;
 //                if (type.equals("mac")) type = "wifimac";
                 String finalType = type;
-                ArrayList<Tuple> list = dsl.select(activeLogger, clickLog).from(activeLogger).innerJoin(clickLog).on(e.and(activeLogger.status.eq(0))).limit(1000L).fetch().stream()
-                        // 获取激活时间最近的一条，其它过滤掉
+                List<Tuple> tupleList = dsl.select(activeLogger, clickLog).from(activeLogger).innerJoin(clickLog).on(e.and(activeLogger.status.eq(0))).limit(1000L).fetch();
+                List<Long> ids = tupleList.stream().map(tuple -> tuple.get(activeLogger).getId()).collect(Collectors.toList());
+                ArrayList<Tuple> list = tupleList.stream()
                         .sorted(Comparator.comparing(o -> o.get(activeLogger).getActiveTime()))
                         .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> {
                                     ActiveLogger activeLogger = o2.get(QActiveLogger.activeLogger);
@@ -161,7 +161,8 @@ public class FeedbackServiceImpl implements FeedbackService {
                                         if (finalType.equals("wifimac"))
                                             eq = activeLogger.wifimac.in(c.getMac(), c.getMac2());
                                         dsl.update(activeLogger).set(activeLogger.status, 1)
-                                                .where(eq.and(activeLogger.ncoid.eq(a.getNcoid())).and(activeLogger.coid.eq(a.getCoid()))).execute();
+                                                .where(eq.and(activeLogger.id.in(ids)).and(activeLogger.coid.eq(a.getCoid())).and(activeLogger.ncoid.eq(a.getNcoid()))).execute();
+//                                        });
                                         success.incrementAndGet();
                                         histories.add(history);
                                     }
@@ -178,7 +179,8 @@ public class FeedbackServiceImpl implements FeedbackService {
                             if (finalType.equals("androidId")) eq = activeLogger.androidId.eq(value);
                             if (finalType.equals("wifimac")) eq = activeLogger.wifimac.in(c.getMac(), c.getMac2());
 
-                            dsl.update(activeLogger).set(activeLogger.status, 2).where(eq.and(activeLogger.ncoid.eq(a.getNcoid())).and(activeLogger.coid.eq(a.getCoid()))).execute();
+                            BooleanExpression finalEq = eq;
+                            dsl.update(activeLogger).set(activeLogger.status, 2).where(finalEq.and(activeLogger.id.in(ids)).and(activeLogger.coid.eq(a.getCoid())).and(activeLogger.ncoid.eq(a.getNcoid()))).execute();
                         }
                     } catch (Exception e1) {
                         e1.printStackTrace();
