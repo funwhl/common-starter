@@ -218,14 +218,15 @@ public class FeedbackServiceImpl implements FeedbackService {
             if (!CollectionUtils.isEmpty(feedbackLogs))
             executor.execute(() -> {
                 Page<FeedbackLog> pageFeed = Page.create(1, 100, i -> feedbackLogs);
-                if (!CollectionUtils.isEmpty(feedbackLogs))
                     pageFeed.forEach(historyList -> feedbackLogMapper.insertList(feedbackLogs));
+            });
 
-
+            if (!CollectionUtils.isEmpty(histories))
+            executor.execute(() -> {
                 Page<DayHistory> page = Page.create(1, 100, i -> histories);
-                if (!CollectionUtils.isEmpty(histories))
                     page.forEach(historyList -> dayHistoryMapper.insertList(histories));
             });
+
             return success.get();
         }, FEED_BACK);
     }
