@@ -33,12 +33,14 @@ public class EighteenProperties {
     //job
     private String cleanClickCron = "0 10/30 * * * ?";
     private String cleanImeiCron = "0 0/10 * * * ?";
-    private String feedbackCron ="0 1/1 * * * ?";
+    private String feedbackCron = "0 1/1 * * * ?";
     private String syncActiveCron = "0 0/1 * * * ?";
     private String cleanActiveCron = "0 15/30 * * * ?";
     private String cleanActiveHistoryCron = "0 7/10 * * * ?";
     private String dayStatCron = "0 0 1 1/1 * ?";
-    private String retentionCron ="0 1/10 * * * ?";
+    private String retentionCron = "0 1/10 * * * ?";
+
+    private Integer offset = 2;
 
     private Integer mode;
     private Boolean retention = true;
