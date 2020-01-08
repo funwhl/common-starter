@@ -14,7 +14,6 @@ import com.eighteen.common.utils.ReflectionUtils;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
-import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -30,6 +29,7 @@ import org.springframework.util.CollectionUtils;
 import org.springframework.util.DigestUtils;
 import tk.mybatis.mapper.entity.Example;
 
+import javax.persistence.LockModeType;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
@@ -70,7 +70,8 @@ public class FeedbackServiceImpl implements FeedbackService {
     ActiveLoggerHistoryMapper activeLoggerHistoryMapper;
     @Autowired
     ActiveLoggerMapper activeLoggerMapper;
-
+    @Autowired(required = false)
+    FeedbackHandler feedbackHandler;
     @Autowired(required = false)
     private Redis redis;
     @Value("${18.feedback.channel}")
@@ -83,6 +84,8 @@ public class FeedbackServiceImpl implements FeedbackService {
     private String appName;
     @Value("${18.feedback.offset}")
     private Integer offset;
+    @Value("#{'${18.feedback.range:}'.split(',')}")
+    private List<Integer> range;
     private ExecutorService executor = new ThreadPoolExecutor(8, 8,
             0L, TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<>());
@@ -92,9 +95,9 @@ public class FeedbackServiceImpl implements FeedbackService {
     private Cache<String, List<ActiveLogger>> activeLoggerCache = CacheBuilder.newBuilder()
             .expireAfterWrite(10, TimeUnit.MINUTES).concurrencyLevel(3)
             .build();
-
-    @Autowired(required = false)
-    FeedbackHandler feedbackHandler;
+    private Cache<String, List<String>> errorCache = CacheBuilder.newBuilder()
+            .expireAfterWrite(10, TimeUnit.MINUTES).concurrencyLevel(3)
+            .build();
 
     @Override
     @Transactional
@@ -113,119 +116,132 @@ public class FeedbackServiceImpl implements FeedbackService {
             wd.put("androidId", androidIdBe.and(imeiBe.not()).and(oaidBe.not()).and(activeLogger.androidId.isNotNull()));
 //            wd.put("wifimac", wifiMacBe.and(imeiBe.not()).and(oaidBe.not()).and(androidIdBe.not()).and(activeLogger.wifimac.isNotNull()));
 
-//            List<DayHistory> dayHistories = dsl.selectDistinct(dayHistory).where(dayHistory.createTime.after(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(2)))).fetch();
             List<DayHistory> histories = new ArrayList<>();
             List<FeedbackLog> feedbackLogs = new ArrayList<>();
             wd.forEach((key, e) -> {
-                String type = key;
-//                if (type.equals("mac")) type = "wifimac";
-                String finalType = type;
-                List<Tuple> tupleList = dsl.select(activeLogger, clickLog).from(activeLogger).innerJoin(clickLog).on(e.and(activeLogger.status.eq(0))).limit(1000L).fetch();
-                List<Long> ids = tupleList.stream().map(tuple -> tuple.get(activeLogger).getId()).collect(Collectors.toList());
-                ArrayList<Tuple> list = tupleList.stream()
+                if (!CollectionUtils.isEmpty(range)) e = e.and(activeLogger.channel.in(range));
+                List<ActiveLogger> tupleList = dsl.select(activeLogger, clickLog).setLockMode(LockModeType.NONE).from(activeLogger).innerJoin(clickLog).on(e.and(activeLogger.status.eq(0))).limit(1000L).fetch()
+                        .stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
+                ArrayList<ActiveLogger> list = tupleList.stream()
                         // 去重 取lastClick
-                        .sorted(Comparator.comparing(o -> o.get(clickLog).getClickTime()))
+                        .sorted(Comparator.comparing(o -> o.getClickLog().getClickTime()))
                         .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> {
-                                    ActiveLogger activeLogger = o2.get(QActiveLogger.activeLogger);
                                     switch (key) {
-                                        case "imei":
-                                            return activeLogger.getImei() + activeLogger.getCoid() + activeLogger.getNcoid();
                                         case "oaid":
-                                            return o2.get(QActiveLogger.activeLogger).getOaid() + activeLogger.getCoid() + activeLogger.getNcoid();
+                                            return o2.getOaid() + o2.getCoid() + o2.getNcoid();
                                         case "androidId":
-                                            return o2.get(QActiveLogger.activeLogger).getAndroidId() + activeLogger.getCoid() + activeLogger.getNcoid();
+                                            return o2.getAndroidId() + o2.getCoid() + o2.getNcoid();
+                                        case "wifimac":
+                                            return o2.getWifimac() + o2.getCoid() + o2.getNcoid();
                                         default:
-                                            return o2.get(QActiveLogger.activeLogger).getWifimac() + activeLogger.getCoid() + activeLogger.getNcoid();
+                                            return o2.getImei() + o2.getCoid() + o2.getNcoid();
                                     }
-//                                    Object fieldValue = ReflectionUtils.getFieldValue(o2.get(activeLogger), finalType);
-//                                    return fieldValue == null ? "" : fieldValue.toString();
                                 }))), ArrayList::new)
                         );
                 List<DayHistory> dayHistories = getDayCache(key);
-                list.forEach(tuple -> {
+                List<ActiveLogger> oldUsers = new ArrayList<>();
+
+                list.forEach(activeLogger -> {
+                    String value = ReflectionUtils.getFieldValue(activeLogger, key).toString();
+                    DayHistory history = new DayHistory().setNcoid(activeLogger.getNcoid()).setCoid(activeLogger.getCoid()).setWd(key).setValue(value);
+                    if (dayHistories.contains(history)) {
+                        oldUsers.add(activeLogger);
+                    } else {
+                        // 避免androidId先匹配到 之后又匹配到oaid重复回传
+                        if (key.equals("oaid")) {
+                            if (getDayCache("androidId").stream().anyMatch(d -> d.getValue() != null && d.getValue().equals(activeLogger.getAndroidId()))) {
+                                dayHistories.add(history);
+                                histories.add(history);
+                                oldUsers.add(activeLogger);
+                            }
+                        }
+                    }
+                });
+
+                List<String> errorUrls = errorCache.getIfPresent("errors");
+                List<ActiveLogger> filter = list.stream()
+                        .filter(o -> !oldUsers.contains(o) && (errorUrls == null || !errorUrls.contains(o.getClickLog().getCallbackUrl())))
+                        .collect(Collectors.toList());
+//                String values = filter.stream().map(o -> "'" + ReflectionUtils.getFieldValue(activeLogger, key).toString() + "'").collect(Collectors.joining(","));
+                List<String> values = filter.stream().map(o -> ReflectionUtils.getFieldValue(activeLogger, key).toString()).collect(Collectors.toList());
+                List<DayHistory> exist = feedBackMapper.listFromStatistics(key, values, null, null);
+                exist.forEach(o -> o.setWd(key));
+
+                List<ActiveLogger> newUsers = filter.stream().filter(o -> {
+                    String value = ReflectionUtils.getFieldValue(o, key).toString();
+                    DayHistory history = new DayHistory().setNcoid(o.getNcoid()).setCoid(o.getCoid()).setWd(key).setValue(value);
+                    boolean b = exist.contains(history);
+                    if (b) {
+                        dayHistories.add(history);
+                        histories.add(history);
+                        oldUsers.add(o);
+                    }
+                    return !b;
+                }).collect(Collectors.toList());
+
+                newUsers.parallelStream().forEach(a -> {
                     try {
-                        ActiveLogger a = tuple.get(activeLogger);
-                        ClickLog c = tuple.get(clickLog);
-                        String value = ReflectionUtils.getFieldValue(a, finalType).toString();
-                        DayHistory history = new DayHistory().setWd(finalType).setValue(value).setCreateTime(new Date());
-                        if (a.getCoid() != null) history.setCoid(a.getCoid());
-                        if (a.getNcoid() != null) history.setNcoid(a.getNcoid());
-                        if (!dayHistories.contains(history)) {
-                            // 避免androidId先匹配到 之后又匹配到oaid重复回传
-                            if (key.equals("oaid")) {
-                                if (getDayCache("androidId").stream().anyMatch(d -> d.getValue() != null && d.getValue().equals(a.getAndroidId()))) {
-                                    dsl.update(activeLogger).set(activeLogger.status, 2)
-                                            .where(activeLogger.oaid.eq(value).and(activeLogger.coid.eq(a.getCoid())).and(activeLogger.ncoid.eq(a.getNcoid()))).execute();
-                                    return;
-                                }
-
-                            }
-                            try {
-                                if (feedBackMapper.countFromStatistics(finalType, value, a.getCoid(), a.getNcoid()) <= 0) {
-                                    Boolean flag;
-                                    String url = c.getCallbackUrl();
-                                    if (feedbackHandler != null) {
-                                        flag = feedbackHandler.handler(url);
-                                    } else {
-                                        String ret;
-                                        ret = HttpClientUtils.get(url + "&event_type=1&event_time=" + System.currentTimeMillis());
-                                        JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
-                                        flag = jsonObject.get("result").equals(1);
-                                    }
-                                    if (flag) {
-                                        feedbackLogMapper.insertList(Lists.newArrayList(new FeedbackLog()
-                                                .setAid(c.getAid()).setCid(c.getCid()).setAndroidId(c.getAndroidId())
-                                                .setCallbackUrl(c.getCallbackUrl()).setCreateTime(new Date()).setChannel(c.getChannel()).setEventType(1)
-                                                .setIp(a.getIp()).setImei(a.getImei()).setMac(c.getMac()).setMatchField(finalType).setOaid(c.getOaid()).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setTs(new Date(c.getTs()))));
-
-                                        BooleanExpression eq = activeLogger.imei.eq(value);
-                                        if (finalType.equals("oaid")) eq = activeLogger.oaid.eq(value);
-                                        if (finalType.equals("androidId")) eq = activeLogger.androidId.eq(value);
-                                        if (finalType.equals("wifimac"))
-                                            eq = activeLogger.wifimac.in(c.getMac(), c.getMac2());
-                                        dsl.update(activeLogger).set(activeLogger.status, 1)
-                                                .where(eq
-//                                                        .and(activeLogger.id.in(ids))
-                                                        .and(activeLogger.coid.eq(a.getCoid())).and(activeLogger.ncoid.eq(a.getNcoid()))).execute();
-                                        success.incrementAndGet();
-                                        histories.add(history);
-                                        dayHistories.add(history);
-                                    }
-
-                                } else {
-                                    histories.add(history);
-                                    dayHistories.add(history);
-                                }
-                            } catch (Exception e1) {
-                                e1.printStackTrace();
-                            }
+                        Boolean flag;
+                        ClickLog c = a.getClickLog();
+                        String url = c.getCallbackUrl();
+                        if (feedbackHandler != null) {
+                            flag = feedbackHandler.handler(url);
                         } else {
-                            BooleanExpression eq = activeLogger.imei.eq(value);
-                            if (finalType.equals("oaid")) eq = activeLogger.oaid.eq(value);
-                            if (finalType.equals("androidId")) eq = activeLogger.androidId.eq(value);
-                            if (finalType.equals("wifimac")) eq = activeLogger.wifimac.in(c.getMac(), c.getMac2());
-
-                            BooleanExpression finalEq = eq;
-                            dsl.update(activeLogger).set(activeLogger.status, 2).where(finalEq
-//                                    .and(activeLogger.id.in(ids))
-                                    .and(activeLogger.coid.eq(a.getCoid())).and(activeLogger.ncoid.eq(a.getNcoid()))).execute();
+                            String ret;
+                            ret = HttpClientUtils.get(url + "&event_type=1&event_time=" + System.currentTimeMillis());
+                            JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
+                            flag = jsonObject.get("result").equals(1);
+                        }
+                        if (flag) {
+                            feedbackLogs.add(new FeedbackLog().setAid(c.getAid()).setCid(c.getCid()).setAndroidId(c.getAndroidId())
+                                    .setCallbackUrl(c.getCallbackUrl()).setCreateTime(new Date()).setChannel(c.getChannel()).setEventType(1)
+                                    .setIp(a.getIp()).setImei(a.getImei()).setMac(c.getMac()).setMatchField(key).setOaid(c.getOaid()).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setTs(new Date(c.getTs())));
+                            String value = ReflectionUtils.getFieldValue(a, key).toString();
+                            DayHistory history = new DayHistory().setWd(key).setValue(value).setCreateTime(new Date());
+                            success.incrementAndGet();
+                            dayHistories.add(history);
+                            histories.add(history);
+                            oldUsers.add(a);
+                        } else {
+                            // 返回错误的数据10分钟后重试 减缓压力
+                            List<String> errors = errorCache.getIfPresent("errors");
+                            if (errors == null) errorCache.put("errors", Lists.newArrayList(url));
+                            else errors.add(url);
                         }
                     } catch (Exception e1) {
                         e1.printStackTrace();
                     }
                 });
-            });
-            if (!CollectionUtils.isEmpty(feedbackLogs))
-            executor.execute(() -> {
-                Page<FeedbackLog> pageFeed = Page.create(1, 100, i -> feedbackLogs);
-                    pageFeed.forEach(historyList -> feedbackLogMapper.insertList(feedbackLogs));
+
+                oldUsers.stream().collect(Collectors.groupingBy(o -> o.getCoid() + "," + o.getNcoid())).forEach((s, activeLoggers) -> {
+                    Integer coid = Integer.valueOf(s.split(",")[0]);
+                    Integer ncoid = Integer.valueOf(s.split(",")[1]);
+
+                    List<String> collect = filter.stream().map(o -> ReflectionUtils.getFieldValue(o, key).toString()).collect(Collectors.toList());
+
+                    Page<String> page = Page.create(1, 1000, i -> collect);
+                    page.forEach(strings -> {
+                        BooleanExpression eq = activeLogger.imei.in(strings);
+                        if (key.equals("oaid")) eq = activeLogger.oaid.in(strings);
+                        if (key.equals("androidId")) eq = activeLogger.androidId.in(strings);
+                        if (key.equals("wifimac")) eq = activeLogger.wifimac.in(strings);
+                        dsl.update(activeLogger).set(activeLogger.status, 1)
+                                .where(eq.and(activeLogger.coid.eq(coid)).and(activeLogger.ncoid.eq(ncoid))).execute();
+                    });
+                });
             });
 
+            if (!CollectionUtils.isEmpty(feedbackLogs))
+                executor.execute(() -> {
+                    Page<FeedbackLog> pageFeed = Page.create(1, 100, i -> feedbackLogs);
+                    pageFeed.forEach(historyList -> feedbackLogMapper.insertList(feedbackLogs));
+                });
+
             if (!CollectionUtils.isEmpty(histories))
-            executor.execute(() -> {
-                Page<DayHistory> page = Page.create(1, 100, i -> histories);
+                executor.execute(() -> {
+                    Page<DayHistory> page = Page.create(1, 100, i -> histories);
                     page.forEach(historyList -> dayHistoryMapper.insertList(histories));
-            });
+                });
 
             return success.get();
         }, FEED_BACK);
@@ -236,12 +252,8 @@ public class FeedbackServiceImpl implements FeedbackService {
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
         tryWork(r -> {
             Date date = new Date();
-//            List<DayHistory> histories = dsl.selectFrom(dayHistory)
-//                    .where(dayHistory.createTime.after(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset)))
-//                            .and(dayHistory.wd.eq("imei"))).fetch();
-
             Long curent = date.getTime();
-            Long offset = TimeUnit.MINUTES.toMillis(10);
+            Long offset = TimeUnit.SECONDS.toMillis(20);
             List<ActiveLogger> data;
 
             // 跨天AB表处理
@@ -261,7 +273,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                 ActiveLogger activeLogger = it.next();
                 String imei = activeLogger.getImei();
                 if (imeiCache.contains(new DayHistory().setWd("imei").setValue(imei).setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()))
-                        ||(active!=null&&active.contains(activeLogger))) {
+                        || (active != null && active.contains(activeLogger))) {
                     it.remove();
                     continue;
                 }
@@ -279,7 +291,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             if (!CollectionUtils.isEmpty(finalData)) {
                 page.forEach(activeLoggers -> activeLoggerMapper.insertList(activeLoggers));
                 activeLoggerCache.invalidate("active");
-                activeLoggerCache.put("active",finalData);
+                activeLoggerCache.put("active", finalData);
             }
             return data.size();
         }, SYNC_ACTIVE);
@@ -314,7 +326,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                         activeLoggerHistory.setId(null);
                         return activeLoggerHistory;
                     }).collect(Collectors.toList());
-                    if (CollectionUtils.isEmpty(histories)) return 0;
+
                     Page<ActiveLoggerHistory> page = Page.create(1, 100, i -> histories);
                     page.forEach(list -> activeLoggerHistoryMapper.insertList(list));
 
@@ -339,7 +351,6 @@ public class FeedbackServiceImpl implements FeedbackService {
                         activeLoggerHistory.setId(null);
                         return activeLoggerHistory;
                     }).collect(Collectors.toList());
-                    if (CollectionUtils.isEmpty(histories)) return 0;
 
                     Page<ActiveLoggerHistory> page = Page.create(1, 100, i -> histories);
                     page.forEach(list -> activeLoggerHistoryMapper.insertList(list));
@@ -364,7 +375,6 @@ public class FeedbackServiceImpl implements FeedbackService {
                                 clickLogHistory.setId(null);
                                 return clickLogHistory;
                             }).collect(Collectors.toList());
-                            if (CollectionUtils.isEmpty(list)) return 0;
 
                             Page<ClickLogHistory> pageList = Page.create(1, 150, i -> list);
                             pageList.forEach(data -> clickLogHistoryMapper.insertList(data));
@@ -435,6 +445,19 @@ public class FeedbackServiceImpl implements FeedbackService {
         }
     }
 
+    private List<DayHistory> getDayCache(String key) {
+        List<DayHistory> dayHistories = dayCache.getIfPresent(key);
+        if (CollectionUtils.isEmpty(dayHistories)) {
+            dayHistories = dsl.selectFrom(dayHistory).where(dayHistory.wd.eq(key).and(dayHistory.createTime.after(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset))))).fetch();
+//            Example example = new Example(DayHistory.class);
+//            Example.Criteria criteria = example.createCriteria();
+//            criteria.andEqualTo("wd", key);
+//            criteria.andGreaterThan("createTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset)));
+//            dayHistories = dayHistoryMapper.selectByExample(example);
+            dayCache.put(key, dayHistories);
+        }
+        return dayHistories;
+    }
 
     public enum JobType {
         CLEAN_CLICK("CLEAN_CLICK", TimeUnit.DAYS.toMillis(1) - 60 * 60),
@@ -462,18 +485,5 @@ public class FeedbackServiceImpl implements FeedbackService {
         public Long getExpire() {
             return expire;
         }
-    }
-
-    private List<DayHistory> getDayCache(String key) {
-        List<DayHistory> dayHistories = dayCache.getIfPresent(key);
-        if (CollectionUtils.isEmpty(dayHistories)) {
-            Example example = new Example(DayHistory.class);
-            Example.Criteria criteria = example.createCriteria();
-            criteria.andEqualTo("wd", key);
-            criteria.andGreaterThan("createTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset)));
-            dayHistories = dayHistoryMapper.selectByExample(example);
-            dayCache.put(key,dayHistories);
-        }
-        return dayHistories;
     }
 }

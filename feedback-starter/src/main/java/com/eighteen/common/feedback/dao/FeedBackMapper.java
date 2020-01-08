@@ -59,6 +59,16 @@ public interface FeedBackMapper {
             "</script>")
     long countFromStatistics(@Param("wd") String wd,@Param("value") String value, @Param("coid") Integer coid, @Param("ncoid") Integer ncoid);
 
+    @Select("<script>" +
+            "select ${wd},coid,ncoid from LinkStatistics.dbo.LinkStatistics " +
+            " where 1=1 " +
+            " and ${wd} in "+
+            "<foreach collection='values' index='index' item='item' open='(' separator=',' close=')'> #{item} </foreach>" +
+            "<if test='coid != null'> and coid = #{coid} </if>" +
+            "<if test='ncoid != null'> and ncoid = #{ncoid} </if>" +
+            "</script>")
+    List<DayHistory> listFromStatistics(@Param("wd") String wd,@Param("values") List<String> values, @Param("coid") Integer coid, @Param("ncoid") Integer ncoid);
+
     @Insert("<script>" +
             " insert  into FeedbackLog" +
             "        <foreach collection='params.keys' item='key' open='(' close=')' separator=','>" +
