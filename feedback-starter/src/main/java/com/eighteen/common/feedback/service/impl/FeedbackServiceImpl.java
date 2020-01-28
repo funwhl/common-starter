@@ -100,7 +100,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             .build();
 
     @Override
-    @Transactional
+//    @Transactional
     public void feedback() {
         tryWork(r -> {
             // 匹配规则 imei -> oaid -> androidId ->mac
@@ -120,7 +120,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             List<FeedbackLog> feedbackLogs = new ArrayList<>();
             wd.forEach((key, e) -> {
                 if (!CollectionUtils.isEmpty(range)) e = e.and(activeLogger.channel.in(range));
-                List<ActiveLogger> tupleList = dsl.select(activeLogger, clickLog).setLockMode(LockModeType.NONE).from(activeLogger).innerJoin(clickLog).on(e.and(activeLogger.status.eq(0))).limit(1000L).fetch()
+                List<ActiveLogger> tupleList = dsl.select(activeLogger, clickLog).from(activeLogger).innerJoin(clickLog).on(e.and(activeLogger.status.eq(0))).limit(1000L).fetch()
                         .stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
                 ArrayList<ActiveLogger> list = tupleList.stream()
                         // 去重 取lastClick
@@ -217,16 +217,23 @@ public class FeedbackServiceImpl implements FeedbackService {
                     Integer coid = Integer.valueOf(s.split(",")[0]);
                     Integer ncoid = Integer.valueOf(s.split(",")[1]);
 
-                    List<String> collect = filter.stream().map(o -> ReflectionUtils.getFieldValue(o, key).toString()).collect(Collectors.toList());
+                    List<String> collect = activeLoggers.stream().map(o -> ReflectionUtils.getFieldValue(o, key).toString()).collect(Collectors.toList());
 
                     Page<String> page = Page.create(1, 1000, i -> collect);
                     page.forEach(strings -> {
-                        BooleanExpression eq = activeLogger.imei.in(strings);
-                        if (key.equals("oaid")) eq = activeLogger.oaid.in(strings);
-                        if (key.equals("androidId")) eq = activeLogger.androidId.in(strings);
-                        if (key.equals("wifimac")) eq = activeLogger.wifimac.in(strings);
-                        dsl.update(activeLogger).set(activeLogger.status, 1)
-                                .where(eq.and(activeLogger.coid.eq(coid)).and(activeLogger.ncoid.eq(ncoid))).execute();
+//                        BooleanExpression eq = activeLogger.imei.in(strings);
+//                        if (key.equals("oaid")) eq = activeLogger.oaid.in(strings);
+//                        if (key.equals("androidId")) eq = activeLogger.androidId.in(strings);
+//                        if (key.equals("wifimac")) eq = activeLogger.wifimac.in(strings);
+//                        dsl.update(activeLogger).set(activeLogger.status, 1)
+//                                .where(eq.and(activeLogger.coid.eq(coid)).and(activeLogger.ncoid.eq(ncoid))).execute();
+
+                        Example example = new Example(ActiveLogger.class);
+                        Example.Criteria criteria = example.createCriteria();
+                        criteria.andIn(key, strings);
+                        criteria.andEqualTo("coid", coid);
+                        criteria.andEqualTo("ncoid", ncoid);
+                        activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
                     });
                 });
             });
