@@ -46,17 +46,17 @@ public class MessageSenderFactory {
         }
 
         @Override
-        public void send(int type, Object payload) {
+        public void send(String type, Object payload) {
             send(Message.create(type, payload));
         }
 
         @Override
-        public void send(int type, Object payload, String... headers) {
+        public void send(String type, Object payload, String... headers) {
             send(Message.create(type, payload, headers));
         }
 
         @Override
-        public void send(int type, String... headers) {
+        public void send(String type, String... headers) {
             send(Message.create(type, null, headers));
         }
 

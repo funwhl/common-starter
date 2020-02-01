@@ -15,7 +15,7 @@ public class Message implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private int type = -1;
+    private String type = "-1";
 
     private Object payload = null;
     private Map<String, String> headers;
@@ -25,7 +25,7 @@ public class Message implements Serializable {
         headers = new HashMap<>();
     }
 
-    public int getType() {
+    public String getType() {
         return type;
     }
 
@@ -44,7 +44,7 @@ public class Message implements Serializable {
         return headers.get(key);
     }
 
-    public boolean match(int type) {
+    public boolean match(String type) {
         return this.type == type;
     }
 
@@ -57,7 +57,7 @@ public class Message implements Serializable {
         return createTime;
     }
 
-    public static Message create(int type, Object payload, String... headers) {
+    public static Message create(String type, Object payload, String... headers) {
         Message m = new Message();
         m.type = type;
         m.payload = payload;

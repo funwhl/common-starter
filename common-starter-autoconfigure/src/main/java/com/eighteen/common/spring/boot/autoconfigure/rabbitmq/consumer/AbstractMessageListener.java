@@ -88,9 +88,9 @@ public abstract class AbstractMessageListener implements MessageListener, Initia
 
     protected abstract void onMessage(com.eighteen.common.mq.rabbitmq.Message message);
 
-    public abstract int[] getTypes();
+    public abstract String[] getTypes();
 
-    protected boolean supported(int type) {
+    protected boolean supported(String type) {
         return true;
     }
 }

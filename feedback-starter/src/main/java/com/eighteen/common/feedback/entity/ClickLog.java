@@ -4,6 +4,7 @@ import lombok.Data;
 import lombok.experimental.Accessors;
 
 import javax.persistence.*;
+import java.io.Serializable;
 import java.util.Date;
 
 /**
@@ -23,7 +24,8 @@ import java.util.Date;
         })
 @Accessors(chain = true)
 @Data
-public class ClickLog {
+public class ClickLog implements Serializable {
+    private static final long serialVersionUID = -1L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;

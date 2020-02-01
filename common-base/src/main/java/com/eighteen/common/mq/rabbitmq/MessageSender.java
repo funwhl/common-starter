@@ -6,11 +6,11 @@ package com.eighteen.common.mq.rabbitmq;
  * Time: 21:59
  */
 public interface MessageSender {
-    void send(int type, Object payload);
+    void send(String type, Object payload);
 
-    void send(int type, String... headers);
+    void send(String type, String... headers);
 
-    void send(int type, Object payload, String... headers);
+    void send(String type, Object payload, String... headers);
 
     void send(Message message);
 }

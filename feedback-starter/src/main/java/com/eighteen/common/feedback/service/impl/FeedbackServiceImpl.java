@@ -82,7 +82,7 @@ public class FeedbackServiceImpl implements FeedbackService {
     private Boolean isRetention;
     @Value("${spring.application.name}")
     private String appName;
-    @Value("${18.feedback.offset}")
+    @Value("${18.feedback.offset:1}")
     private Integer offset;
     @Value("#{'${18.feedback.range:}'.split(',')}")
     private List<Integer> range;
@@ -199,7 +199,9 @@ public class FeedbackServiceImpl implements FeedbackService {
                             String value = ReflectionUtils.getFieldValue(a, key).toString();
                             DayHistory history = new DayHistory().setWd(key).setValue(value).setCreateTime(new Date());
                             success.incrementAndGet();
-                            dayHistories.add(history);
+//                            dayHistories.add(history);
+                            addCache(key,Lists.newArrayList(history));
+
                             histories.add(history);
                             oldUsers.add(a);
                         } else {
@@ -452,20 +454,6 @@ public class FeedbackServiceImpl implements FeedbackService {
         }
     }
 
-    private List<DayHistory> getDayCache(String key) {
-        List<DayHistory> dayHistories = dayCache.getIfPresent(key);
-        if (CollectionUtils.isEmpty(dayHistories)) {
-            dayHistories = dsl.selectFrom(dayHistory).where(dayHistory.wd.eq(key).and(dayHistory.createTime.after(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset))))).fetch();
-//            Example example = new Example(DayHistory.class);
-//            Example.Criteria criteria = example.createCriteria();
-//            criteria.andEqualTo("wd", key);
-//            criteria.andGreaterThan("createTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset)));
-//            dayHistories = dayHistoryMapper.selectByExample(example);
-            dayCache.put(key, dayHistories);
-        }
-        return dayHistories;
-    }
-
     public enum JobType {
         CLEAN_CLICK("CLEAN_CLICK", TimeUnit.DAYS.toMillis(1) - 60 * 60),
         CLEAN_ACTIVE("CLEAN_ACTIVE", TimeUnit.DAYS.toMillis(1) - 60 * 60),
@@ -492,5 +480,44 @@ public class FeedbackServiceImpl implements FeedbackService {
         public Long getExpire() {
             return expire;
         }
+    }
+
+
+    private void addCache(String key,List<DayHistory> dayHistories) {
+        if (redis != null) {
+            String redisKey = appName + "#dayHistory#" + key;
+            Map<String, Double> map = new HashMap<>();
+            dayHistories.forEach(dayHistory -> map.put(String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()), (double) dayHistory.getCreateTime().getTime()));
+            if (map.size() > 0) redis.process(j -> j.zadd(redisKey, map));
+        } else {
+            List<DayHistory> list = dayCache.getIfPresent(key);
+            if (CollectionUtils.isEmpty(list)) {
+                dayCache.put(key,dayHistories);
+            } else list.addAll(dayHistories);
+        }
+    }
+
+    private List<DayHistory> getDayCache(String key) {
+        List<DayHistory> dayHistories = new ArrayList<>();
+        if (redis != null) {
+            String redisKey = appName + "#dayHistory#" + key;
+            long end = System.currentTimeMillis();
+            dayHistories = redis.zrange(redisKey, (double) end - TimeUnit.DAYS.toMillis(offset), (double) end).stream().map(s -> {
+                String[] split = s.split("##");
+                return new DayHistory().setWd(key).setCoid(split[0] == null ? null : Integer.valueOf(split[0]))
+                        .setNcoid(split[1] == null ? null : Integer.valueOf(split[1])).setValue(split[2]);
+            }).collect(Collectors.toList());
+        } else {
+            dayHistories = dayCache.getIfPresent(key);
+        }
+        if (CollectionUtils.isEmpty(dayHistories)) {
+            Example example = new Example(DayHistory.class);
+            Example.Criteria criteria = example.createCriteria();
+            criteria.andEqualTo("wd", key);
+            criteria.andGreaterThan("createTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset)));
+            dayHistories = dayHistoryMapper.selectByExample(example);
+            addCache(key,dayHistories);
+        }
+        return dayHistories;
     }
 }

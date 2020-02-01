@@ -5,15 +5,22 @@ import com.eighteen.common.feedback.dao.FeedBackMapper;
 import com.eighteen.common.feedback.entity.ClickLog;
 import com.eighteen.common.feedback.entity.dao2.ClickLogDao;
 import com.eighteen.common.feedback.handler.ClickLogHandler;
+import com.eighteen.common.mq.rabbitmq.MessageSender;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
 import org.springframework.amqp.core.MessageProperties;
+import org.springframework.amqp.rabbit.annotation.Exchange;
+import org.springframework.amqp.rabbit.annotation.Queue;
+import org.springframework.amqp.rabbit.annotation.QueueBinding;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -36,38 +43,40 @@ public class ClickMonitorController {
     FeedBackMapper feedBackMapper;
     @Autowired
     RabbitTemplate rabbitTemplate;
-    @Value("${18.feedback.channel}")
-    private String channel;
-    @Value("${18.feedback.clickQueue:Agg.KuaiShouClickReport.Messages.KuaiShouClickReportMessages}")
-    private String clickQueue;
     @Autowired
     ClickLogDao clickLogDao;
     @Autowired(required = false)
     ClickLogHandler clickLogHandler;
-
+    @Value("${18.feedback.channel}")
+    private String channel;
+    @Value("${18.feedback.clickQueue:}")
+    private String clickQueue;
+    @Value("${18.feedback.clickQueue2:Agg.clickReport.Messages.clickLogMessages}")
+    private String clickQueue2;
+    @Autowired
+    MessageSender sender;
 
     @GetMapping(value = "clickMonitor")
     public void clickMonitor(@RequestParam Map<String, Object> params, ClickLog clickLog) {
         try {
-            logger.info("click monitor active->{}", params.toString());
-            if (clickLogHandler != null) {
-                clickLogHandler.handler(params,clickLog);
+            logger.debug("click monitor active->{}", params.toString());
+            Date date = new Date();
+            params.put("create_time", date);
+            if (NumberUtils.isCreatable(String.valueOf(params.get("ts")))) {
+                Long ts = Long.valueOf(String.valueOf(params.get("ts")));
+                clickLog.setClickTime(new Date(ts));
+                clickLog.setTs(ts);
             } else {
-                Date date = new Date();
-                params.put("create_time", date);
-
-                if (NumberUtils.isCreatable(String.valueOf(params.get("ts")))) {
-                    Long ts = Long.valueOf(String.valueOf(params.get("ts")));
-                    clickLog.setClickTime(new Date(ts));
-                    clickLog.setTs(ts);
-                } else {
-                    clickLog.setClickTime(date);
-                    clickLog.setTs(date.getTime());
-                }
-                clickLog.setAndroidId(params.get("android_Id") == null ? "" : params.get("android_Id").toString());
-                clickLog.setCallbackUrl(params.get("call_back") == null ? "" : params.get("call_back").toString());
-                clickLog.setCreateTime(date);
-                clickLogDao.save(clickLog);
+                clickLog.setClickTime(date);
+                clickLog.setTs(date.getTime());
+            }
+            clickLog.setAndroidId(params.get("android_Id") == null ? "" : params.get("android_Id").toString());
+            clickLog.setCallbackUrl(params.get("call_back") == null ? "" : params.get("call_back").toString());
+            clickLog.setCreateTime(date);
+            if (clickLogHandler!=null)
+                clickLogHandler.handler(params, clickLog);
+            sender.send(channel,clickLog);
+            if (StringUtils.isNotBlank(clickQueue)) {
                 String msg = JSONObject.toJSONString(params);
                 Message message = MessageBuilder.withBody(msg.getBytes())
                         .setContentType(MessageProperties.CONTENT_TYPE_JSON)
@@ -103,32 +112,13 @@ public class ClickMonitorController {
         }
     }
 
-//    @GetMapping(value = "compensate")
-//    public void compensate(@RequestParam("start") String start) {
-//        try {
-//            logger.info("compensate");
-//            Date date = new SimpleDateFormat("yyyy-MM-dd").parse(start);
-//            Set<String> imeis = feedBackMapper.getDayImeis(date);
-//            List<Map<String, Object>> data = feedBackMapper.getThirdActiveLogger(date, channel);
-//
-//            data = data.stream().sorted((o1, o2) -> ((Date) o2.get("activetime")).compareTo((Date) o1.get("activetime")))
-//                    .collect(
-//                            Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> String.valueOf(o2.get("imei"))))), ArrayList::new)
-//                    );
-//            ListIterator<Map<String, Object>> it = data.listIterator();
-//            while (it.hasNext()) {
-//                Map<String, Object> map = it.next();
-//                String imei = String.valueOf(map.get("imei"));
-//                if (imeis.contains(imei)) {
-//                    it.remove();
-//                    continue;
-//                }
-//                map.put("imeimd5", DigestUtils.md5DigestAsHex(imei.getBytes()));
-//                map.put("wifimacmd5", DigestUtils.md5DigestAsHex(String.valueOf(map.get("wifimac")).getBytes()));
-//                feedBackMapper.insertActiveLogger(map);
-//            }
-//        } catch (Exception e) {
-//            e.printStackTrace();
-//        }
-//    }
+    @RabbitListener(bindings = @QueueBinding(
+            value = @Queue("${18.feedback.clickQueue2:Agg.clickReport.Messages.clickLogMessages}"),
+            key = "${18.feedback.channel}",
+            exchange = @Exchange("${spring.rabbitmq.default-exchange}")
+    ))
+    public void insertClickLog(@Payload com.eighteen.common.mq.rabbitmq.Message msg) {
+        ClickLog clickLog = (ClickLog) msg.getPayload();
+        clickLogDao.save(clickLog);
+    }
 }
