@@ -42,6 +42,7 @@
         <poi.version>3.17</poi.version>
         <tk.version>4.1.5</tk.version>
         <spring.cloud.version>Finchley.RELEASE</spring.cloud.version>
+        <swagger.version>2.7.0</swagger.version>
     </properties>
 
     <distributionManagement>
@@ -228,6 +229,16 @@
                 <groupId>tk.mybatis</groupId>
                 <artifactId>mapper</artifactId>
                 <version>${tk.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.springfox</groupId>
+                <artifactId>springfox-swagger2</artifactId>
+                <version>${swagger.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.springfox</groupId>
+                <artifactId>springfox-swagger-ui</artifactId>
+                <version>${swagger.version}</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
