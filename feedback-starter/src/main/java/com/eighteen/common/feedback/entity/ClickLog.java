@@ -16,11 +16,12 @@ import java.util.Date;
 @Entity
 @Table(name = "t_click_log",
 //        schema = "dbo", catalog = "Kuaishoufeedback",
-        indexes = {@Index(name = "imei", columnList = "imei"),
+        indexes = {@Index(name = "imeiMd5", columnList = "imeiMd5"),
                 @Index(name = "clickTime", columnList = "clickTime"),
-                @Index(name = "androidId", columnList = "androidId"),
-                @Index(name = "oaid", columnList = "oaid"),
-                @Index(name = "mac", columnList = "mac")
+                @Index(name = "androidIdMd5", columnList = "androidIdMd5"),
+                @Index(name = "oaidMd5", columnList = "oaidMd5"),
+                @Index(name = "mac", columnList = "mac"),
+                @Index(name = "mac2", columnList = "mac2")
         })
 @Accessors(chain = true)
 @Data
@@ -31,17 +32,31 @@ public class ClickLog implements Serializable {
     private Long id;
     @Column(name = "imei", columnDefinition = "varchar(50)")
     private String imei;
-    private String aid;
-    private String cid;
-    private String did;
-    private String ip;
+    @Column(name = "imeiMd5", columnDefinition = "varchar(50)")
+    private String imeiMd5;
+    @Column(name = "androidId", columnDefinition = "varchar(50)")
     private String androidId;
+    @Column(name = "androidIdMd5", columnDefinition = "varchar(50)")
+    private String androidIdMd5;
     private String oaid;
+    @Column(name = "oaidMd5", columnDefinition = "varchar(50)")
+    private String oaidMd5;
+    @Column(name = "ip", columnDefinition = "varchar(20)")
+    private String ip;
+    @Column(name = "mac", columnDefinition = "varchar(50)")
     private String mac;
+    @Column(name = "mac2", columnDefinition = "varchar(50)")
     private String mac2;
-    private Integer channel;
     @Column(name = "callback_url", columnDefinition = "varchar(1500)")
     private String callbackUrl;
+    @Column(name = "channel", columnDefinition = "varchar(15)")
+    private String channel;
+    @Column(name = "mid", columnDefinition = "varchar(100)")
+    private String mid;
+    private String param1;
+    private String param2;
+    private String param3;
+    private String param4;
     private Date clickTime;
     private Date createTime;
     private Long ts;

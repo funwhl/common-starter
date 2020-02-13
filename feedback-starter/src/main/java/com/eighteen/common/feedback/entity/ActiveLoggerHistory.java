@@ -15,12 +15,13 @@ import java.util.Date;
 @Table(name = "t_active_Logger_History",
 //        schema = "dbo", catalog = "Kuaishoufeedback",
         indexes = {@Index(name = "imei", columnList = "imei"),
+                @Index(name = "imeiMd5", columnList = "imeiMd5"),
                 @Index(name = "coid", columnList = "coid"),
                 @Index(name = "ncoid", columnList = "coid"),
-                @Index(name = "oaid", columnList = "oaid")
-                , @Index(name = "activeTime", columnList = "activeTime"),
-                @Index(name = "androidId", columnList = "androidId"),
+                @Index(name = "oaidMd5", columnList = "oaidMd5"),
+                @Index(name = "activeTime", columnList = "activeTime"),
                 @Index(name = "androidIdMd5", columnList = "androidIdMd5"),
+                @Index(name = "type", columnList = "type")
         })
 @Accessors(chain = true)
 @Data
@@ -30,21 +31,30 @@ public class ActiveLoggerHistory {
     private Long id;
     @Column(name = "imei", columnDefinition = "varchar(50)")
     private String imei;
+    @Column(name = "imeiMd5", columnDefinition = "varchar(50)")
     private String imeiMd5;
-    private Integer channel;
+    @Column(name = "androidId", columnDefinition = "varchar(50)")
+    private String androidId;
+    @Column(name = "androidIdMd5", columnDefinition = "varchar(50)")
+    private String androidIdMd5;
+    private String oaid;
+    @Column(name = "oaidMd5", columnDefinition = "varchar(50)")
+    private String oaidMd5;
+    @Column(name = "channel", columnDefinition = "varchar(15)")
+    private String channel;
     private String versionName;
     private Integer coid;
     private Integer ncoid;
     private String wifimac;
     private String wifimacMd5;
+    @Column(name = "ip", columnDefinition = "varchar(20)")
     private String ip;
+    @Column(name = "type", columnDefinition = "varchar(20)")
     private String type;
     private String ua;
-    private String androidId;
-    private String androidIdMd5;
-    private String oaid;
     private Integer status;
     private Date activeTime;
     private Date createTime;
+    @Column(name = "mid", columnDefinition = "varchar(100)")
     private String mid;
 }
