@@ -38,11 +38,12 @@ public class EighteenProperties {
     private String cleanActiveCron = "0 15/30 * * * ?";
     private String cleanActiveHistoryCron = "0 7/10 * * * ?";
     private String dayStatCron = "0 0 1 1/1 * ?";
-    private String retentionCron = "0 1/10 * * * ?";
+    private String retentionCron = "0 0 0/1 * * ?";
 
-    private Integer offset = 2;
+    private Integer offset = 1;
 
     private Integer mode;
     private Boolean retention = true;
+    private Boolean enable = true;
 
 }

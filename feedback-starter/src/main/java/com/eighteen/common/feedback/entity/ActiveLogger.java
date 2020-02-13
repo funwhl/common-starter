@@ -5,6 +5,7 @@ import lombok.experimental.Accessors;
 
 import javax.persistence.*;
 import java.util.Date;
+import java.util.Objects;
 
 /**
  * Created by wangwei.
@@ -15,12 +16,12 @@ import java.util.Date;
 @Table(name = "t_active_Logger",
 //        schema = "dbo", catalog = "Kuaishoufeedback",
         indexes = {@Index(name = "imei", columnList = "imei"),
-                @Index(name = "imeiMd5", columnList = "imeiMd5"),
+                @Index(name = "imei_md5", columnList = "imei_md5"),
                 @Index(name = "coid", columnList = "coid"),
                 @Index(name = "ncoid", columnList = "coid"),
-                @Index(name = "oaidMd5", columnList = "oaidMd5"),
+                @Index(name = "oaid_md5", columnList = "oaid_md5"),
                 @Index(name = "activeTime", columnList = "activeTime"),
-                @Index(name = "androidIdMd5", columnList = "androidIdMd5"),
+                @Index(name = "android_id_md5", columnList = "android_id_md5"),
                 @Index(name = "type", columnList = "type")
         })
 @Accessors(chain = true)
@@ -31,14 +32,14 @@ public class ActiveLogger {
     private Long id;
     @Column(name = "imei", columnDefinition = "varchar(50)")
     private String imei;
-    @Column(name = "imeiMd5", columnDefinition = "varchar(50)")
+    @Column(name = "imei_md5", columnDefinition = "varchar(50)")
     private String imeiMd5;
-    @Column(name = "androidId", columnDefinition = "varchar(50)")
+    @Column(name = "android_id", columnDefinition = "varchar(50)")
     private String androidId;
-    @Column(name = "androidIdMd5", columnDefinition = "varchar(50)")
+    @Column(name = "android_id_md5", columnDefinition = "varchar(50)")
     private String androidIdMd5;
     private String oaid;
-    @Column(name = "oaidMd5", columnDefinition = "varchar(50)")
+    @Column(name = "oaid_md5", columnDefinition = "varchar(50)")
     private String oaidMd5;
     @Column(name = "channel", columnDefinition = "varchar(15)")
     private String channel;
@@ -59,4 +60,22 @@ public class ActiveLogger {
     private String mid;
     @Transient
     private ClickLog clickLog;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof ActiveLogger)) return false;
+        ActiveLogger that = (ActiveLogger) o;
+        return Objects.equals(getImei(), that.getImei()) &&
+                Objects.equals(getAndroidId(), that.getAndroidId()) &&
+                Objects.equals(getOaid(), that.getOaid()) &&
+                Objects.equals(getCoid(), that.getCoid()) &&
+                Objects.equals(getNcoid(), that.getNcoid());
+    }
+
+    @Override
+    public int hashCode() {
+
+        return Objects.hash(getImei(), getAndroidId(), getOaid(), getCoid(), getNcoid());
+    }
 }

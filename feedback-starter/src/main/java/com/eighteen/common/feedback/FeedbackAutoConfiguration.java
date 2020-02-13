@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
@@ -55,7 +56,7 @@ public class FeedbackAutoConfiguration {
 
     @Bean
     FeedbackService feedbackService() {
-        return new FeedbackServiceImpl();
+        return new FeedbackServiceImpl(properties);
     }
 
     @Bean
@@ -69,6 +70,7 @@ public class FeedbackAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnExpression("${18.feedback.enable:true}")
     @ConditionalOnProperty(prefix = EighteenProperties.PREFIX, name = "mode", havingValue = "2")
     SchedulingConfigurer schedule18Job() {
         return taskRegistrar -> {
@@ -87,6 +89,7 @@ public class FeedbackAutoConfiguration {
     }
 
     @Bean
+    @ConditionalOnExpression("${18.feedback.enable:true}")
     @ConditionalOnProperty(prefix = EighteenProperties.PREFIX, name = "mode", havingValue = "1")
     Map<String, Job> simple18Jobs() {
 

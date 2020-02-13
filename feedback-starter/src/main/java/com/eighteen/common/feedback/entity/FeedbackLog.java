@@ -24,25 +24,26 @@ public class FeedbackLog {
     private Long id;
     @Column(name = "imei", columnDefinition = "varchar(50)")
     private String imei;
-    @Column(name = "imeiMd5", columnDefinition = "varchar(50)")
+    @Column(name = "imei_md5", columnDefinition = "varchar(50)")
     private String imeiMd5;
-    @Column(name = "androidId", columnDefinition = "varchar(50)")
+    @Column(name = "android_id", columnDefinition = "varchar(50)")
     private String androidId;
-    @Column(name = "androidMd5", columnDefinition = "varchar(50)")
+    @Column(name = "android_id_md5", columnDefinition = "varchar(50)")
     private String androidMd5;
     private String oaid;
-    @Column(name = "oaidMd5", columnDefinition = "varchar(50)")
+    @Column(name = "oaid_md5", columnDefinition = "varchar(50)")
     private String oaidMd5;
     private String mac;
     @Column(name = "ip", columnDefinition = "varchar(20)")
     private String ip;
     @Column(name = "mid", columnDefinition = "varchar(100)")
     private String mid;
-    private Date ts;
+    @Column(name = "ts", columnDefinition = "bigint")
+    private Long ts;
     @Column(name = "channel", columnDefinition = "varchar(15)")
     private String channel;
-    @Column(name = "urlChannel", columnDefinition = "varchar(15)")
-    private String urlChannel;
+    @Column(name = "active_channel", columnDefinition = "varchar(15)")
+    private String activeChannel;
     private Integer eventType;
     private String MatchField;
     @Column(name = "callback_url", columnDefinition = "varchar(1500)")
@@ -55,5 +56,7 @@ public class FeedbackLog {
     private String param3;
     private String param4;
     private Date createTime;
+    private Date activeTime;
+    private Date clickTime;
 }
 

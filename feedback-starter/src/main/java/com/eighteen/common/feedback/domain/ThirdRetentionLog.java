@@ -21,7 +21,7 @@ public class ThirdRetentionLog implements Serializable{
    
      
     /** channel **/
-    private Integer  channel;
+    private String  channel;
      
     /** imei **/
     private String  imei;
