@@ -191,7 +191,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                         ClickLog c = a.getClickLog();
                         String url = c.getCallbackUrl();
                         if (feedbackHandler != null) {
-                            flag = feedbackHandler.handler(url);
+                            flag = feedbackHandler.handler(c);
                         } else {
                             String ret;
                             ret = HttpClientUtils.get(url + "&event_type=1&event_time=" + System.currentTimeMillis());
