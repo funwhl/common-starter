@@ -71,7 +71,7 @@ public class ClickMonitorController {
                 clickLog.setTs(date.getTime());
             }
             clickLog.setAndroidId(params.get("android_Id") == null ? "" : params.get("android_Id").toString());
-            clickLog.setCallbackUrl(params.get("call_back") == null ? "" : params.get("call_back").toString());
+            if (clickLog.getCallbackUrl()==null)clickLog.setCallbackUrl(params.get("call_back") == null ? "" : params.get("call_back").toString());
             clickLog.setCreateTime(date);
             if (clickLogHandler!=null)
                 clickLogHandler.handler(params, clickLog);
