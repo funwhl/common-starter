@@ -107,9 +107,9 @@ public class FeedbackServiceImpl implements FeedbackService {
     public void feedback() {
         tryWork(r -> {
             // 匹配规则 imei -> oaid -> androidId ->mac
-            BooleanExpression imeiBe = activeLogger.imeiMd5.eq(clickLog.imei);
-            BooleanExpression oaidBe = activeLogger.oaid.eq(clickLog.oaid);
-            BooleanExpression androidIdBe = activeLogger.androidIdMd5.eq(clickLog.androidId);
+            BooleanExpression imeiBe = activeLogger.imeiMd5.eq(clickLog.imeiMd5);
+            BooleanExpression oaidBe = activeLogger.oaidMd5.eq(clickLog.oaidMd5);
+            BooleanExpression androidIdBe = activeLogger.androidIdMd5.eq(clickLog.androidIdMd5);
 //            BooleanExpression wifiMacBe = activeLogger.wifimac.eq(clickLog.mac);
             AtomicLong success = new AtomicLong(0);
 
