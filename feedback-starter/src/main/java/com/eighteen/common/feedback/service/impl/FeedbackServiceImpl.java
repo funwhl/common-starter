@@ -27,7 +27,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.DigestUtils;
@@ -292,14 +291,11 @@ public class FeedbackServiceImpl implements FeedbackService {
                     it.remove();
                     continue;
                 }
-                if (imei != null)
-                    activeLogger.setImeiMd5(DigestUtils.md5DigestAsHex(imei.getBytes()));
-                if (activeLogger.getAndroidId() != null)
-                    activeLogger.setAndroidIdMd5(DigestUtils.md5DigestAsHex(activeLogger.getAndroidId().getBytes()));
-                if (activeLogger.getWifimac() != null)
-                    activeLogger.setWifimacMd5(DigestUtils.md5DigestAsHex(activeLogger.getWifimac().getBytes()));
-                if (activeLogger.getOaid() != null)
-                    activeLogger.setOaidMd5(DigestUtils.md5DigestAsHex(activeLogger.getOaid().getBytes()));
+                activeLogger.setImeiMd5(getMd5Str(imei));
+                activeLogger.setAndroidIdMd5(getMd5Str(activeLogger.getAndroidId()));
+                activeLogger.setOaidMd5(getMd5Str(activeLogger.getOaid()));
+                activeLogger.setWifimacMd5(getMd5Str(activeLogger.getWifimac()));
+
                 activeLogger.setCreateTime(new Date());
                 activeLogger.setStatus(0);
             }
@@ -314,6 +310,12 @@ public class FeedbackServiceImpl implements FeedbackService {
             return data.size();
         }, SYNC_ACTIVE);
 
+    }
+
+    private String getMd5Str(String value) {
+        if (StringUtils.isNotBlank(value))
+            return DigestUtils.md5DigestAsHex(value.getBytes());
+        else return "";
     }
 
     @Override
@@ -478,25 +480,34 @@ public class FeedbackServiceImpl implements FeedbackService {
     private List<DayHistory> getDayCache(String key) {
         List<DayHistory> dayHistories;
         Integer offset = etprop.getOffset();
-        if (redis != null) {
-            String redisKey = getDayCacheRedisKey(key);
-            long end = System.currentTimeMillis();
-            dayHistories = redis.zrange(redisKey, (double) end - TimeUnit.DAYS.toMillis(offset + 1), (double) end + TimeUnit.HOURS.toMillis(8)).stream().map(s -> {
-                String[] split = s.split("##");
-                String value = split.length < 3 ? "" : split[2];
-                return new DayHistory().setWd(key).setCoid(split[0] == null ? null : Integer.valueOf(split[0]))
-                        .setNcoid(split[1] == null ? null : Integer.valueOf(split[1])).setValue(value);
-            }).collect(Collectors.toList());
-        } else {
-            dayHistories = dayCache.getIfPresent(key);
-        }
-        if (CollectionUtils.isEmpty(dayHistories)) {
+        try {
+            if (redis != null) {
+                String redisKey = getDayCacheRedisKey(key);
+                long end = System.currentTimeMillis();
+                dayHistories = redis.zrange(redisKey, (double) end - TimeUnit.DAYS.toMillis(offset + 1), (double) end + TimeUnit.HOURS.toMillis(8)).stream().map(s -> {
+                    String[] split = s.split("##");
+                    String value = split.length < 3 ? "" : split[2];
+                    return new DayHistory().setWd(key).setCoid(split[0] == null ? null : Integer.valueOf(split[0]))
+                            .setNcoid(split[1] == null ? null : Integer.valueOf(split[1])).setValue(value);
+                }).collect(Collectors.toList());
+            } else {
+                dayHistories = dayCache.getIfPresent(key);
+            }
+            if (CollectionUtils.isEmpty(dayHistories)) {
+                Example example = new Example(DayHistory.class);
+                Example.Criteria criteria = example.createCriteria();
+                criteria.andEqualTo("wd", key);
+                criteria.andGreaterThan("createTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset)));
+                dayHistories = dayHistoryMapper.selectByExample(example);
+                addDayCache(key, dayHistories);
+            }
+        } catch (Exception e) {
             Example example = new Example(DayHistory.class);
             Example.Criteria criteria = example.createCriteria();
             criteria.andEqualTo("wd", key);
             criteria.andGreaterThan("createTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset)));
             dayHistories = dayHistoryMapper.selectByExample(example);
-            addDayCache(key, dayHistories);
+            e.printStackTrace();
         }
         return dayHistories;
     }

@@ -29,7 +29,7 @@ public class FeedbackLog {
     @Column(name = "android_id", columnDefinition = "varchar(50)")
     private String androidId;
     @Column(name = "android_id_md5", columnDefinition = "varchar(50)")
-    private String androidMd5;
+    private String androidIdMd5;
     private String oaid;
     @Column(name = "oaid_md5", columnDefinition = "varchar(50)")
     private String oaidMd5;
