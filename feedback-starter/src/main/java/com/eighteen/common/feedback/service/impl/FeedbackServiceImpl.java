@@ -30,7 +30,6 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
-import org.springframework.util.DigestUtils;
 import tk.mybatis.mapper.entity.Example;
 
 import javax.persistence.LockModeType;
@@ -49,6 +48,7 @@ import static com.eighteen.common.feedback.entity.QActiveLogger.activeLogger;
 import static com.eighteen.common.feedback.entity.QClickLog.clickLog;
 import static com.eighteen.common.feedback.entity.QDayHistory.dayHistory;
 import static com.eighteen.common.feedback.service.impl.FeedbackServiceImpl.JobType.*;
+import static com.eighteen.common.utils.DigestUtils.getMd5Str;
 
 
 /**
@@ -312,12 +312,6 @@ public class FeedbackServiceImpl implements FeedbackService {
             return data.size();
         }, SYNC_ACTIVE);
 
-    }
-
-    private String getMd5Str(String value) {
-        if (StringUtils.isNotBlank(value))
-            return DigestUtils.md5DigestAsHex(value.getBytes());
-        else return "";
     }
 
     @Override
