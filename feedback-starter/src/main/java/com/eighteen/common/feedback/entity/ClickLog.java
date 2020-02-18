@@ -53,6 +53,8 @@ public class ClickLog implements Serializable {
     private String channel;
     @Column(name = "mid", columnDefinition = "varchar(100)")
     private String mid;
+    private String ua;
+    @Column(name = "ua", columnDefinition = "varchar(50)")
     private String param1;
     private String param2;
     private String param3;

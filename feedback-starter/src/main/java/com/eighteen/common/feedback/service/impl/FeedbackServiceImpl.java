@@ -6,6 +6,7 @@ import com.eighteen.common.feedback.EighteenProperties;
 import com.eighteen.common.feedback.dao.*;
 import com.eighteen.common.feedback.domain.ThirdRetentionLog;
 import com.eighteen.common.feedback.entity.*;
+import com.eighteen.common.feedback.handler.ActiveHandler;
 import com.eighteen.common.feedback.handler.FeedbackHandler;
 import com.eighteen.common.feedback.service.FeedbackService;
 import com.eighteen.common.spring.boot.autoconfigure.cache.redis.Redis;
@@ -79,6 +80,8 @@ public class FeedbackServiceImpl implements FeedbackService {
     ActiveLoggerMapper activeLoggerMapper;
     @Autowired(required = false)
     FeedbackHandler feedbackHandler;
+    @Autowired(required = false)
+    ActiveHandler activeHandler;
     @Autowired(required = false)
     private Redis redis;
     @Value("${spring.application.name}")
@@ -291,13 +294,12 @@ public class FeedbackServiceImpl implements FeedbackService {
                     it.remove();
                     continue;
                 }
-                activeLogger.setImeiMd5(getMd5Str(imei));
-                activeLogger.setAndroidIdMd5(getMd5Str(activeLogger.getAndroidId()));
-                activeLogger.setOaidMd5(getMd5Str(activeLogger.getOaid()));
-                activeLogger.setWifimacMd5(getMd5Str(activeLogger.getWifimac()));
-
-                activeLogger.setCreateTime(new Date());
-                activeLogger.setStatus(0);
+                activeLogger.setImeiMd5(getMd5Str(imei))
+                        .setAndroidIdMd5(getMd5Str(activeLogger.getAndroidId()))
+                        .setOaidMd5(getMd5Str(activeLogger.getOaid()))
+                        .setWifimacMd5(getMd5Str(activeLogger.getWifimac()))
+                        .setCreateTime(new Date()).setStatus(0);
+                if (activeHandler != null) activeHandler.handler(activeLogger);
             }
 
             List<ActiveLogger> finalData = data;
