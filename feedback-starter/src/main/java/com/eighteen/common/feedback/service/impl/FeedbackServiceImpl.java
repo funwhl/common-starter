@@ -130,6 +130,8 @@ public class FeedbackServiceImpl implements FeedbackService {
             wd.forEach((key, e) -> {
                 if (!CollectionUtils.isEmpty(range) && !(range.size() == 1 && StringUtils.isBlank(range.get(0))))
                     e = e.and(activeLogger.channel.in(range));
+                if (etprop.getDatetimeAttributed())
+                    e = e.and(activeLogger.activeTime.gt(clickLog.clickTime));
                 List<ActiveLogger> tupleList = dsl.select(activeLogger, clickLog).from(activeLogger).innerJoin(clickLog).on(e.and(activeLogger.status.eq(0))).limit(1000L).fetch()
                         .stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
                 if (CollectionUtils.isEmpty(tupleList)) return;
