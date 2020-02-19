@@ -32,7 +32,7 @@ public class EighteenProperties {
     private String callbackField = "callback";
     //job
     private String cleanClickCron = "0 10/30 * * * ?";
-    private String cleanImeiCron = "0 0/10 * * * ?";
+    private String cleanImeiCron = "0 0 0/1 * * ?";
     private String feedbackCron = "0 1/1 * * * ?";
     private String syncActiveCron = "0 0/1 * * * ?";
     private String cleanActiveCron = "0 15/30 * * * ?";

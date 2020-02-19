@@ -6,6 +6,7 @@ import com.eighteen.common.feedback.entity.ClickLog;
 import com.eighteen.common.feedback.entity.dao2.ClickLogDao;
 import com.eighteen.common.feedback.handler.ClickLogHandler;
 import com.eighteen.common.feedback.handler.RetHandler;
+import com.eighteen.common.feedback.service.FeedbackService;
 import com.eighteen.common.mq.rabbitmq.MessageSender;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
@@ -130,5 +131,12 @@ public class ClickMonitorController {
     public void insertClickLog(@Payload com.eighteen.common.mq.rabbitmq.Message msg) {
         ClickLog clickLog = (ClickLog) msg.getPayload();
         clickLogDao.save(clickLog);
+    }
+
+    @Autowired
+    FeedbackService feedbackService;
+    @GetMapping(value = "clearDayCache")
+    public void clearDayCache() {
+        feedbackService.clearCache(null);
     }
 }

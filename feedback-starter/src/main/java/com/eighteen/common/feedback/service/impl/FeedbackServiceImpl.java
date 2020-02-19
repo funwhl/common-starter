@@ -335,10 +335,8 @@ public class FeedbackServiceImpl implements FeedbackService {
                                     current - TimeUnit.DAYS.toMillis(offset))),
                             CLEAN_LC_IMEI);
                 }
-                dayCache.invalidateAll();
-                if (redis != null) {
-                    Stream.of(wds).forEach(s -> redis.zexpire(getDayCacheRedisKey(s), (double) 0, (double) (System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset + 2))));
-                }
+//                clearCache(offset);
+                clearCache(null);
                 break;
             case CLEAN_ACTIVE:
                 tryWork(r -> {
@@ -385,6 +383,18 @@ public class FeedbackServiceImpl implements FeedbackService {
                 break;
         }
 
+    }
+
+    @Override
+    public void clearCache(Integer offset) {
+        dayCache.invalidateAll();
+        if (redis != null) {
+            if (offset == null) {
+                Stream.of(wds).forEach(s -> redis.del(getDayCacheRedisKey(s)));
+            } else {
+                Stream.of(wds).forEach(s -> redis.zexpire(getDayCacheRedisKey(s), (double) 0, (double) (System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset + 2))));
+            }
+        }
     }
 
     private void cleanActiveLogger(List<ActiveLogger> activeLoggers) {
