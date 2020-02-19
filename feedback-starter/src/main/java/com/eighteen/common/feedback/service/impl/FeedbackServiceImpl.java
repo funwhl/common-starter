@@ -108,17 +108,21 @@ public class FeedbackServiceImpl implements FeedbackService {
     @Override
     public void feedback() {
         tryWork(r -> {
-            // 匹配规则 imei -> oaid -> androidId ->mac
+            // 匹配规则 imei -> oaid -> androidId、mac ->ip、ua
             BooleanExpression imeiBe = activeLogger.imeiMd5.eq(clickLog.imeiMd5);
             BooleanExpression oaidBe = activeLogger.oaidMd5.eq(clickLog.oaidMd5);
             BooleanExpression androidIdBe = activeLogger.androidIdMd5.eq(clickLog.androidIdMd5);
+//            BooleanExpression ipBe = activeLogger.ip.eq(clickLog.ip).and(activeLogger.ua.eq(clickLog.ua));
 //            BooleanExpression wifiMacBe = activeLogger.wifimac.eq(clickLog.mac);
             AtomicLong success = new AtomicLong(0);
 
             Map<String, BooleanExpression> wd = new HashMap<>();
-            wd.put("imei", imeiBe.and(activeLogger.imei.isNotNull()).and(activeLogger.imei.isNotEmpty()));
-            wd.put("oaid", oaidBe.and(imeiBe.not()).and(activeLogger.oaid.isNotNull()).and(activeLogger.oaid.isNotEmpty()));
-            wd.put("androidId", androidIdBe.and(imeiBe.not()).and(oaidBe.not()).and(activeLogger.androidId.isNotNull()).and(activeLogger.androidId.isNotEmpty()));
+            wd.put("imei", imeiBe.and(activeLogger.imeiMd5.isNotNull()).and(activeLogger.imeiMd5.isNotEmpty()));
+            wd.put("oaid", oaidBe.and(imeiBe.not()).and(activeLogger.oaidMd5.isNotNull()).and(activeLogger.oaidMd5.isNotEmpty()));
+            wd.put("androidId", androidIdBe.and(imeiBe.not()).and(oaidBe.not()).and(activeLogger.androidIdMd5.isNotNull()).and(activeLogger.androidIdMd5.isNotEmpty()));
+//           if (etprop.getIpAttributed())
+//               wd.put("ip", androidIdBe.and(imeiBe.not()).and(oaidBe.not()).and(androidIdBe.not())
+//                       .and(ipBe).and(activeLogger.ip.isNotEmpty()));
 //            wd.put("wifimac", wifiMacBe.and(imeiBe.not()).and(oaidBe.not()).and(androidIdBe.not()).and(activeLogger.wifimac.isNotNull()));
 
             List<DayHistory> histories = new ArrayList<>();

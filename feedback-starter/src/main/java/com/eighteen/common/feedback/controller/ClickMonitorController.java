@@ -5,7 +5,9 @@ import com.eighteen.common.feedback.dao.FeedBackMapper;
 import com.eighteen.common.feedback.entity.ClickLog;
 import com.eighteen.common.feedback.entity.dao2.ClickLogDao;
 import com.eighteen.common.feedback.handler.ClickLogHandler;
+import com.eighteen.common.feedback.handler.RetHandler;
 import com.eighteen.common.mq.rabbitmq.MessageSender;
+import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
@@ -20,6 +22,7 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -55,9 +58,11 @@ public class ClickMonitorController {
     private String clickQueue2;
     @Autowired
     MessageSender sender;
+    @Autowired(required = false)
+    RetHandler retHandler;
 
     @GetMapping(value = "clickMonitor")
-    public void clickMonitor(@RequestParam Map<String, Object> params, ClickLog clickLog) {
+    public ResponseEntity clickMonitor(@RequestParam Map<String, Object> params, ClickLog clickLog) {
         try {
             logger.debug("click monitor active->{}", params.toString());
             Date date = new Date();
@@ -85,8 +90,13 @@ public class ClickMonitorController {
                         .build();
                 rabbitTemplate.convertAndSend(clickQueue, message);
             }
+            if (retHandler != null) return ResponseEntity.ok(retHandler.ret());
+            return ResponseEntity.ok().body(ImmutableMap.of("ret",0,"errmsg","ok"));
         } catch (Exception e) {
             e.printStackTrace();
+            logger.error(e.getMessage());
+            if (retHandler != null) return ResponseEntity.ok(retHandler.ret());
+            return ResponseEntity.badRequest().build();
         }
     }
 

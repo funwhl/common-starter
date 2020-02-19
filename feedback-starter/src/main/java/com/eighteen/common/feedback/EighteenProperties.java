@@ -45,5 +45,6 @@ public class EighteenProperties {
     private Integer mode;
     private Boolean retention = true;
     private Boolean enable = true;
+    private Boolean ipAttributed  = false;
 
 }
