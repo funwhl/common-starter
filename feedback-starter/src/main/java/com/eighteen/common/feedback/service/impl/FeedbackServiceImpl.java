@@ -331,14 +331,13 @@ public class FeedbackServiceImpl implements FeedbackService {
             case CLEAN_IMEI:
                 Long current = System.currentTimeMillis();
                 tryWork(r -> dsl.delete(dayHistory).setLockMode(LockModeType.NONE).where(dayHistory.createTime.before(new Date(
-                                current - TimeUnit.DAYS.toMillis(offset)))).execute(),
+                                current - TimeUnit.DAYS.toMillis(offset + 1)))).execute(),
                         CLEAN_IMEI);
                 if (etprop.getRetention()) {
                     tryWork(r -> feedBackMapper.cleanDayLCImeis(new Date(
                                     current - TimeUnit.DAYS.toMillis(offset))),
                             CLEAN_LC_IMEI);
                 }
-//                clearCache(offset);
                 clearCache(null);
                 break;
             case CLEAN_ACTIVE:
@@ -395,7 +394,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             if (offset == null) {
                 Stream.of(wds).forEach(s -> redis.del(getDayCacheRedisKey(s)));
             } else {
-                Stream.of(wds).forEach(s -> redis.zexpire(getDayCacheRedisKey(s), (double) 0, (double) (System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset + 2))));
+                Stream.of(wds).forEach(s -> redis.zexpire(getDayCacheRedisKey(s), (double) 0, (double) (System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset + 1))));
             }
         }
     }
@@ -512,7 +511,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                 Example example = new Example(DayHistory.class);
                 Example.Criteria criteria = example.createCriteria();
                 criteria.andEqualTo("wd", key);
-                criteria.andGreaterThan("createTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset)));
+                criteria.andGreaterThan("createTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset+1)));
                 dayHistories = dayHistoryMapper.selectByExample(example);
                 addDayCache(key, dayHistories);
             }
@@ -520,7 +519,7 @@ public class FeedbackServiceImpl implements FeedbackService {
             Example example = new Example(DayHistory.class);
             Example.Criteria criteria = example.createCriteria();
             criteria.andEqualTo("wd", key);
-            criteria.andGreaterThan("createTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset)));
+            criteria.andGreaterThan("createTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset+1)));
             dayHistories = dayHistoryMapper.selectByExample(example);
             e.printStackTrace();
         }
