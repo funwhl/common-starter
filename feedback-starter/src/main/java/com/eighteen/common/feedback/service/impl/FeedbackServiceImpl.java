@@ -374,7 +374,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                                 return clickLogHistory;
                             }).collect(Collectors.toList());
 
-                            Page<ClickLogHistory> pageList = Page.create(1, 150, i -> list);
+                            Page<ClickLogHistory> pageList = Page.create(1, 100, i -> list);
                             pageList.forEach(data -> clickLogHistoryMapper.insertList(data));
 
                             List<Long> ids = clickLogs.stream().map(ClickLog::getId).collect(Collectors.toList());
