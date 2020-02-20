@@ -2,6 +2,7 @@ package com.eighteen.common.feedback;
 
 
 import com.eighteen.common.feedback.controller.ClickMonitorController;
+import com.eighteen.common.feedback.controller.WarningController;
 import com.eighteen.common.feedback.service.FeedbackService;
 import com.eighteen.common.feedback.service.impl.FeedbackServiceImpl;
 import com.eighteen.common.spring.boot.autoconfigure.job.Job;
@@ -62,6 +63,11 @@ public class FeedbackAutoConfiguration {
     @Bean
     ClickMonitorController clickMonitorController() {
         return new ClickMonitorController();
+    }
+
+    @Bean
+    WarningController warningController() {
+        return new WarningController();
     }
 
     @Bean

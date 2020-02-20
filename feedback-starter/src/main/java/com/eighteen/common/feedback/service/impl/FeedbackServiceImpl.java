@@ -209,6 +209,7 @@ public class FeedbackServiceImpl implements FeedbackService {
                         if (flag) {
                             FeedbackLog feedbackLog = new FeedbackLog();
                             BeanUtils.copyProperties(c, feedbackLog);
+                            feedbackLog.setImei(a.getImei()).setOaid(a.getOaid()).setAndroidId(a.getAndroidId());
                             feedbackLogs.add(feedbackLog.setCreateTime(new Date()).setMid(a.getMid()).setEventType(1).setActiveChannel(a.getChannel()).setActiveTime(a.getActiveTime())
                                     .setMatchField(key).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setTs(c.getTs()));
                             String value = ReflectionUtils.getFieldValue(a, key).toString();
@@ -219,9 +220,11 @@ public class FeedbackServiceImpl implements FeedbackService {
                             histories.add(history);
                             oldUsers.add(a);
                         } else {
-                            List<String> errors = errorCache.getIfPresent("errors");
-                            if (errors == null) errorCache.put("errors", Lists.newArrayList(url));
-                            else errors.add(url);
+                            if (StringUtils.isNotBlank(url)) {
+                                List<String> errors = errorCache.getIfPresent("errors");
+                                if (errors == null) errorCache.put("errors", Lists.newArrayList(url));
+                                else errors.add(url);
+                            }
                         }
                     } catch (Exception e1) {
                         e1.printStackTrace();
