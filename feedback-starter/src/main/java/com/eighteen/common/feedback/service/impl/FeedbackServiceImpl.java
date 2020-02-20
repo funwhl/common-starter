@@ -88,6 +88,8 @@ public class FeedbackServiceImpl implements FeedbackService {
     private String appName;
     @Value("#{'${18.feedback.range:}'.split(',')}")
     private List<String> range;
+    @Value("#{'${18.feedback.filter:}'.split(',')}")
+    private List<String> filter;
     private ExecutorService executor = new ThreadPoolExecutor(20, 20,
             0L, TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<>());
@@ -130,6 +132,8 @@ public class FeedbackServiceImpl implements FeedbackService {
             wd.forEach((key, e) -> {
                 if (!CollectionUtils.isEmpty(range) && !(range.size() == 1 && StringUtils.isBlank(range.get(0))))
                     e = e.and(activeLogger.channel.in(range));
+                if (!CollectionUtils.isEmpty(filter) && !(filter.size() == 1 && StringUtils.isBlank(filter.get(0))))
+                    e = e.and(activeLogger.channel.notIn(filter));
                 if (etprop.getDatetimeAttributed())
                     e = e.and(activeLogger.activeTime.gt(clickLog.clickTime));
                 List<ActiveLogger> tupleList = dsl.select(activeLogger, clickLog).from(activeLogger).innerJoin(clickLog).on(e.and(activeLogger.status.eq(0))).limit(1000L).fetch()
