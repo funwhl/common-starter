@@ -142,8 +142,7 @@ public class JobAutoConfiguration implements EmbeddedValueResolverAware {
                                         .overwrite(taskJob.overwrite())
                                         .description(taskJob.desc())
                                         .shardingTotalCount(taskJob.shardingTotalCount())
-                                        .shardingItemParameters(taskJob.shardingItemParameters()).build()),
-                                jobZkProperties.isSaveLog()&&dataSource!=null ? new JobEventRdbConfiguration(dataSource) : null
+                                        .shardingItemParameters(taskJob.shardingItemParameters()).build())
                         );
                     }
                     springJobScheduler.init();
