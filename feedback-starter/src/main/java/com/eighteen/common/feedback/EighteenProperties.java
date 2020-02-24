@@ -47,5 +47,5 @@ public class EighteenProperties {
     private Boolean enable = true;
     private Boolean ipAttributed  = false;
     private Boolean datetimeAttributed  = false;
-
+    private Integer matchMinuteOffset = 0;
 }
