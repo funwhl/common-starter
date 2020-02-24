@@ -41,7 +41,7 @@ public class ClickLog implements Serializable {
     private String oaid;
     @Column(name = "oaid_md5", columnDefinition = "varchar(50)")
     private String oaidMd5;
-    @Column(name = "ip", columnDefinition = "varchar(20)")
+    @Column(name = "ip", columnDefinition = "varchar(50)")
     private String ip;
     @Column(name = "mac", columnDefinition = "varchar(50)")
     private String mac;
@@ -55,6 +55,8 @@ public class ClickLog implements Serializable {
     private String mid;
     @Column(name = "ua", columnDefinition = "varchar(50)")
     private String ua;
+    @Column(name = "ipua", columnDefinition = "varchar(50)")
+    private String ipua;
     private String param1;
     private String param2;
     private String param3;

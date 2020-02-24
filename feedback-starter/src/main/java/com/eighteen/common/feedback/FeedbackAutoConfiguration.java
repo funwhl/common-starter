@@ -86,7 +86,7 @@ public class FeedbackAutoConfiguration {
             taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_CLICK), properties.getCleanClickCron());
             taskRegistrar.addCronTask(() -> feedbackService().syncActive(), properties.getSyncActiveCron());
             taskRegistrar.addCronTask(() -> feedbackService().feedback(), properties.getFeedbackCron());
-            taskRegistrar.addCronTask(() -> feedbackService().stat(STAT_DAY), properties.getDayStatCron());
+//            taskRegistrar.addCronTask(() -> feedbackService().stat(STAT_DAY), properties.getDayStatCron());
             // 次留存 定时任务
             if (properties.getRetention())taskRegistrar.addCronTask(() -> feedbackService().secondStay(RETENTION), properties.getDayStatCron());
 
@@ -118,8 +118,8 @@ public class FeedbackAutoConfiguration {
         jobs.put(FEED_BACK.getKey(), Job.builder().jobName(FEED_BACK.getKey()).cron(properties.getFeedbackCron()).failover(true)
                 .job(c -> feedbackService().feedback()).monitorExecution(false).build());
 
-        jobs.put(STAT_DAY.getKey(), Job.builder().jobName(STAT_DAY.getKey()).cron(properties.getDayStatCron()).failover(true)
-                .job(c -> feedbackService().stat(STAT_DAY)).build());
+//        jobs.put(STAT_DAY.getKey(), Job.builder().jobName(STAT_DAY.getKey()).cron(properties.getDayStatCron()).failover(true)
+//                .job(c -> feedbackService().stat(STAT_DAY)).build());
 
         if (properties.getRetention())
         jobs.put(RETENTION.getKey(), Job.builder().jobName(RETENTION.getKey()).cron(properties.getRetentionCron()).failover(true)

@@ -129,8 +129,13 @@ public class ClickMonitorController {
             exchange = @Exchange("${spring.rabbitmq.default-exchange}")
     ))
     public void insertClickLog(@Payload com.eighteen.common.mq.rabbitmq.Message msg) {
-        ClickLog clickLog = (ClickLog) msg.getPayload();
-        clickLogDao.save(clickLog);
+        try {
+            ClickLog clickLog = (ClickLog) msg.getPayload();
+            clickLogDao.save(clickLog);
+        } catch (Exception e) {
+            logger.info("save_clickLog_error,{},",msg.getPayload().toString(),e.getMessage());
+            throw e;
+        }
     }
 
     @Autowired

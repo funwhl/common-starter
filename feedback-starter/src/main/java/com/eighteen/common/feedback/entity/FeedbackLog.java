@@ -34,7 +34,7 @@ public class FeedbackLog {
     @Column(name = "oaid_md5", columnDefinition = "varchar(50)")
     private String oaidMd5;
     private String mac;
-    @Column(name = "ip", columnDefinition = "varchar(20)")
+    @Column(name = "ip", columnDefinition = "varchar(50)")
     private String ip;
     @Column(name = "mid", columnDefinition = "varchar(100)")
     private String mid;

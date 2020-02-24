@@ -47,11 +47,13 @@ public class ActiveLoggerHistory {
     private Integer ncoid;
     private String wifimac;
     private String wifimacMd5;
-    @Column(name = "ip", columnDefinition = "varchar(20)")
+    @Column(name = "ip", columnDefinition = "varchar(50)")
     private String ip;
     @Column(name = "type", columnDefinition = "varchar(20)")
     private String type;
     private String ua;
+    @Column(name = "ipua", columnDefinition = "varchar(50)")
+    private String ipua;
     private Integer status;
     private Date activeTime;
     private Date createTime;
