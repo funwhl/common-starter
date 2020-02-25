@@ -205,7 +205,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                             feedbackLogs.add(feedbackLog.setCreateTime(new Date()).setMid(a.getMid()).setEventType(1).setActiveChannel(a.getChannel()).setActiveTime(a.getActiveTime())
                                     .setMatchField(key).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setTs(c.getTs()));
                             String value = ReflectionUtils.getFieldValue(a, key).toString();
-                            ipuaNewUsers.add(new IpuaNewUser().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setIp(a.getIp()).setUa(a.getUa()).setIpua(value));
+                            if (key.equals("ipua"))ipuaNewUsers.add(new IpuaNewUser().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setIp(a.getIp()).setUa(a.getUa()).setIpua(value).setCreateTime(new Date()));
                             DayHistory history = new DayHistory().setWd(key).setValue(value).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setCreateTime(new Date());
                             addDayCache(key, Collections.singletonList(history));
                             success.incrementAndGet();
