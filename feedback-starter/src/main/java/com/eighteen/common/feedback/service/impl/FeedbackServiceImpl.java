@@ -237,19 +237,19 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
             if (!CollectionUtils.isEmpty(feedbackLogs))
                 executor.execute(() -> {
-                    Page<FeedbackLog> pageFeed = Page.create(1, 100, i -> feedbackLogs);
+                    Page<FeedbackLog> pageFeed = Page.create(1, 60, i -> feedbackLogs);
                     pageFeed.forEach(o -> feedbackLogMapper.insertList(o));
                 });
 
             if (!CollectionUtils.isEmpty(ipuaNewUsers))
                 executor.execute(() -> {
-                    Page<IpuaNewUser> pageFeed = Page.create(1, 100, i -> ipuaNewUsers);
+                    Page<IpuaNewUser> pageFeed = Page.create(1, 60, i -> ipuaNewUsers);
                     pageFeed.forEach(o -> ipuaNewUserMapper.insertList(o));
                 });
 
             if (!CollectionUtils.isEmpty(histories))
                 executor.execute(() -> {
-                    Page<DayHistory> page = Page.create(1, 100, i -> histories);
+                    Page<DayHistory> page = Page.create(1, 60, i -> histories);
                     page.forEach(o -> dayHistoryMapper.insertList(o));
                 });
 
@@ -297,7 +297,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         .setCreateTime(new Date()).setStatus(0);
             }
             if (!CollectionUtils.isEmpty(data)) {
-                Page<ActiveLogger> page = Page.create(1, 100, i -> data);
+                Page<ActiveLogger> page = Page.create(1, 60, i -> data);
                 page.forEach(activeLoggers -> activeLoggerMapper.insertList(activeLoggers));
                 activeLoggerCache.invalidate("active");
                 activeLoggerCache.put("active", data);
@@ -357,7 +357,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                                 return clickLogHistory;
                             }).collect(Collectors.toList());
 
-                            Page<ClickLogHistory> pageList = Page.create(1, 100, i -> list);
+                            Page<ClickLogHistory> pageList = Page.create(1, 60, i -> list);
                             pageList.forEach(data -> clickLogHistoryMapper.insertList(data));
 
                             List<Long> ids = clickLogs.stream().map(ClickLog::getId).collect(Collectors.toList());
@@ -391,7 +391,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             return activeLoggerHistory;
         }).collect(Collectors.toList());
 
-        Page<ActiveLoggerHistory> page = Page.create(1, 100, i -> histories);
+        Page<ActiveLoggerHistory> page = Page.create(1, 60, i -> histories);
         page.forEach(list -> activeLoggerHistoryMapper.insertList(list));
 
         List<Long> ids = activeLoggers.stream().map(ActiveLogger::getId).collect(Collectors.toList());
