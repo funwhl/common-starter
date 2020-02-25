@@ -18,9 +18,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
-import com.querydsl.core.types.dsl.BooleanTemplate;
 import com.querydsl.core.types.dsl.Expressions;
-import com.querydsl.core.types.dsl.StringTemplate;
 import com.querydsl.jpa.JPAExpressions;
 import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
@@ -87,6 +85,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     FeedbackHandler feedbackHandler;
     @Autowired(required = false)
     ActiveHandler activeHandler;
+    @Autowired
+    IpuaNewUserMapper ipuaNewUserMapper;
     @Autowired(required = false)
     private Redis redis;
     @Value("${spring.application.name}")
@@ -120,6 +120,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             AtomicLong success = new AtomicLong(0);
             List<DayHistory> histories = new ArrayList<>();
             List<FeedbackLog> feedbackLogs = new ArrayList<>();
+            List<IpuaNewUser> ipuaNewUsers = new ArrayList<>();
             queryMap.forEach((key, e) -> {
                 List<ActiveLogger> tupleList = e.fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
                 if (CollectionUtils.isEmpty(tupleList)) return;
@@ -204,6 +205,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                             feedbackLogs.add(feedbackLog.setCreateTime(new Date()).setMid(a.getMid()).setEventType(1).setActiveChannel(a.getChannel()).setActiveTime(a.getActiveTime())
                                     .setMatchField(key).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setTs(c.getTs()));
                             String value = ReflectionUtils.getFieldValue(a, key).toString();
+                            ipuaNewUsers.add(new IpuaNewUser().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setIp(a.getIp()).setUa(a.getUa()).setIpua(value));
                             DayHistory history = new DayHistory().setWd(key).setValue(value).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setCreateTime(new Date());
                             addDayCache(key, Collections.singletonList(history));
                             success.incrementAndGet();
@@ -236,13 +238,19 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             if (!CollectionUtils.isEmpty(feedbackLogs))
                 executor.execute(() -> {
                     Page<FeedbackLog> pageFeed = Page.create(1, 100, i -> feedbackLogs);
-                    pageFeed.forEach(historyList -> feedbackLogMapper.insertList(feedbackLogs));
+                    pageFeed.forEach(o -> feedbackLogMapper.insertList(o));
+                });
+
+            if (!CollectionUtils.isEmpty(ipuaNewUsers))
+                executor.execute(() -> {
+                    Page<IpuaNewUser> pageFeed = Page.create(1, 100, i -> ipuaNewUsers);
+                    pageFeed.forEach(o -> ipuaNewUserMapper.insertList(o));
                 });
 
             if (!CollectionUtils.isEmpty(histories))
                 executor.execute(() -> {
                     Page<DayHistory> page = Page.create(1, 100, i -> histories);
-                    page.forEach(historyList -> dayHistoryMapper.insertList(histories));
+                    page.forEach(o -> dayHistoryMapper.insertList(o));
                 });
 
             return success.get();
@@ -528,9 +536,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 e = e.and(activeLogger.channel.notIn(filter));
             if (etprop.getDatetimeAttributed())
                 e = e.and(activeLogger.activeTime.after(clickLog.clickTime));
-            if (etprop.getMatchMinuteOffset()>0)
-            e = e.and(Expressions.
-                    booleanTemplate("abs(datediff(minute,{0},{1})) >= {2}", clickLog.clickTime,activeLogger.activeTime,30));
+            if (etprop.getMatchMinuteOffset() > 0)
+                e = e.and(Expressions.
+                        booleanTemplate("abs(datediff(minute,{0},{1})) >= {2}", clickLog.clickTime, activeLogger.activeTime, 30));
             queryMap.put(s, dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.and(activeLogger.status.eq(0))).limit(1000L));
         });
     }
