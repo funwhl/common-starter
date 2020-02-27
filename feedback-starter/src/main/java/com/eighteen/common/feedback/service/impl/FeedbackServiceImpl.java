@@ -149,13 +149,21 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     if (dayHistories.contains(history)) {
                         oldUsers.add(activeLogger);
                     } else {
-                        // 避免androidId先匹配到 之后又匹配到oaid重复回传
-                        if (key.equals("oaid")) {
-                            if (getDayCache("androidId").stream().anyMatch(d -> d.getValue() != null && d.getValue().equals(activeLogger.getAndroidId()))) {
-                                addDayCache(key, Collections.singletonList(history));
-                                histories.add(history);
-                                oldUsers.add(activeLogger);
-                            }
+//                        // 避免androidId先匹配到 之后又匹配到oaid重复回传
+//                        if (key.equals("oaid")) {
+//                            if (getDayCache("androidId").stream().anyMatch(d -> d.getValue() != null && d.getValue().equals(activeLogger.getAndroidId()))) {
+//                                addDayCache(key, Collections.singletonList(history));
+//                                histories.add(history);
+//                                oldUsers.add(activeLogger);
+//                            }
+//                        }
+
+//                       Boolean check = check(key,activeLogger);
+                        if (check(key,activeLogger)) {
+                            logger.info("other_field_matched : {}",activeLogger.toString());
+                            addDayCache(key, Collections.singletonList(history));
+                            histories.add(history);
+                            oldUsers.add(activeLogger);
                         }
                     }
                 });
@@ -257,10 +265,24 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         }, FEED_BACK);
     }
 
+    private Boolean check(String key, ActiveLogger activeLogger) {
+        return queryMap.keySet().stream().filter(s -> !s.equals(key)).allMatch(s -> {
+            Object object = ReflectionUtils.getFieldValue(activeLogger, s);
+            String fieldValue = object ==null?null: object.toString();
+            DayHistory history = new DayHistory().setValue(fieldValue).setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd(key);
+            return getDayCache(s).stream().filter(d -> StringUtils.isNotBlank(d.getValue())).anyMatch(o -> o.equals(history));
+        });
+    }
+
     @Override
     public void syncActive() {
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-        String channel = etprop.getChannel();
+        List<String> channel = Lists.newArrayList(etprop.getChannel());
+        String types = etprop.getTypes();
+        if (StringUtils.isNotBlank(types)) {
+            channel = Arrays.asList(types.split(","));
+        }
+        List<String> finalChannel = channel;
         tryWork(r -> {
             Date date = new Date();
             Long current = date.getTime();
@@ -269,9 +291,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             Date maxActiveTime = Optional.ofNullable(dsl.select(activeLogger.activeTime.max()).from(activeLogger).fetchOne()).orElse(new Date(current - TimeUnit.DAYS.toMillis(1)));
             // 跨天AB表处理
             if (!format.format(date).equals(format.format(new Date(current + offset)))) {
-                data = feedBackMapper.getThirdActiveLogger(channel, "ActiveLogger", maxActiveTime);
-                data.addAll(feedBackMapper.getThirdActiveLogger(channel, "ActiveLogger_B", maxActiveTime));
-            } else data = feedBackMapper.getThirdActiveLogger(channel, feedBackMapper.getTableName(), maxActiveTime);
+                data = feedBackMapper.getThirdActiveLogger(finalChannel, "ActiveLogger", maxActiveTime);
+                data.addAll(feedBackMapper.getThirdActiveLogger(finalChannel, "ActiveLogger_B", maxActiveTime));
+            } else data = feedBackMapper.getThirdActiveLogger(finalChannel, feedBackMapper.getTableName(), maxActiveTime);
 
 //            data = data.stream().sorted(Comparator.comparing(o -> (o.getActiveTime()))).collect(
 //                    Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> o2.getImei() +
@@ -518,7 +540,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     public void afterPropertiesSet() {
         BooleanExpression imeiBe = activeLogger.imeiMd5.eq(clickLog.imeiMd5);
         BooleanExpression oaidBe = activeLogger.oaidMd5.eq(clickLog.oaidMd5);
-        BooleanExpression androidIdBe = activeLogger.androidIdMd5.eq(clickLog.androidIdMd5).and(activeLogger.wifimac.eq(clickLog.mac));
+        BooleanExpression androidIdBe = activeLogger.androidIdMd5.eq(clickLog.androidIdMd5).and(activeLogger.wifimacMd5.eq(clickLog.mac));
         BooleanExpression ipuaBe = activeLogger.ipua.eq(clickLog.ipua);
         Map<String, BooleanExpression> wd = new LinkedHashMap<>();
 

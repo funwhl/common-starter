@@ -54,11 +54,13 @@ public interface FeedBackMapper {
 
     @Select("<script>" +
             "select top 1000  imei,channel, versionname versionName, coid, ncoid, wifimac,ip, activetime activeTime, type, ua, androidId, oaid,mid from ThirdActive.dbo.${tableName}  with(nolock) " +
-            "where type = #{channel} and activetime >= #{date} order by activeTime asc " +
+            "where type in " +
+            "<foreach collection='channel' index='index' item='item' open='(' separator=',' close=')'> #{item} </foreach>" +
+            " and activetime >= #{date} order by activeTime asc " +
             "</script>"
     )
     @ResultType(ActiveLogger.class)
-    List<ActiveLogger> getThirdActiveLogger(@Param("channel") String channel, @Param("tableName") String tableName,@Param("date")Date date);
+    List<ActiveLogger> getThirdActiveLogger(@Param("channel") List<String> channel, @Param("tableName") String tableName,@Param("date")Date date);
 
     @Insert("<script>" +
             "insert  into ClickLog" +

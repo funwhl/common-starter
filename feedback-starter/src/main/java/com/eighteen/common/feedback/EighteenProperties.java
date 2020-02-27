@@ -14,6 +14,7 @@ public class EighteenProperties {
     public static final String PREFIX = "18.feedback";
     // 渠道
     private String channel;
+    private String types;
     // 同步x分钟内激活数据
     private Integer syncActiveLastMinutes = 10;
     // x天内激活数据保存到历史表
