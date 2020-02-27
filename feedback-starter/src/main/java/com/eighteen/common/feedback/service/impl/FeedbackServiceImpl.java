@@ -95,6 +95,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     private List<String> range;
     @Value("#{'${18.feedback.filter:}'.split(',')}")
     private List<String> filter;
+    @Value("#{'${18.feedback.ipuafilter:}'.split(',')}")
+    private List<String> ipuafilter;
     private ExecutorService executor = new ThreadPoolExecutor(20, 20,
             0L, TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<>());
@@ -547,9 +549,14 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         wd.put("imei", imeiBe.and(activeLogger.imeiMd5.isNotNull()).and(activeLogger.imeiMd5.isNotEmpty()));
         wd.put("oaid", oaidBe.and(imeiBe.not()).and(activeLogger.oaidMd5.isNotNull()).and(activeLogger.oaidMd5.isNotEmpty()));
         wd.put("androidId", androidIdBe.and(imeiBe.not()).and(oaidBe.not()).and(activeLogger.androidIdMd5.isNotNull()).and(activeLogger.androidIdMd5.isNotEmpty()));
-        if (etprop.getIpAttributed())
-            wd.put("ipua", ipuaBe.and(imeiBe.not()).and(oaidBe.not()).and(androidIdBe.not())
-                    .and(activeLogger.ipua.isNotEmpty()));
+        if (etprop.getIpAttributed()) {
+            BooleanExpression booleanExpression = ipuaBe.and(imeiBe.not()).and(oaidBe.not()).and(androidIdBe.not())
+                    .and(activeLogger.ipua.isNotEmpty());
+            if (!CollectionUtils.isEmpty(ipuafilter) && !(ipuafilter.size() == 1 && StringUtils.isBlank(ipuafilter.get(0)))) {
+                booleanExpression = booleanExpression.and(activeLogger.channel.in(ipuafilter));
+            }
+            wd.put("ipua", booleanExpression);
+        }
 
         wd.forEach((s, e) -> {
             if (!CollectionUtils.isEmpty(range) && !(range.size() == 1 && StringUtils.isBlank(range.get(0))))
