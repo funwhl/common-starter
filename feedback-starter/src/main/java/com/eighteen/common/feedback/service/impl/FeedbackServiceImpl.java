@@ -480,11 +480,12 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         }
     }
 
-    private String getDayCacheRedisKey(String key) {
+    public String getDayCacheRedisKey(String key) {
         return appName + "#dayHistory#" + key;
     }
 
-    private void addDayCache(String key, List<DayHistory> dayHistories) {
+    @Override
+    public void addDayCache(String key, List<DayHistory> dayHistories) {
         try {
             if (CollectionUtils.isEmpty(dayHistories)) return;
             if (redis != null) {
@@ -499,11 +500,12 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 } else list.addAll(dayHistories);
             }
         } catch (Exception e) {
-            logger.error(e.getMessage());
+            logger.error("add_cache_error"+e.getMessage());
         }
     }
 
-    private List<DayHistory> getDayCache(String key) {
+    @Override
+    public List<DayHistory> getDayCache(String key) {
         List<DayHistory> dayHistories;
         Integer offset = etprop.getOffset();
         try {
@@ -516,6 +518,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     return new DayHistory().setWd(key).setCoid(split[0] == null ? null : Integer.valueOf(split[0]))
                             .setNcoid(split[1] == null ? null : Integer.valueOf(split[1])).setValue(value);
                 }).collect(Collectors.toList());
+                logger.info("get_redis:{}",dayHistories==null?"0":dayHistories.size());
             } else {
                 dayHistories = dayCache.getIfPresent(key);
             }
@@ -528,6 +531,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 addDayCache(key, dayHistories);
             }
         } catch (Exception e) {
+            logger.error("redis_cache_error: {}",e.getMessage());
             Example example = new Example(DayHistory.class);
             Example.Criteria criteria = example.createCriteria();
             criteria.andEqualTo("wd", key);

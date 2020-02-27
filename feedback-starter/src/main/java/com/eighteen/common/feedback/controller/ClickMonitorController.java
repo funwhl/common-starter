@@ -16,15 +16,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
 import org.springframework.amqp.core.MessageProperties;
-import org.springframework.amqp.rabbit.annotation.Exchange;
-import org.springframework.amqp.rabbit.annotation.Queue;
-import org.springframework.amqp.rabbit.annotation.QueueBinding;
-import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.amqp.rabbit.annotation.*;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.retry.RetryCallback;
+import org.springframework.retry.backoff.FixedBackOffPolicy;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,6 +32,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -124,16 +125,28 @@ public class ClickMonitorController {
     }
 
     @RabbitListener(bindings = @QueueBinding(
-            value = @Queue("${18.feedback.clickQueue2:Agg.clickReport.Messages.clickLogMessages}"),
+            value = @Queue(value = "${18.feedback.clickQueue2:Agg.clickReport.Messages.clickLogMessages}"
+//                    ,arguments = {@Argument(name = "x-dead-letter-exchange",value = "feedback-dead-exchange"),
+//                    @Argument(name = "x-dead-letter-routing-key",value = "${18.feedback.channel}")
+//                    ,@Argument(name = "x-message-ttl",value = "2000")
+//            }
+            ),
             key = "${18.feedback.channel}",
             exchange = @Exchange("${spring.rabbitmq.default-exchange}")
     ))
-    public void insertClickLog(@Payload com.eighteen.common.mq.rabbitmq.Message msg) {
+    public void insertClickLog(@Payload com.eighteen.common.mq.rabbitmq.Message msg) throws Exception {
+        RetryTemplate template = new RetryTemplate();
+        FixedBackOffPolicy fixedBackOffPolicy = new FixedBackOffPolicy();
+        fixedBackOffPolicy.setBackOffPeriod(TimeUnit.MINUTES.toMillis(5));
+        template.setBackOffPolicy(fixedBackOffPolicy);
         try {
-            ClickLog clickLog = (ClickLog) msg.getPayload();
-            clickLogDao.save(clickLog);
+            template.execute((RetryCallback<Object, Exception>) context -> {
+                ClickLog clickLog = (ClickLog) msg.getPayload();
+                clickLogDao.save(clickLog);
+                return 0;
+            });
         } catch (Exception e) {
-            logger.info("save_clickLog_error,{},",msg.getPayload().toString(),e.getMessage());
+            logger.info("save_clickLog_error,{},{}",msg.getPayload().toString(),e.getMessage());
             throw e;
         }
     }

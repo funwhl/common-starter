@@ -1,5 +1,6 @@
 package com.eighteen.common.feedback.service;
 
+import com.eighteen.common.feedback.entity.DayHistory;
 import com.eighteen.common.feedback.service.impl.FeedbackServiceImpl.JobType;
 
 import java.util.List;
@@ -25,4 +26,8 @@ public interface FeedbackService {
      * @param type
      */
     void secondStay(JobType type);
+
+    void addDayCache(String key, List<DayHistory> dayHistories);
+
+    List<DayHistory> getDayCache(String key);
 }
