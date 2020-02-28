@@ -570,7 +570,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     public void afterPropertiesSet() {
         BooleanExpression imeiBe = activeLogger.imeiMd5.eq(clickLog.imeiMd5);
         BooleanExpression oaidBe = activeLogger.oaidMd5.eq(clickLog.oaidMd5);
-        BooleanExpression androidIdBe = activeLogger.androidIdMd5.eq(clickLog.androidIdMd5).and(activeLogger.wifimacMd5.eq(clickLog.mac));
+        BooleanExpression androidIdBe = activeLogger.androidIdMd5.eq(clickLog.androidIdMd5);
+        if (etprop.getMacAttributed()) androidIdBe =androidIdBe.and(activeLogger.wifimacMd5.eq(clickLog.mac));
         BooleanExpression ipuaBe = activeLogger.ipua.eq(clickLog.ipua);
         Map<String, BooleanExpression> wd = new LinkedHashMap<>();
 
