@@ -165,81 +165,83 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         .filter(o -> !oldUsers.contains(o) && (errorUrls == null || !errorUrls.contains(o.getClickLog().getCallbackUrl())))
                         .collect(Collectors.toList());
                 List<String> values = filter.stream().map(o -> ReflectionUtils.getFieldValue(o, key).toString()).collect(Collectors.toList());
-                if (CollectionUtils.isEmpty(values)) return;
-                List<DayHistory> exist;
-                if (key.equals("ipua")) {
-                    exist = dsl.selectFrom(ipuaNewUser).where(ipuaNewUser.ipua.in(values)).fetch()
-                            .stream().map(o -> new DayHistory().setCoid(o.getCoid()).setNcoid(o.getNcoid()).setValue(o.getIpua())).collect(Collectors.toList());
-                } else exist = feedBackMapper.listFromStatistics(key, values, null, null);
-                exist.forEach(o -> o.setWd(key));
-                List<DayHistory> finalExist = exist;
-                List<ActiveLogger> newUsers = filter.stream().filter(o -> {
-                    String value = ReflectionUtils.getFieldValue(o, key).toString();
-                    DayHistory history = new DayHistory().setNcoid(o.getNcoid()).setCoid(o.getCoid()).setWd(key).setValue(value).setCreateTime(new Date());
-                    boolean b = finalExist.contains(history);
-                    if (b) {
-                        addDayCache(key, Collections.singletonList(history));
-                        histories.add(history);
-                        oldUsers.add(o);
-                    }
-                    return !b;
-                }).collect(Collectors.toList());
 
-                newUsers.parallelStream().forEach(a -> {
-                    try {
-                        Boolean flag;
-                        ClickLog c = a.getClickLog();
-                        String url = c.getCallbackUrl();
-                        if (feedbackHandler != null) {
-                            flag = feedbackHandler.handler(c);
-                        } else {
-                            String ret;
-                            ret = HttpClientUtils.get(url + "&event_type=1&event_time=" + System.currentTimeMillis());
-                            JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
-                            flag = jsonObject.get("result").equals(1);
+                if (!CollectionUtils.isEmpty(values)) {
+                    List<DayHistory> exist;
+                    if (key.equals("ipua")) {
+                        exist = dsl.selectFrom(ipuaNewUser).where(ipuaNewUser.ipua.in(values)).fetch()
+                                .stream().map(o -> new DayHistory().setCoid(o.getCoid()).setNcoid(o.getNcoid()).setValue(o.getIpua())).collect(Collectors.toList());
+                    } else exist = feedBackMapper.listFromStatistics(key, values, null, null);
+                    exist.forEach(o -> o.setWd(key));
+                    List<DayHistory> finalExist = exist;
+                    List<ActiveLogger> newUsers = filter.stream().filter(o -> {
+                        String value = ReflectionUtils.getFieldValue(o, key).toString();
+                        DayHistory history = new DayHistory().setNcoid(o.getNcoid()).setCoid(o.getCoid()).setWd(key).setValue(value).setCreateTime(new Date());
+                        boolean b = finalExist.contains(history);
+                        if (b) {
+                            addDayCache(key, Collections.singletonList(history));
+                            histories.add(history);
+                            oldUsers.add(o);
                         }
-                        if (flag) {
-                            FeedbackLog feedbackLog = new FeedbackLog();
-                            BeanUtils.copyProperties(c, feedbackLog);
-                            feedbackLog.setImei(a.getImei()).setOaid(a.getOaid()).setAndroidId(a.getAndroidId());
-                            feedbackLogs.add(feedbackLog.setCreateTime(new Date()).setMid(a.getMid()).setEventType(1).setActiveChannel(a.getChannel()).setActiveTime(a.getActiveTime())
-                                    .setMatchField(key).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setTs(c.getTs()));
-                            String value = ReflectionUtils.getFieldValue(a, key).toString();
-                            if (key.equals("ipua"))ipuaNewUsers.add(new IpuaNewUser().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setIp(a.getIp()).setUa(a.getUa()).setIpua(value).setCreateTime(new Date()));
-                            DayHistory history = new DayHistory().setWd(key).setValue(value).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setCreateTime(new Date());
-                            if (key.equals("imei")) {
-                                String iimei = a.getIimei();
-                                if (StringUtils.isNotBlank(iimei)) {
-                                    List<DayHistory> imeiList = new ArrayList<>();
-                                    String[] imeis = iimei.split(",");
-                                    DayHistory imeiHistory = new DayHistory();
-                                    for (String v : imeis) {
-                                        BeanUtils.copyProperties(history, imeiHistory);
-                                        if (StringUtils.isNotBlank(v)&&!v.equals(value)) imeiList.add(imeiHistory);
-                                    }
-                                    if (!CollectionUtils.isEmpty(imeiList)) {
-                                        addDayCache(key, imeiList);
-                                        histories.addAll(imeiList);
-                                    }
+                        return !b;
+                    }).collect(Collectors.toList());
 
+                    newUsers.parallelStream().forEach(a -> {
+                        try {
+                            Boolean flag;
+                            ClickLog c = a.getClickLog();
+                            String url = c.getCallbackUrl();
+                            if (feedbackHandler != null) {
+                                flag = feedbackHandler.handler(c);
+                            } else {
+                                String ret;
+                                ret = HttpClientUtils.get(url + "&event_type=1&event_time=" + System.currentTimeMillis());
+                                JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
+                                flag = jsonObject.get("result").equals(1);
+                            }
+                            if (flag) {
+                                FeedbackLog feedbackLog = new FeedbackLog();
+                                BeanUtils.copyProperties(c, feedbackLog);
+                                feedbackLog.setImei(a.getImei()).setOaid(a.getOaid()).setAndroidId(a.getAndroidId());
+                                feedbackLogs.add(feedbackLog.setCreateTime(new Date()).setMid(a.getMid()).setEventType(1).setActiveChannel(a.getChannel()).setActiveTime(a.getActiveTime())
+                                        .setMatchField(key).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setTs(c.getTs()));
+                                String value = ReflectionUtils.getFieldValue(a, key).toString();
+                                if (key.equals("ipua"))ipuaNewUsers.add(new IpuaNewUser().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setIp(a.getIp()).setUa(a.getUa()).setIpua(value).setCreateTime(new Date()));
+                                DayHistory history = new DayHistory().setWd(key).setValue(value).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setCreateTime(new Date());
+                                if (key.equals("imei")) {
+                                    String iimei = a.getIimei();
+                                    if (StringUtils.isNotBlank(iimei)) {
+                                        List<DayHistory> imeiList = new ArrayList<>();
+                                        String[] imeis = iimei.split(",");
+                                        DayHistory imeiHistory = new DayHistory();
+                                        for (String v : imeis) {
+                                            BeanUtils.copyProperties(history, imeiHistory);
+                                            if (StringUtils.isNotBlank(v)&&!v.equals(value)) imeiList.add(imeiHistory);
+                                        }
+                                        if (!CollectionUtils.isEmpty(imeiList)) {
+                                            addDayCache(key, imeiList);
+                                            histories.addAll(imeiList);
+                                        }
+
+                                    }
+                                }
+                                addDayCache(key, Collections.singletonList(history));
+                                success.incrementAndGet();
+
+                                histories.add(history);
+                                oldUsers.add(a);
+                            } else {
+                                if (StringUtils.isNotBlank(url)) {
+                                    List<String> errors = errorCache.getIfPresent("errors");
+                                    if (errors == null) errorCache.put("errors", Lists.newArrayList(url));
+                                    else errors.add(url);
                                 }
                             }
-                            addDayCache(key, Collections.singletonList(history));
-                            success.incrementAndGet();
-
-                            histories.add(history);
-                            oldUsers.add(a);
-                        } else {
-                            if (StringUtils.isNotBlank(url)) {
-                                List<String> errors = errorCache.getIfPresent("errors");
-                                if (errors == null) errorCache.put("errors", Lists.newArrayList(url));
-                                else errors.add(url);
-                            }
+                        } catch (Exception e1) {
+                            logger.error(e1.getMessage());
                         }
-                    } catch (Exception e1) {
-                        logger.error(e1.getMessage());
-                    }
-                });
+                    });
+                }
 
                 oldUsers.stream().collect(Collectors.groupingBy(o -> o.getCoid() + "," + o.getNcoid())).forEach((s, activeLoggers) -> {
                     List<String> collect = activeLoggers.stream().map(o -> ReflectionUtils.getFieldValue(o, key).toString()).collect(Collectors.toList());
@@ -278,7 +280,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         return queryMap.keySet().stream().filter(s -> !s.equals(key)).anyMatch(s -> {
             Object object = ReflectionUtils.getFieldValue(activeLogger, s);
             String fieldValue = object ==null?null: object.toString();
-            DayHistory history = new DayHistory().setValue(fieldValue).setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd(key);
+            DayHistory history = new DayHistory().setValue(fieldValue).setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd(s);
             return getDayCache(s).stream().filter(d -> StringUtils.isNotBlank(d.getValue())).anyMatch(o -> o.equals(history));
         });
     }

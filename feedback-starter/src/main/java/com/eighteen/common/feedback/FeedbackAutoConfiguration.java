@@ -100,20 +100,20 @@ public class FeedbackAutoConfiguration {
     Map<String, Job> simple18Jobs() {
 
         Map<String, Job> jobs = new HashMap<>();
-        jobs.put(CLEAN_IMEI.getKey(), Job.builder().jobName(CLEAN_IMEI.getKey()).cron(properties.getCleanImeiCron()).failover(true)
-                .job(c -> feedbackService().clean(CLEAN_IMEI)).build());
-
-        jobs.put(CLEAN_ACTIVE.getKey(), Job.builder().jobName(CLEAN_ACTIVE.getKey()).cron(properties.getCleanActiveCron()).failover(true)
-                .job(c -> feedbackService().clean(CLEAN_ACTIVE)).build());
-
-        jobs.put(CLEAN_CLICK.getKey(), Job.builder().jobName(CLEAN_CLICK.getKey()).cron(properties.getCleanClickCron()).failover(true)
-                .job(c -> feedbackService().clean(CLEAN_CLICK)).build());
-
-        jobs.put(CLEAN_ACTIVE_HISTORY.getKey(), Job.builder().jobName(CLEAN_ACTIVE_HISTORY.getKey()).cron(properties.getCleanActiveHistoryCron()).failover(true)
-                .job(c -> feedbackService().clean(CLEAN_ACTIVE_HISTORY)).build());
-
-        jobs.put(SYNC_ACTIVE.getKey(), Job.builder().jobName(SYNC_ACTIVE.getKey()).cron(properties.getSyncActiveCron()).failover(true)
-                .job(c -> feedbackService().syncActive()).monitorExecution(false).build());
+//        jobs.put(CLEAN_IMEI.getKey(), Job.builder().jobName(CLEAN_IMEI.getKey()).cron(properties.getCleanImeiCron()).failover(true)
+//                .job(c -> feedbackService().clean(CLEAN_IMEI)).build());
+//
+//        jobs.put(CLEAN_ACTIVE.getKey(), Job.builder().jobName(CLEAN_ACTIVE.getKey()).cron(properties.getCleanActiveCron()).failover(true)
+//                .job(c -> feedbackService().clean(CLEAN_ACTIVE)).build());
+//
+//        jobs.put(CLEAN_CLICK.getKey(), Job.builder().jobName(CLEAN_CLICK.getKey()).cron(properties.getCleanClickCron()).failover(true)
+//                .job(c -> feedbackService().clean(CLEAN_CLICK)).build());
+//
+//        jobs.put(CLEAN_ACTIVE_HISTORY.getKey(), Job.builder().jobName(CLEAN_ACTIVE_HISTORY.getKey()).cron(properties.getCleanActiveHistoryCron()).failover(true)
+//                .job(c -> feedbackService().clean(CLEAN_ACTIVE_HISTORY)).build());
+//
+//        jobs.put(SYNC_ACTIVE.getKey(), Job.builder().jobName(SYNC_ACTIVE.getKey()).cron(properties.getSyncActiveCron()).failover(true)
+//                .job(c -> feedbackService().syncActive()).monitorExecution(false).build());
 
         jobs.put(FEED_BACK.getKey(), Job.builder().jobName(FEED_BACK.getKey()).cron(properties.getFeedbackCron()).failover(true)
                 .job(c -> feedbackService().feedback()).monitorExecution(false).build());
