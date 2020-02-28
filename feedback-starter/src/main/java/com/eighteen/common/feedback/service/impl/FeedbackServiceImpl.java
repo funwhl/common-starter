@@ -151,16 +151,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     if (dayHistories.contains(history)) {
                         oldUsers.add(activeLogger);
                     } else {
-//                        // 避免androidId先匹配到 之后又匹配到oaid重复回传
-//                        if (key.equals("oaid")) {
-//                            if (getDayCache("androidId").stream().anyMatch(d -> d.getValue() != null && d.getValue().equals(activeLogger.getAndroidId()))) {
-//                                addDayCache(key, Collections.singletonList(history));
-//                                histories.add(history);
-//                                oldUsers.add(activeLogger);
-//                            }
-//                        }
-
-//                       Boolean check = check(key,activeLogger);
                         if (check(key,activeLogger)) {
                             logger.info("other_field_matched : {}",activeLogger.toString());
                             addDayCache(key, Collections.singletonList(history));
@@ -268,7 +258,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     }
 
     private Boolean check(String key, ActiveLogger activeLogger) {
-        return queryMap.keySet().stream().filter(s -> !s.equals(key)).allMatch(s -> {
+        return queryMap.keySet().stream().filter(s -> !s.equals(key)).anyMatch(s -> {
             Object object = ReflectionUtils.getFieldValue(activeLogger, s);
             String fieldValue = object ==null?null: object.toString();
             DayHistory history = new DayHistory().setValue(fieldValue).setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd(key);
@@ -332,6 +322,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                             e.setIpua(placeholder);
                             e.setOaidMd5(placeholder);
                             e.setAndroidIdMd5(placeholder);
+                            e.setOaid(placeholder);
                             e.setImei(currentImei);
                             e.setImeiMd5(getMd5Str(currentImei));
                             iimeiActive.add(e);
@@ -515,7 +506,11 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 String redisKey = getDayCacheRedisKey(key);
                 Map<String, Double> map = new HashMap<>();
                 dayHistories.forEach(dayHistory -> map.put(String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()), (double) dayHistory.getCreateTime().getTime()));
-                if (map.size() > 0) redis.process(j -> j.zadd(redisKey, map));
+                if (map.size() > 0) redis.process(j -> {
+                    Long zadd = j.zadd(redisKey, map);
+                    if (zadd <= 0) logger.error("add_redis_error key:{},data:{}",redisKey,map);
+                    return zadd;
+                });
             } else {
                 List<DayHistory> list = dayCache.getIfPresent(key);
                 if (CollectionUtils.isEmpty(list)) {
