@@ -304,6 +304,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             ListIterator<ActiveLogger> it = data.listIterator();
             List<DayHistory> imeiCache = getDayCache("imei");
             List<ActiveLogger> active = activeLoggerCache.getIfPresent("active");
+            List<ActiveLogger> iimeiActive = new ArrayList<>();
             while (it.hasNext()) {
                 ActiveLogger activeLogger = it.next();
                 String imei = activeLogger.getImei();
@@ -319,7 +320,26 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         .setWifimacMd5(getMd5Str(activeLogger.getWifimac()))
                         .setIpua(getMd5Str(activeLogger.getIp() + "#" + activeLogger.getUa()))
                         .setCreateTime(new Date()).setStatus(0);
+                String iimei = activeLogger.getIimei();
+                if (etprop.getMultipleImei()&&StringUtils.isNotBlank(iimei)) {
+                    String[] imeis = iimei.split(",");
+                    for (int i = 0; i < imeis.length; i++) {
+                        String placeholder = "imei#" + (i + 1);
+                        String currentImei = imeis[i];
+                        if (StringUtils.isNotBlank(currentImei)&&!currentImei.equals(imei)) {
+                            ActiveLogger e = new ActiveLogger();
+                            BeanUtils.copyProperties(activeLogger, e);
+                            e.setIpua(placeholder);
+                            e.setOaidMd5(placeholder);
+                            e.setAndroidIdMd5(placeholder);
+                            e.setImei(currentImei);
+                            e.setImeiMd5(getMd5Str(currentImei));
+                            iimeiActive.add(e);
+                        }
+                    }
+                }
             }
+            if (!CollectionUtils.isEmpty(iimeiActive)) data.addAll(iimeiActive);
             if (!CollectionUtils.isEmpty(data)) {
                 Page<ActiveLogger> page = Page.create(1, 60, i -> data);
                 page.forEach(activeLoggers -> activeLoggerMapper.insertList(activeLoggers));
@@ -400,7 +420,10 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         dayCache.invalidateAll();
         if (redis != null) {
             if (offset == null) {
-                queryMap.keySet().forEach(s -> redis.del(getDayCacheRedisKey(s)));
+                queryMap.keySet().forEach(s -> {
+                    Long zexpire = redis.del(getDayCacheRedisKey(s));
+                    logger.info("clear_cache:{}",zexpire);
+                });
             } else {
                 queryMap.keySet().forEach(s -> redis.zexpire(getDayCacheRedisKey(s), (double) 0, (double) (System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset + 1))));
             }
@@ -500,6 +523,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 } else list.addAll(dayHistories);
             }
         } catch (Exception e) {
+            redis = null;
             logger.error("add_cache_error"+e.getMessage());
         }
     }
@@ -574,6 +598,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         booleanTemplate("abs(datediff(minute,{0},{1})) >= {2}", clickLog.clickTime, activeLogger.activeTime, 30));
             queryMap.put(s, dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.and(activeLogger.status.eq(0))).limit(1000L));
         });
+        clearCache(null);
     }
 
     public enum JobType {
