@@ -217,8 +217,11 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                                         BeanUtils.copyProperties(history, imeiHistory);
                                         if (StringUtils.isNotBlank(v)&&!v.equals(value)) imeiList.add(imeiHistory);
                                     }
-                                    if (!CollectionUtils.isEmpty(imeiList))
-                                        addDayCache(key, Collections.singletonList(history));
+                                    if (!CollectionUtils.isEmpty(imeiList)) {
+                                        addDayCache(key, imeiList);
+                                        histories.addAll(imeiList);
+                                    }
+
                                 }
                             }
                             addDayCache(key, Collections.singletonList(history));
