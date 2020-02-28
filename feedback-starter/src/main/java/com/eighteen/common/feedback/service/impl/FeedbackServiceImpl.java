@@ -207,6 +207,20 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                             String value = ReflectionUtils.getFieldValue(a, key).toString();
                             if (key.equals("ipua"))ipuaNewUsers.add(new IpuaNewUser().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setIp(a.getIp()).setUa(a.getUa()).setIpua(value).setCreateTime(new Date()));
                             DayHistory history = new DayHistory().setWd(key).setValue(value).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setCreateTime(new Date());
+                            if (key.equals("imei")) {
+                                String iimei = a.getIimei();
+                                if (StringUtils.isNotBlank(iimei)) {
+                                    List<DayHistory> imeiList = new ArrayList<>();
+                                    String[] imeis = iimei.split(",");
+                                    DayHistory imeiHistory = new DayHistory();
+                                    for (String v : imeis) {
+                                        BeanUtils.copyProperties(history, imeiHistory);
+                                        if (StringUtils.isNotBlank(v)&&!v.equals(value)) imeiList.add(imeiHistory);
+                                    }
+                                    if (!CollectionUtils.isEmpty(imeiList))
+                                        addDayCache(key, Collections.singletonList(history));
+                                }
+                            }
                             addDayCache(key, Collections.singletonList(history));
                             success.incrementAndGet();
 
