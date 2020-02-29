@@ -50,7 +50,7 @@ public class FeedbackLog {
     private String callbackUrl;
     private Integer coid;
     private Integer ncoid;
-
+    private Integer plot;
     private String param1;
     private String param2;
     private String param3;
