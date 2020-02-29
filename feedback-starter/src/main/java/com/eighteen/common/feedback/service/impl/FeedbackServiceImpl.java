@@ -34,6 +34,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.springframework.web.client.RestTemplate;
 import tk.mybatis.mapper.entity.Example;
 
 import javax.persistence.LockModeType;
@@ -67,6 +68,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     private final EighteenProperties etprop;
     @Autowired(required = false)
     FeedBackMapper feedBackMapper;
+    @Autowired
+    RestTemplate restTemplate;
     @Autowired
     JPAQueryFactory dsl;
     @Autowired
@@ -109,7 +112,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     private Cache<String, List<String>> errorCache = CacheBuilder.newBuilder()
             .expireAfterWrite(10, TimeUnit.MINUTES).concurrencyLevel(1)
             .build();
-    private Map<String, JPAQuery<Tuple>> queryMap = new LinkedHashMap<>();
+    private Map<String, JPAQuery<Tuple>> queryMap = new LinkedHashMap<>(4);
 
 
     public FeedbackServiceImpl(EighteenProperties properties) {
@@ -127,7 +130,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 List<ActiveLogger> tupleList = e.fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
                 if (CollectionUtils.isEmpty(tupleList)) return;
                 ArrayList<ActiveLogger> list = tupleList.stream()
-                        // 去重 取lastClick
                         .sorted(Comparator.comparing(o -> o.getClickLog().getClickTime()))
                         .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> {
                                     switch (key) {
@@ -142,23 +144,18 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                                     }
                                 }))), ArrayList::new)
                         );
-//                List<DayHistory> dayHistories = getDayCache(key);
                 List<ActiveLogger> oldUsers = new ArrayList<>();
 
                 list.forEach(activeLogger -> {
                     String value = ReflectionUtils.getFieldValue(activeLogger, key).toString();
                     DayHistory history = new DayHistory().setNcoid(activeLogger.getNcoid()).setCoid(activeLogger.getCoid()).setWd(key).setValue(value).setCreateTime(new Date());
                     if (countHistory(history)) {
-//                    }
-//                    if (dayHistories.contains(history)) {
                         oldUsers.add(activeLogger);
-                    } else {
-                        if (check(key, activeLogger)) {
-                            logger.info("other_field_matched : {}", activeLogger.toString());
-                            addDayCache(key, Collections.singletonList(history));
-                            histories.add(history);
-                            oldUsers.add(activeLogger);
-                        }
+                    } else if (check(key, activeLogger)) {
+                        logger.info("other_field_matched : key:{},value:{}#{}#{} ,{}", key, value, activeLogger.getCoid(), activeLogger.getNcoid(), activeLogger.toString());
+                        addDayCache(key, Collections.singletonList(history));
+                        histories.add(history);
+                        oldUsers.add(activeLogger);
                     }
                 });
 
@@ -166,6 +163,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 List<ActiveLogger> filter = list.stream()
                         .filter(o -> !oldUsers.contains(o) && (errorUrls == null || !errorUrls.contains(o.getClickLog().getCallbackUrl())))
                         .collect(Collectors.toList());
+
                 List<String> values = filter.stream().map(o -> ReflectionUtils.getFieldValue(o, key).toString()).collect(Collectors.toList());
 
                 if (!CollectionUtils.isEmpty(values)) {
@@ -188,20 +186,13 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         return !b;
                     }).collect(Collectors.toList());
 
-                    newUsers.parallelStream().forEach(a -> {
+                    newUsers.forEach(a -> {
                         try {
-                            Boolean flag;
                             ClickLog c = a.getClickLog();
-                            String url = c.getCallbackUrl();
-                            if (feedbackHandler != null) {
-                                flag = feedbackHandler.handler(c);
-                            } else {
-                                String ret;
-                                ret = HttpClientUtils.get(url + "&event_type=1&event_time=" + System.currentTimeMillis());
-                                JSONObject jsonObject = (JSONObject) JSONObject.parse(ret);
-                                flag = jsonObject.get("result").equals(1);
-                            }
-                            if (flag) {
+                            if (executor.submit(() -> {
+                                if (feedbackHandler != null) return feedbackHandler.handler(c);
+                                else return restTemplate.getForEntity(c.getCallbackUrl(), String.class).getStatusCode().value() == 200;
+                            }).get()) {
                                 FeedbackLog feedbackLog = new FeedbackLog();
                                 BeanUtils.copyProperties(c, feedbackLog);
                                 feedbackLog.setImei(a.getImei()).setOaid(a.getOaid()).setAndroidId(a.getAndroidId());
@@ -226,19 +217,18 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                                             addDayCache(key, imeiList);
                                             histories.addAll(imeiList);
                                         }
-
                                     }
                                 }
                                 addDayCache(key, Collections.singletonList(history));
                                 success.incrementAndGet();
-
                                 histories.add(history);
                                 oldUsers.add(a);
                             } else {
-                                if (StringUtils.isNotBlank(url)) {
+                                if (StringUtils.isNotBlank(c.getCallbackUrl())) {
                                     List<String> errors = errorCache.getIfPresent("errors");
-                                    if (errors == null) errorCache.put("errors", Lists.newArrayList(url));
-                                    else errors.add(url);
+                                    if (errors == null)
+                                        errorCache.put("errors", Lists.newArrayList(c.getCallbackUrl()));
+                                    else errors.add(c.getCallbackUrl());
                                 }
                             }
                         } catch (Exception e1) {
@@ -287,15 +277,15 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         try {
             if (redis != null) {
                 if (redis.process(j -> j.zcount(getDayCacheRedisKey(key), (double) 0, (double) Long.MAX_VALUE) == 0)) {
-                   return getDayCache(key).stream().filter(o -> o.equals(s)).count() > 0;
+                    return getDayCache(key).stream().filter(o -> o.equals(s)).count() > 0;
                 }
                 Double process = redis.process(j -> j.zscore(getDayCacheRedisKey(key), s.getCoid() + "##" + s.getNcoid() + "##" + s.getValue()));
                 return process != null && process > 0;
             } else {
-                return dayCache.getIfPresent(key).stream().filter(o -> o.equals(s)).count()>0;
+                return dayCache.getIfPresent(key).stream().filter(o -> o.equals(s)).count() > 0;
             }
         } catch (Exception e) {
-            logger.error("count_error:{}",e.getMessage());
+            logger.error("count_error:{}", e.getMessage());
             Example example = new Example(DayHistory.class);
             Example.Criteria criteria = example.createCriteria();
             criteria.andEqualTo("wd", key).andEqualTo("value", s.getValue()).andEqualTo("coid", s.getCoid());
@@ -549,13 +539,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             if (CollectionUtils.isEmpty(dayHistories)) return;
             if (redis != null) {
                 String redisKey = getDayCacheRedisKey(key);
-                Map<String, Double> map = new HashMap<>();
+                Map<String, Double> map = new HashMap<>(dayHistories.size());
                 dayHistories.forEach(dayHistory -> map.put(String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()), (double) dayHistory.getCreateTime().getTime()));
-                if (map.size() > 0) redis.process(j -> {
-                    Long zadd = j.zadd(redisKey, map);
-                    if (zadd <= 0) logger.error("add_redis_error key:{},data:{}", redisKey, map);
-                    return zadd;
-                });
+                redis.process(j -> j.zadd(redisKey, map));
             } else {
                 List<DayHistory> list = dayCache.getIfPresent(key);
                 if (CollectionUtils.isEmpty(list)) {
