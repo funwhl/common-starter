@@ -74,10 +74,6 @@ public interface FeedBackMapper {
             "</script>")
     long insertClickLog(@Param("params") Map params);
 
-
-    @Delete("DELETE FROM DayLiucunImei where CreateTime < #{date} ")
-    long cleanDayLCImeis(@Param("date") Date date);
-
     @Insert("insert into ActiveStatisticsDayReport select a.channel,'${date}' as 'date' ,count(*) as 'count' ${did} from ActiveLogger a inner join ClickLog b " +
             " on a.imeimd5 = b.imei and activetime > #{date} and activetime < dateadd(day,1,#{date}) and a.activetime > b.click_time " +
             "GROUP BY a.channel ${did}")
@@ -88,13 +84,9 @@ public interface FeedBackMapper {
 
     @Select("select b.*, c.callback_url as callBack,c.aid,c.cid,c.mac,c.ts,c.android_id as androidId from ( " +
             " select top 2000 a.*  from toutiaofeedback.dbo.ThirdRetentionLog a  " +
-            " where  a.activetime >=  CAST( DATEADD(DAY,-1,GETDATE()) as date) and a.type ='kuaishouChannel'  " +
-            " and not exists ( select imei from dayliucunimei d where a.imei = d.imei ) " +
+            " where  a.activetime >=  CAST( DATEADD(DAY,-1,GETDATE()) as date) and a.type = #{channel} " +
+            " and not exists ( select imei from t_day_history d where a.imei = d.value and d.wd = 'retention' ) " +
             " ) b INNER JOIN t_click_log c on b.imeimd5 = c.imei ")
-    List<ThirdRetentionLog> getSecondStay();
-
-
-    @Insert("insert into DayLiucunImei(imei ,imeimd5, createTime) VALUES (#{imei}, #{imeimd5} , getdate())")
-    long insertDayLiucunImei(@Param("imei") String imei, @Param("imeimd5") String imeimd5);
+    List<ThirdRetentionLog> getSecondStay(@Param("channel") String channel);
 
 }

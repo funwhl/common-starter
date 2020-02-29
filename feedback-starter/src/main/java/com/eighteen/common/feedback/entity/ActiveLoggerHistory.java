@@ -59,4 +59,5 @@ public class ActiveLoggerHistory {
     private Date createTime;
     @Column(name = "mid", columnDefinition = "varchar(100)")
     private String mid;
+    private String iimei;
 }

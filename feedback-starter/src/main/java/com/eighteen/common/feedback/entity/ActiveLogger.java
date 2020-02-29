@@ -62,7 +62,6 @@ public class ActiveLogger {
     private String mid;
     @Transient
     private ClickLog clickLog;
-    @Transient
     private String iimei;
 
     @Override
