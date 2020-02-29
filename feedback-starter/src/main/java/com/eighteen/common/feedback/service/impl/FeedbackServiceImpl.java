@@ -191,7 +191,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                             ClickLog c = a.getClickLog();
                             if (executor.submit(() -> {
                                 if (feedbackHandler != null) return feedbackHandler.handler(c);
-                                else return restTemplate.getForEntity(c.getCallbackUrl(), String.class).getStatusCode().value() == 200;
+                                else
+                                    return restTemplate.getForEntity(c.getCallbackUrl(), String.class).getStatusCode().value() == 200;
                             }).get()) {
                                 FeedbackLog feedbackLog = new FeedbackLog();
                                 BeanUtils.copyProperties(c, feedbackLog);
@@ -304,7 +305,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             Object object = ReflectionUtils.getFieldValue(activeLogger, s);
             String fieldValue = object == null ? null : object.toString();
             DayHistory history = new DayHistory().setValue(fieldValue).setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd(s);
-            return !fileter.contains(fieldValue)&&countHistory(history);
+            return !fileter.contains(fieldValue) && countHistory(history);
         });
     }
 
@@ -467,14 +468,17 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             return activeLoggerHistory;
         }).collect(Collectors.toList());
 
-        executor.execute(() -> {
-            Page<ActiveLoggerHistory> page = Page.create(1, 60, i -> histories);
-            page.forEach(list -> activeLoggerHistoryMapper.insertList(list));
+        Page<ActiveLoggerHistory> page = Page.create(1, 60, i -> histories);
+        page.forEach(list -> executor.execute(() -> activeLoggerHistoryMapper.insertList(list)));
 
-        });
         List<Long> ids = activeLoggers.stream().map(ActiveLogger::getId).collect(Collectors.toList());
         Page<Long> idPage = Page.create(1, 100, i -> ids);
-        idPage.forEach(list -> dsl.delete(activeLogger).setLockMode(LockModeType.NONE).where(activeLogger.id.in(list)).execute());
+        idPage.forEach(list -> executor.execute(() -> {
+            Example example = new Example(ActiveLogger.class);
+            Example.Criteria criteria = example.createCriteria();
+            criteria.andIn("id", list);
+            activeLoggerMapper.deleteByExample(example);
+        }));
     }
 
     @Override
