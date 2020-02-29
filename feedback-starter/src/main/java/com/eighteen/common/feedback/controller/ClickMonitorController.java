@@ -32,6 +32,9 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -141,8 +144,10 @@ public class ClickMonitorController {
         template.setBackOffPolicy(fixedBackOffPolicy);
         try {
             template.execute((RetryCallback<Object, Exception>) context -> {
-                ClickLog clickLog = (ClickLog) msg.getPayload();
-                clickLogDao.save(clickLog);
+                executor.submit(() -> {
+                    ClickLog clickLog = (ClickLog) msg.getPayload();
+                    clickLogDao.save(clickLog);
+                }).get();
                 return 0;
             });
         } catch (Exception e) {
@@ -157,4 +162,8 @@ public class ClickMonitorController {
     public void clearDayCache() {
         feedbackService.clearCache(null);
     }
+
+    private ExecutorService executor = new ThreadPoolExecutor(15, 15,
+            0L, TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue<>());
 }
