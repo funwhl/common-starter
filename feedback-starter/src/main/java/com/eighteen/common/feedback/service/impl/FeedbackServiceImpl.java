@@ -353,7 +353,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         .setOaidMd5(getMd5Str(activeLogger.getOaid()))
                         .setWifimacMd5(getMd5Str(activeLogger.getWifimac()))
                         .setIpua(getMd5Str(activeLogger.getIp() + "#" + activeLogger.getUa()))
-                        .setCreateTime(new Date()).setStatus(0);
+                        .setCreateTime(new Date()).setPlot(1).setStatus(0);
                 String iimei = activeLogger.getIimei();
                 if (etprop.getMultipleImei() && StringUtils.isNotBlank(iimei)) {
                     String[] imeis = iimei.split(",");

@@ -17,13 +17,16 @@ import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.web.client.RestTemplateBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.SchedulingConfigurer;
+import org.springframework.web.client.RestTemplate;
 
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
@@ -127,4 +130,33 @@ public class FeedbackAutoConfiguration {
 
         return jobs;
     }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RestTemplate restTemplate(RestTemplateBuilder builder) {
+        RestTemplate restTemplate = builder.build();
+//        restTemplate.setRequestFactory(new HttpComponentsClientRestfulHttpRequestFactory());
+        return restTemplate;
+    }
+
+//    private static final class HttpComponentsClientRestfulHttpRequestFactory extends HttpComponentsClientHttpRequestFactory {
+//        @Override
+//        protected HttpUriRequest createHttpUriRequest(HttpMethod httpMethod, URI uri) {
+//            if (httpMethod == HttpMethod.GET) {
+//                return new HttpGetRequestWithEntity(uri);
+//            }
+//            return super.createHttpUriRequest(httpMethod, uri);
+//        }
+//    }
+//
+//    private static final class HttpGetRequestWithEntity extends HttpEntityEnclosingRequestBase {
+//        public HttpGetRequestWithEntity(final URI uri) {
+//            super.setURI(uri);
+//        }
+//
+//        @Override
+//        public String getMethod() {
+//            return HttpMethod.GET.name();
+//        }
+//    }
 }
