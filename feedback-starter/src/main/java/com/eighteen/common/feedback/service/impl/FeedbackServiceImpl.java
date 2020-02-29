@@ -296,10 +296,15 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
     private Boolean check(String key, ActiveLogger activeLogger) {
         return queryMap.keySet().stream().filter(s -> !s.equals(key)).anyMatch(s -> {
+            ArrayList<String> fileter = Lists.newArrayList("null", "NULL", "", "__IMEI__", "__OAID__");
+            if (StringUtils.isNotBlank(activeLogger.getIimei())) {
+                boolean anyMatch = Arrays.stream(activeLogger.getIimei().split(",")).anyMatch(s1 -> !filter.contains(s1) && countHistory(new DayHistory().setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd("imei").setValue(s1)));
+                if (anyMatch) return true;
+            }
             Object object = ReflectionUtils.getFieldValue(activeLogger, s);
             String fieldValue = object == null ? null : object.toString();
             DayHistory history = new DayHistory().setValue(fieldValue).setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd(s);
-            return !Lists.newArrayList("null","NULL","","__IMEI__","__OAID__").contains(fieldValue)&&countHistory(history);
+            return !fileter.contains(fieldValue)&&countHistory(history);
         });
     }
 
