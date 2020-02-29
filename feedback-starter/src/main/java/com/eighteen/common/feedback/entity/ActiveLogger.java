@@ -63,6 +63,7 @@ public class ActiveLogger {
     @Transient
     private ClickLog clickLog;
     private String iimei;
+    private Integer plot;
 
     @Override
     public boolean equals(Object o) {

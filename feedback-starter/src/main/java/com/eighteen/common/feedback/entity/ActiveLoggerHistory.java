@@ -60,4 +60,6 @@ public class ActiveLoggerHistory {
     @Column(name = "mid", columnDefinition = "varchar(100)")
     private String mid;
     private String iimei;
+    private Integer plot;
+
 }

@@ -366,9 +366,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                             e.setIpua(placeholder);
                             e.setOaidMd5(placeholder);
                             e.setAndroidIdMd5(placeholder);
-                            e.setOaid(placeholder);
                             e.setImei(currentImei);
                             e.setImeiMd5(getMd5Str(currentImei));
+                            e.setPlot(i +1);
                             iimeiActive.add(e);
                         }
                     }
