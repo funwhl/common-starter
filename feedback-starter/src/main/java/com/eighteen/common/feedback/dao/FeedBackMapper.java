@@ -3,6 +3,7 @@ package com.eighteen.common.feedback.dao;
 
 import com.eighteen.common.feedback.domain.ThirdRetentionLog;
 import com.eighteen.common.feedback.entity.ActiveLogger;
+import com.eighteen.common.feedback.entity.ClickLog;
 import com.eighteen.common.feedback.entity.DayHistory;
 import org.apache.ibatis.annotations.*;
 
@@ -89,4 +90,8 @@ public interface FeedBackMapper {
             " ) b INNER JOIN t_click_log c on b.imeimd5 = c.imei ")
     List<ThirdRetentionLog> getSecondStay(@Param("channel") String channel);
 
+    @Select("select top 2000 id as param4,imei as imei_md5,oaid,android_id as android_id_md5" +
+            ",channel,click_time,create_time,mac,ip,ts " +
+            ",callback_url from ${table} where 1=1 and id > #{id} order by id asc ")
+    List<ClickLog> selectlist(@Param("id") Long id, @Param("table") String table);
 }

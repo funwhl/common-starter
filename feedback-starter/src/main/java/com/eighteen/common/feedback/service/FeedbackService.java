@@ -17,7 +17,7 @@ public interface FeedbackService {
 
     void clean(JobType type);
 
-    void clearCache(Integer offset);
+    void clearCache(Long offset);
 
     void stat(JobType type);
 

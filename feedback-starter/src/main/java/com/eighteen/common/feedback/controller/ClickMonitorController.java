@@ -16,7 +16,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.amqp.core.Message;
 import org.springframework.amqp.core.MessageBuilder;
 import org.springframework.amqp.core.MessageProperties;
-import org.springframework.amqp.rabbit.annotation.*;
+import org.springframework.amqp.rabbit.annotation.Exchange;
+import org.springframework.amqp.rabbit.annotation.Queue;
+import org.springframework.amqp.rabbit.annotation.QueueBinding;
+import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -55,37 +58,33 @@ public class ClickMonitorController {
     ClickLogDao clickLogDao;
     @Autowired(required = false)
     ClickLogHandler clickLogHandler;
+    @Autowired
+    MessageSender sender;
+    @Autowired(required = false)
+    RetHandler retHandler;
+    @Autowired
+    FeedbackService feedbackService;
     @Value("${18.feedback.channel}")
     private String channel;
     @Value("${18.feedback.clickQueue:}")
     private String clickQueue;
     @Value("${18.feedback.clickQueue2:Agg.clickReport.Messages.clickLogMessages}")
     private String clickQueue2;
-    @Autowired
-    MessageSender sender;
-    @Autowired(required = false)
-    RetHandler retHandler;
+    private ExecutorService executor = new ThreadPoolExecutor(15, 15,
+            0L, TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue<>());
 
     @GetMapping(value = "clickMonitor")
     public ResponseEntity clickMonitor(@RequestParam Map<String, Object> params, ClickLog clickLog) {
         try {
             logger.debug("click monitor active->{}", params.toString());
             Date date = new Date();
-            params.put("create_time", date);
-            if (NumberUtils.isCreatable(String.valueOf(params.get("ts")))) {
-                Long ts = Long.valueOf(String.valueOf(params.get("ts")));
-                clickLog.setClickTime(new Date(ts));
-                clickLog.setTs(ts);
-            } else {
-                clickLog.setClickTime(date);
-                clickLog.setTs(date.getTime());
-            }
-            clickLog.setAndroidId(params.get("android_Id") == null ? "" : params.get("android_Id").toString());
-            if (clickLog.getCallbackUrl()==null)clickLog.setCallbackUrl(params.get("call_back") == null ? "" : params.get("call_back").toString());
+            if (clickLog.getClickTime() == null)
+                clickLog.setClickTime(clickLog.getTs() == null ? new Date(System.currentTimeMillis()) : new Date(clickLog.getTs()));
             clickLog.setCreateTime(date);
-            if (clickLogHandler!=null)
+            if (clickLogHandler != null)
                 clickLogHandler.handler(params, clickLog);
-            sender.send(channel,clickLog);
+            sender.send(channel, clickLog);
             if (StringUtils.isNotBlank(clickQueue)) {
                 String msg = JSONObject.toJSONString(params);
                 Message message = MessageBuilder.withBody(msg.getBytes())
@@ -96,7 +95,7 @@ public class ClickMonitorController {
                 rabbitTemplate.convertAndSend(clickQueue, message);
             }
             if (retHandler != null) return ResponseEntity.ok(retHandler.ret());
-            return ResponseEntity.ok().body(ImmutableMap.of("ret",0,"errmsg","ok"));
+            return ResponseEntity.ok().body(ImmutableMap.of("ret", 0, "errmsg", "ok"));
         } catch (Exception e) {
             e.printStackTrace();
             logger.error(e.getMessage());
@@ -151,19 +150,13 @@ public class ClickMonitorController {
                 return 0;
             });
         } catch (Exception e) {
-            logger.info("save_clickLog_error,{},{}",msg.getPayload().toString(),e.getMessage());
+            logger.info("save_clickLog_error,{},{}", msg.getPayload().toString(), e.getMessage());
             throw e;
         }
     }
 
-    @Autowired
-    FeedbackService feedbackService;
     @GetMapping(value = "clearDayCache")
     public void clearDayCache() {
         feedbackService.clearCache(null);
     }
-
-    private ExecutorService executor = new ThreadPoolExecutor(15, 15,
-            0L, TimeUnit.MILLISECONDS,
-            new LinkedBlockingQueue<>());
 }

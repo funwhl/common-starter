@@ -1,16 +1,11 @@
 package com.eighteen.common.utils;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import lombok.Data;
+
+import java.util.*;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.IntStream;
-
-import com.sun.org.apache.xpath.internal.operations.String;
-
-import lombok.Data;
 
 /**
  * Created by wangwei. Date: 2019/9/22 Time: 10:38
@@ -42,13 +37,31 @@ public class Page<T> {
             result.setPageSize(pageSize);
         result.setPageNo(pageNo <= 0 ? 1 : pageNo);
         result.setResults(function.apply(result));
-        result.setCount(result.results.size());
-        result.setTotalPage((result.results.size() - 1) / result.pageSize + 1);
+        List<E> results = result.results;
+        Optional.ofNullable(results).ifPresent(es -> {
+            result.setCount(results.size());
+            result.setTotalPage(results.size() == 0 ? 0 : (results.size() - 1) / result.pageSize + 1);
+        });
         return result;
     }
 
-    public static <E> Page<E> createForImpala(int pageNo, int pageSize, int total,
-                                              Function<Page<E>, List<E>> function) {
+    public static <E> Page<E> create(Class<E> e, int pageSize, Function<Page<E>, List<E>> function) {
+        return create(1, pageSize, function);
+    }
+
+    public static <E> Page<E> create(Class<E> e, Function<Page<E>, List<E>> function) {
+        return create(1, 60, function);
+    }
+
+    public static <E> Page<E> create(List<E> list) {
+        return create(1, 60, ePage -> list);
+    }
+
+    public static <E> Page<E> create(Integer pageSize, List<E> list) {
+        return create(1, pageSize, ePage -> list);
+    }
+
+    public static <E> Page<E> createForImpala(int pageNo, int pageSize, int total, Function<Page<E>, List<E>> function) {
         Page<E> result = new Page<>();
         if (pageSize > 0)
             result.setPageSize(pageSize);
@@ -56,11 +69,12 @@ public class Page<T> {
         List<E> list = function.apply(result);
         result.setResults(list);
         result.setCount(total);
-        result.setTotalPage((total - 1) / result.pageSize + 1);
+        result.setTotalPage(result.results.size() == 0 ? 0 : (result.results.size() - 1) / result.pageSize + 1);
         return result;
     }
 
     public void forEach(Consumer<List<T>> action) {
+        if (totalPage == 0) return;
         IntStream.rangeClosed(pageNo, totalPage).forEach(i -> {
             if (i == totalPage)
                 action.accept(results.subList((pageSize * i - pageSize), results.size()));
@@ -70,6 +84,7 @@ public class Page<T> {
     }
 
     public void forEachParallel(Consumer<List<T>> action) {
+        if (totalPage == 0) return;
         IntStream.rangeClosed(pageNo, totalPage).parallel().forEach(i -> {
             if (i == totalPage)
                 action.accept(results.subList((pageSize * i - pageSize), results.size()));

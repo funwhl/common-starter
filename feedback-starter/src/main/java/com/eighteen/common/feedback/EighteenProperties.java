@@ -12,25 +12,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = EighteenProperties.PREFIX)
 public class EighteenProperties {
     public static final String PREFIX = "18.feedback";
+    public Integer syncOffset = 1;
     // 渠道
     private String channel;
     private String types;
-    // 同步x分钟内激活数据
-    private Integer syncActiveLastMinutes = 10;
-    // x天内激活数据保存到历史表
-    private Integer channelActive2history = 2;
-    // x天内点击数据保存历史表
-    private Integer channelclick2history = 2;
+    private String filters;
     // 点击数据过期周期 天
-    private Integer clickDataExpire = 7;
-    // 清理imei表 x天内
-    private Integer cleanIMEIS = 1;
-
+    private Integer clickDataExpire;
     //接口回调每次预处理数
     private Integer preFetch = 1000;
-
-    //回调callback字段名
-    private String callbackField = "callback";
     //job
     private String cleanClickCron = "0 10/30 * * * ?";
     private String cleanImeiCron = "0 0 0/1 * * ?";
@@ -47,7 +37,7 @@ public class EighteenProperties {
     private Boolean retention = true;
     private Boolean enable = true;
     private Boolean ipAttributed  = false;
-    private Boolean macAttributed  = true;
+    private Boolean macAttributed  = false;
     private Boolean datetimeAttributed  = false;
     private Integer matchMinuteOffset = 0;
     private Boolean multipleImei = false;
