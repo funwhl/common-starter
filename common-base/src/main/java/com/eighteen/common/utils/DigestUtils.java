@@ -13,4 +13,9 @@ public class DigestUtils {
             return org.springframework.util.DigestUtils.md5DigestAsHex(value.getBytes());
         else return "";
     }
+    public static String getMd5StrWithPlaceholder(String value) {
+        if (StringUtils.isNotBlank(value))
+            return org.springframework.util.DigestUtils.md5DigestAsHex(value.getBytes());
+        else return "#";
+    }
 }
