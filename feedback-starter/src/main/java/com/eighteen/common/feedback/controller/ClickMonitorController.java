@@ -35,9 +35,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -139,14 +136,12 @@ public class ClickMonitorController {
     public void insertClickLog(@Payload com.eighteen.common.mq.rabbitmq.Message msg) throws Exception {
         RetryTemplate template = new RetryTemplate();
         FixedBackOffPolicy fixedBackOffPolicy = new FixedBackOffPolicy();
-        fixedBackOffPolicy.setBackOffPeriod(TimeUnit.MINUTES.toMillis(5));
+        fixedBackOffPolicy.setBackOffPeriod(TimeUnit.MINUTES.toMillis(3));
         template.setBackOffPolicy(fixedBackOffPolicy);
         try {
             template.execute((RetryCallback<Object, Exception>) context -> {
-                executor.submit(() -> {
-                    ClickLog clickLog = (ClickLog) msg.getPayload();
-                    clickLogDao.save(clickLog);
-                }).get();
+                ClickLog clickLog = (ClickLog) msg.getPayload();
+                clickLogDao.save(clickLog);
                 return 0;
             });
         } catch (Exception e) {
@@ -155,8 +150,15 @@ public class ClickMonitorController {
         }
     }
 
-    @GetMapping(value = "clearDayCache")
+    @GetMapping(value = "clear")
     public void clearDayCache() {
         feedbackService.clearCache(null);
+    }
+
+    @GetMapping(value = "sync")
+    public void syncDayCache() {
+        feedbackService.clearCache(null);
+
+        feedbackService.syncCache();
     }
 }
