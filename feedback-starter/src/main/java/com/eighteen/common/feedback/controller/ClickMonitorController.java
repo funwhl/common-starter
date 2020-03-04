@@ -67,9 +67,6 @@ public class ClickMonitorController {
     private String clickQueue;
     @Value("${18.feedback.clickQueue2:Agg.clickReport.Messages.clickLogMessages}")
     private String clickQueue2;
-    private ExecutorService executor = new ThreadPoolExecutor(15, 15,
-            0L, TimeUnit.MILLISECONDS,
-            new LinkedBlockingQueue<>());
 
     @GetMapping(value = "clickMonitor")
     public ResponseEntity clickMonitor(@RequestParam Map<String, Object> params, ClickLog clickLog) {
@@ -144,6 +141,8 @@ public class ClickMonitorController {
                 clickLogDao.save(clickLog);
                 return 0;
             });
+            ClickLog clickLog = (ClickLog) msg.getPayload();
+            clickLogDao.save(clickLog);
         } catch (Exception e) {
             logger.info("save_clickLog_error,{},{}", msg.getPayload().toString(), e.getMessage());
             throw e;
