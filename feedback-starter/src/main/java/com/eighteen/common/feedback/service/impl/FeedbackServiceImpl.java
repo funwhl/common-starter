@@ -353,7 +353,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
             data = data.stream().collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o -> o.getIimei() + o.getCoid() + o.getNcoid()))), ArrayList::new));
             data = data.parallelStream().filter(o -> (active == null || !active.contains(o))
-                    && !countHistory(new DayHistory().setWd("imei").setValue(o.getImei()).setCoid(o.getCoid()).setNcoid(o.getNcoid()))
+//                    &&!countHistory(new DayHistory().setWd("imei").setValue(o.getImei()).setCoid(o.getCoid()).setNcoid(o.getNcoid()))
             ).collect(Collectors.toList());
             data.forEach(activeLogger -> {
                 if (activeHandler != null) activeHandler.handler(activeLogger);
