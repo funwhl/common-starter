@@ -78,24 +78,24 @@ public class FeedbackAutoConfiguration {
         return new JPAQueryFactory(em);
     }
 
-    @Bean
-    @ConditionalOnExpression("${18.feedback.enable:true}")
-    @ConditionalOnProperty(prefix = EighteenProperties.PREFIX, name = "mode", havingValue = "2")
-    SchedulingConfigurer schedule18Job() {
-        return taskRegistrar -> {
-            taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_IMEI), properties.getCleanImeiCron());
-            taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_ACTIVE), properties.getCleanActiveCron());
-            taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_ACTIVE_HISTORY), properties.getCleanActiveHistoryCron());
-            taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_CLICK), properties.getCleanClickCron());
-            taskRegistrar.addCronTask(() -> feedbackService().syncActive(), properties.getSyncActiveCron());
-            taskRegistrar.addCronTask(() -> feedbackService().feedback(), properties.getFeedbackCron());
-//            taskRegistrar.addCronTask(() -> feedbackService().stat(STAT_DAY), properties.getDayStatCron());
-            // 次留存 定时任务
-            if (properties.getRetention())taskRegistrar.addCronTask(() -> feedbackService().secondStay(RETENTION), properties.getDayStatCron());
-
-        };
-//        return new Scheduling18Configurer();
-    }
+//    @Bean
+//    @ConditionalOnExpression("${18.feedback.enable:true}")
+//    @ConditionalOnProperty(prefix = EighteenProperties.PREFIX, name = "mode", havingValue = "2")
+//    SchedulingConfigurer schedule18Job() {
+//        return taskRegistrar -> {
+//            taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_IMEI), properties.getCleanImeiCron());
+//            taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_ACTIVE), properties.getCleanActiveCron());
+//            taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_ACTIVE_HISTORY), properties.getCleanActiveHistoryCron());
+//            taskRegistrar.addCronTask(() -> feedbackService().clean(CLEAN_CLICK), properties.getCleanClickCron());
+//            taskRegistrar.addCronTask(() -> feedbackService().syncActive(null), properties.getSyncActiveCron());
+//            taskRegistrar.addCronTask(() -> feedbackService().feedback(null), properties.getFeedbackCron());
+////            taskRegistrar.addCronTask(() -> feedbackService().stat(STAT_DAY), properties.getDayStatCron());
+//            // 次留存 定时任务
+//            if (properties.getRetention())taskRegistrar.addCronTask(() -> feedbackService().secondStay(RETENTION), properties.getDayStatCron());
+//
+//        };
+////        return new Scheduling18Configurer();
+//    }
 
     @Bean
     @ConditionalOnExpression("${18.feedback.enable:true}")
@@ -126,7 +126,7 @@ public class FeedbackAutoConfiguration {
 
         if (properties.getRetention())
         jobs.put(RETENTION.getKey(), Job.builder().jobName(RETENTION.getKey()).cron(properties.getRetentionCron()).failover(true)
-                .job(c -> feedbackService().secondStay(RETENTION)).monitorExecution(false).build());
+                .job(c -> feedbackService().secondStay(RETENTION,c)).monitorExecution(false).build());
 
         return jobs;
     }

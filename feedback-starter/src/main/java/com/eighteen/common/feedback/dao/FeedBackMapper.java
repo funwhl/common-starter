@@ -54,10 +54,14 @@ public interface FeedBackMapper {
 
 
     @Select("<script>" +
-            "select top 1000  imei,iimei,channel, versionname versionName, coid, ncoid, wifimac,ip, activetime activeTime, type, ua, androidId, oaid,mid from ThirdActive.dbo.${tableName}  with(nolock) " +
-            "where type in " +
+            "select top 1000  imei,iimei,channel, versionname versionName, coid, ncoid, wifimac,ip, activetime activeTime, type, ua, androidId, oaid,mid ,ROW_NUMBER() OVER(ORDER BY activetime asc) AS r from ThirdActive.dbo.${tableName}  with(nolock) " +
+            "where 1=1 " +
+            "<if test='channel != null'> "+
+            " and type in"+
             "<foreach collection='channel' index='index' item='item' open='(' separator=',' close=')'> #{item} </foreach>" +
-            " and activetime >= #{date} order by activeTime asc " +
+            "</if>"+
+//            " and activetime >= #{date} and channel % ${sc} = #{sd} " +
+            " and activetime >= #{date} and DATEPART(ss, activetime) in (${sd}) " +
             "</script>"
     )
     @ResultType(ActiveLogger.class)

@@ -15,17 +15,19 @@ public interface FeedbackService {
 
     void syncActive();
 
-    void clean(JobType type);
+    void clean(JobType type,ShardingContext c);
 
     void clearCache(Long offset);
 
-    void stat(JobType type);
+    void syncCache();
+
+    void stat(JobType type,ShardingContext c);
 
     /**
      * 次日留存
      * @param type
      */
-    void secondStay(JobType type);
+    void secondStay(JobType type,ShardingContext c);
 
     void addDayCache(String key, List<DayHistory> dayHistories);
 

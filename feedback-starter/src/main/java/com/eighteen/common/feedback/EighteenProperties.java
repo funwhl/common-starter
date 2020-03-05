@@ -39,6 +39,7 @@ public class EighteenProperties {
     private Boolean ipAttributed  = false;
     private Boolean macAttributed  = false;
     private Boolean datetimeAttributed  = false;
+    private Boolean allAttributed  = false;
     private Integer matchMinuteOffset = 0;
     private Boolean multipleImei = false;
 }

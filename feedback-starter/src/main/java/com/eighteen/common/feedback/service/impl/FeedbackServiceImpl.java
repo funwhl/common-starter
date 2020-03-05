@@ -16,11 +16,9 @@ import com.eighteen.common.utils.ReflectionUtils;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
-import com.querydsl.core.Tuple;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.JPAExpressions;
-import com.querydsl.jpa.impl.JPAQuery;
 import com.querydsl.jpa.impl.JPAQueryFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -115,7 +113,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             .expireAfterWrite(10, TimeUnit.MINUTES).concurrencyLevel(1)
             .build();
     private Map<String, JPAQuery<Tuple>> queryMap = new LinkedHashMap<>(4);
-
 
     public FeedbackServiceImpl(EighteenProperties properties) {
         this.etprop = properties;
@@ -255,7 +252,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             Page.create(ipuaNewUsers).forEach(o -> executor.execute(() -> ipuaNewUserMapper.insertList(o)));
             Page.create(histories).forEach(o -> executor.execute(() -> dayHistoryMapper.insertList(o)));
             return success.get();
-        }, FEED_BACK);
+        }, FEED_BACK, sc);
     }
 
     private boolean countHistory(DayHistory s) {
@@ -301,7 +298,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         if (StringUtils.isNotBlank(types)) {
             channel = Arrays.asList(types.split(","));
         }
-        List<String> finalChannel = channel;
+        List<String> finalChannel = etprop.getAllAttributed() ? null : channel;
         tryWork(r -> {
             Date date = new Date();
             Long current = date.getTime();
@@ -350,7 +347,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 activeLoggerCache.put("active", data);
             }
             return data.size() - iimeiActive.size();
-        }, SYNC_ACTIVE);
+        }, SYNC_ACTIVE, c);
 
     }
 
@@ -380,7 +377,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     if (CollectionUtils.isEmpty(activeLoggers)) return 0L;
                     cleanActiveLogger(activeLoggers);
                     return (long) activeLoggers.size();
-                }, CLEAN_ACTIVE);
+                }, CLEAN_ACTIVE, c);
                 break;
             case CLEAN_ACTIVE_HISTORY:
                 tryWork(r -> {
@@ -391,7 +388,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
                     cleanActiveLogger(activeLoggers);
                     return (long) activeLoggers.size();
-                }, CLEAN_ACTIVE_HISTORY);
+                }, CLEAN_ACTIVE_HISTORY, c);
                 break;
             case CLEAN_CLICK:
                 tryWork(r -> {
@@ -414,7 +411,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                             pageIds.forEach(o -> dsl.delete(clickLog).setLockMode(LockModeType.NONE).where(clickLog.id.in(o)).execute());
                             return (long) clickLogs.size();
                         },
-                        CLEAN_CLICK);
+                        CLEAN_CLICK, c);
                 break;
         }
 
@@ -433,6 +430,12 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 queryMap.keySet().forEach(s -> redis.zexpire(getDayCacheRedisKey(s), (double) 0, (double) offset));
             }
         }
+    }
+
+    @Override
+    public void syncCache() {
+        clearCache(null);
+        queryMap.keySet().forEach(this::getDayCache);
     }
 
     private void cleanActiveLogger(List<ActiveLogger> activeLoggers) {
@@ -457,13 +460,13 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     }
 
     @Override
-    public void stat(JobType type) {
+    public void stat(JobType type, ShardingContext c) {
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
-        tryWork(r -> feedBackMapper.activeStaticesDay(format.format(new Date()), ",did"), STAT_DAY);
+        tryWork(r -> feedBackMapper.activeStaticesDay(format.format(new Date()), ",did"), STAT_DAY, c);
     }
 
     @Override
-    public void secondStay(JobType type) {
+    public void secondStay(JobType type, ShardingContext c) {
         tryWork(jobType -> {
             List<ThirdRetentionLog> list = feedBackMapper.getSecondStay(etprop.getChannel());
             Map<String, ThirdRetentionLog> mapRetention = new HashMap<>();
@@ -491,14 +494,20 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 }
             }
             return success;
-        }, RETENTION);
+        }, RETENTION, c);
     }
 
-    private void tryWork(Function<JobType, Object> consumer, JobType type) {
+    private void tryWork(Function<JobType, Object> consumer, JobType type, ShardingContext c) {
         String k = String.format("%s#%s", etprop.getChannel(), type.getKey());
         Integer mode = etprop.getMode();
         try {
-            logger.info("start {}", k);
+            logger.info("start {}{} {}", k, c.getShardingItem());
+            if (!Lists.newArrayList(SYNC_ACTIVE, FEED_BACK).contains(type)) {
+                if (c.getShardingItem() != 0) {
+                    logger.info("skip task {} ", k);
+                    return;
+                }
+            }
             Long start = System.currentTimeMillis();
             if (mode == 2 && redis.process(jedis -> jedis.setnx(k, "")).equals(0L))
                 throw new RuntimeException(type.getKey() + " failed because redis setnx return 0");
@@ -555,6 +564,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 logger.info("get_redis:{}", dayHistories == null ? "0" : dayHistories.size());
             } else {
                 dayHistories = dayCache.getIfPresent(key);
+                flag = CollectionUtils.isEmpty(dayHistories);
             }
             if (CollectionUtils.isEmpty(dayHistories) && dayHistoryMapper.selectCount(null) > 0) {
                 Example example = new Example(DayHistory.class);
@@ -566,11 +576,12 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             }
         } catch (Exception e) {
             logger.error("redis_cache_error: {}", e.getMessage());
-            Example example = new Example(DayHistory.class);
-            Example.Criteria criteria = example.createCriteria();
-            criteria.andEqualTo("wd", key);
-            criteria.andGreaterThan("createTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset + 1)));
-            dayHistories = dayHistoryMapper.selectByExample(example);
+//            Example example = new Example(DayHistory.class);
+//            Example.Criteria criteria = example.createCriteria();
+//            criteria.andEqualTo("wd", key);
+//            criteria.andGreaterThan("createTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset + 1)));
+//            dayHistories = dayHistoryMapper.selectByExample(example);
+//            addDayCache(key, dayHistories);
             e.printStackTrace();
         }
         return dayHistories;
