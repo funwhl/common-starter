@@ -61,5 +61,6 @@ public class ActiveLoggerHistory {
     private String mid;
     private String iimei;
     private Integer plot;
+    private Integer sd;
 
 }
