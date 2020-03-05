@@ -1,6 +1,7 @@
 package com.eighteen.common.feedback.controller;
 
 import com.alibaba.fastjson.JSONObject;
+import com.eighteen.common.feedback.dao.ClickLogMapper;
 import com.eighteen.common.feedback.dao.FeedBackMapper;
 import com.eighteen.common.feedback.entity.ClickLog;
 import com.eighteen.common.feedback.entity.dao2.ClickLogDao;
@@ -32,6 +33,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
 import java.util.UUID;
@@ -52,7 +54,7 @@ public class ClickMonitorController {
     @Autowired
     RabbitTemplate rabbitTemplate;
     @Autowired
-    ClickLogDao clickLogDao;
+    ClickLogMapper clickLogMapper;
     @Autowired(required = false)
     ClickLogHandler clickLogHandler;
     @Autowired
@@ -138,11 +140,10 @@ public class ClickMonitorController {
         try {
             template.execute((RetryCallback<Object, Exception>) context -> {
                 ClickLog clickLog = (ClickLog) msg.getPayload();
-                clickLogDao.save(clickLog);
+//                clickLogDao.save(clickLog);
+                clickLogMapper.insertList(Collections.singletonList(clickLog));
                 return 0;
             });
-            ClickLog clickLog = (ClickLog) msg.getPayload();
-            clickLogDao.save(clickLog);
         } catch (Exception e) {
             logger.info("save_clickLog_error,{},{}", msg.getPayload().toString(), e.getMessage());
             throw e;
