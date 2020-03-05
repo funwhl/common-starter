@@ -135,7 +135,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 String uuid = UUID.randomUUID().toString();
                 //
                 List<ActiveLogger> tupleList = dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e).where(activeLogger.status.eq(0).and(activeLogger.sd.eq(sc == null ? 0 : sc.getShardingItem())).and(activeLogger.activeTime.goe(new Date(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset()))))
-                        .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).in(sds.get(0).split(",")))).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
+                        .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).in(sds.get(sc.getShardingItem()).split(",")))).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
                 logger.info("step1 {},{},{}", key, watch.toString(), uuid);
                 if (CollectionUtils.isEmpty(tupleList)) return;
                 List<ActiveLogger> list = tupleList.stream()
@@ -251,10 +251,10 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 }
 
                 oldUsers.stream().collect(Collectors.groupingBy(o -> o.getCoid() + "," + o.getNcoid())).forEach((s, activeLoggers) -> {
-                    Set<String> collect = activeLoggers.stream().map(o -> ReflectionUtils.getFieldValue(o, key).toString()).collect(Collectors.toSet());
+                    Set<String> collect = activeLoggers.stream().map(o -> ReflectionUtils.getFieldValue(o, (key.equals("ipua")?key:key+"Md5")).toString()).collect(Collectors.toSet());
                     Page.create(1, 500, i -> new ArrayList<>(collect)).forEach(strings -> {
                         Example example = new Example(ActiveLogger.class);
-                        example.createCriteria().andIn(key, strings)
+                        example.createCriteria().andIn((key.equals("ipua")?key:key+"Md5"), strings)
 //                                .andIn("id",ids)
                                 .andEqualTo("coid", Integer.valueOf(s.split(",")[0])).andEqualTo("ncoid", Integer.valueOf(s.split(",")[1]));
                         activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
@@ -333,7 +333,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 maxActiveTime = Optional.ofNullable(dsl.select(activeLogger.activeTime.max()).from(activeLogger).fetchOne()).orElse(new Date(current - TimeUnit.MINUTES.toMillis(etprop.syncOffset)));
             else maxActiveTime = new Date(process.longValue());
 
-
             if (etprop.getAllAttributed()) {
                 if (!format.format(date).equals(format.format(new Date(current + offset)))) {
                     data = webLogMapper.getThirdActiveLogger("ActiveLogger", maxActiveTime, etprop.getSc(), sd);
@@ -348,7 +347,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     data = feedBackMapper.getThirdActiveLogger(finalChannel, feedBackMapper.getTableName(), maxActiveTime, etprop.getSc(), sd);
             }
 
-            List<ActiveLogger> active = activeLoggerCache.getIfPresent("active");
+            List<ActiveLogger> active = activeLoggerCache.getIfPresent("active"+sd);
+
             List<ActiveLogger> iimeiActive = new ArrayList<>();
 
             data = data.stream().collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o -> o.getIimei() + o.getCoid() + o.getNcoid()))), ArrayList::new));
@@ -376,17 +376,17 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         }
                     }
                 }
-
             });
             if (!CollectionUtils.isEmpty(iimeiActive)) data.addAll(iimeiActive);
             if (!CollectionUtils.isEmpty(data)) {
                 Date activeTime = data.stream().max(Comparator.comparing(ActiveLogger::getActiveTime)).get().getActiveTime();
                 addDayCache(key, Collections.singletonList(new DayHistory().setWd(key).setCoid(c.getShardingItem()).setNcoid(c.getShardingItem()).setValue("#").setCreateTime(activeTime)));
                 Page.create(data).forEachParallel(activeLoggers -> activeLoggerMapper.insertList(activeLoggers));
-                activeLoggerCache.invalidate("active");
-                activeLoggerCache.put("active", data);
+                activeLoggerCache.invalidate("active"+sd);
+                if (!CollectionUtils.isEmpty(iimeiActive)) data.removeAll(iimeiActive);
+                activeLoggerCache.put("active"+sd, data);
             }
-            return data.size() - iimeiActive.size();
+            return data.size();
         }, SYNC_ACTIVE, c);
 
     }
