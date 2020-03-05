@@ -13,6 +13,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class EighteenProperties {
     public static final String PREFIX = "18.feedback";
     public Integer syncOffset = 1;
+    public Integer cleanActiveOffset = 60;
+    public boolean clearCache = false;
     // 渠道
     private String channel;
     private String types;
@@ -32,6 +34,7 @@ public class EighteenProperties {
     private String retentionCron = "0 0 0/1 * * ?";
 
     private Integer offset = 1;
+    private Integer sc = 1;
 
     private Integer mode;
     private Boolean retention = true;
@@ -41,5 +44,12 @@ public class EighteenProperties {
     private Boolean datetimeAttributed  = false;
     private Boolean allAttributed  = false;
     private Integer matchMinuteOffset = 0;
+    private Integer activeMinuteOffset = 30;
     private Boolean multipleImei = false;
+
+    private String ignoreImei;
+    private Boolean warning = false;
+
+    private String appid;
+    private String appSecret;
 }

@@ -65,7 +65,7 @@ public interface FeedBackMapper {
             "</script>"
     )
     @ResultType(ActiveLogger.class)
-    List<ActiveLogger> getThirdActiveLogger(@Param("channel") List<String> channel, @Param("tableName") String tableName,@Param("date")Date date);
+    List<ActiveLogger> getThirdActiveLogger(@Param("channel") List<String> channel, @Param("tableName") String tableName,@Param("date")Date date,@Param("sc")Integer sc,@Param("sd")String sd);
 
     @Insert("<script>" +
             "insert  into ClickLog" +
@@ -98,4 +98,11 @@ public interface FeedBackMapper {
             ",channel,click_time,create_time,mac,ip,ts " +
             ",callback_url from ${table} where 1=1 and id > #{id} order by id asc ")
     List<ClickLog> selectlist(@Param("id") Long id, @Param("table") String table);
+
+    //            "<foreach collection='values' index='index' item='item' open='(' separator=',' close=')'> #{item} </foreach>" +
+    @Insert("<script>" +
+            "insert into ${tableName}_history select * from ${tableName} where id in " +
+            "<foreach collection='ids' index='index' item='item' open='(' separator=',' close=')'> #{item} </foreach>" +
+            "</script>")
+    void insertInTo(@Param("tableName") String tableName, @Param("ids") List<Long> ids);
 }
