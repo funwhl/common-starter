@@ -561,6 +561,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     private void tryWork(Function<JobType, Object> consumer, JobType type, ShardingContext c) {
         String k = String.format("%s#%s", etprop.getChannel(), type.getKey());
         Integer mode = etprop.getMode();
+        String sync = getDayCacheRedisKey("sync##");
         try {
             logger.info("start {}{} {}", k, c.getShardingItem());
             if (!Lists.newArrayList(SYNC_ACTIVE).contains(type)) {
@@ -568,6 +569,12 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     logger.info("skip task {} ", k);
                     return;
                 }
+            }
+            if (type == SYNC_ACTIVE) {
+                redis.process(j -> j.setnx(getDayCacheRedisKey(sync), ""));
+            } else if (type == FEED_BACK) {
+                Long process = redis.process(j -> j.setnx(getDayCacheRedisKey(sync), ""));
+                if (process<=0) return;
             }
             Long start = System.currentTimeMillis();
             if (mode == 2 && redis.process(jedis -> jedis.setnx(k, "")).equals(0L))
@@ -581,6 +588,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         } catch (Exception e) {
             e.printStackTrace();
             fsService.sendMsg(String.format("%s-%s error -> %s", appName, type.getKey(), e.getMessage()));
+        }finally {
+            redis.del(sync);
         }
     }
 
