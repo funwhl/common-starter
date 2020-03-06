@@ -390,12 +390,12 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             if (!CollectionUtils.isEmpty(iimeiActive)) data.addAll(iimeiActive);
             if (!CollectionUtils.isEmpty(data)) {
                 Date activeTime = data.stream().max(Comparator.comparing(ActiveLogger::getActiveTime)).get().getActiveTime();
-                addDayCache("sync_active", Collections.singletonList(new DayHistory().setCoid(item).setNcoid(item).setValue(sd).setCreateTime(activeTime)));
-                log.info("{}maxtimenex: {} sd: {}",item,activeTime,sd);
                 Page.create(data).forEachParallel(activeLoggers -> activeLoggerMapper.insertList(activeLoggers));
                 activeLoggerCache.invalidate(sdk);
                 if (!CollectionUtils.isEmpty(iimeiActive)) data.removeAll(iimeiActive);
                 activeLoggerCache.put(sdk, data);
+                addDayCache("sync_active", Collections.singletonList(new DayHistory().setCoid(item).setNcoid(item).setValue(sd).setCreateTime(activeTime)));
+                log.info("{}maxtimenex: {} sd: {}",item,activeTime,sd);
             }
             return data.size();
         }, SYNC_ACTIVE, c);
