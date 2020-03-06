@@ -140,8 +140,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 long timeMillis = System.currentTimeMillis();
                 List<ActiveLogger> tupleList = dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e).where(activeLogger.status.eq(0)
 //                                .and(activeLogger.sd.eq(sc == null ? 0 : sc.getShardingItem()))
-                                .and(activeLogger.activeTime.goe(new Date(timeMillis - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset())))
-                                .and(activeLogger.activeTime.lt(date)))
+                                .and(activeLogger.activeTime.goe(new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset())))
+//                                .and(activeLogger.activeTime.goe(date))
+                                )
 //                        .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).between(sd[0],sd[1]))
                 ).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
                 logger.info("step1 {},{},{}", key, watch.toString(), uuid);
