@@ -135,9 +135,10 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 StopWatch watch = StopWatch.createStarted();
                 String uuid = UUID.randomUUID().toString();
                 //
-                String[] sd = sds.get(sc.getShardingItem()).split(",");
+//                String[] sd = sds.get(sc.getShardingItem()).split(",");
                 List<ActiveLogger> tupleList = dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e).where(activeLogger.status.eq(0).and(activeLogger.sd.eq(sc == null ? 0 : sc.getShardingItem())).and(activeLogger.activeTime.goe(new Date(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset()))))
-                        .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).between(sd[0],sd[1]))).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
+//                        .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).between(sd[0],sd[1]))
+                ).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
                 logger.info("step1 {},{},{}", key, watch.toString(), uuid);
                 if (CollectionUtils.isEmpty(tupleList)) return;
                 List<ActiveLogger> list = tupleList.stream()
@@ -554,7 +555,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         Integer mode = etprop.getMode();
         try {
             logger.info("start {}{} {}", k, c.getShardingItem());
-            if (!Lists.newArrayList(SYNC_ACTIVE, FEED_BACK).contains(type)) {
+            if (!Lists.newArrayList(SYNC_ACTIVE).contains(type)) {
                 if (c.getShardingItem() != 0) {
                     logger.info("skip task {} ", k);
                     return;
