@@ -19,18 +19,18 @@ import java.util.List;
 @Mapper
 public interface WebLogMapper {
     @Select("<script>" +
-            "select top 1000  imei,iimei,channel, versionname versionName, coid, ncoid, wifimac,ip, activetime activeTime, ua, androidId, oaid,mid ,ROW_NUMBER() OVER(ORDER BY activetime asc) AS r from ${tableName}  with(nolock) " +
+            "select top 10000  imei,iimei,channel, versionname versionName, coid, ncoid, wifimac,ip, activetime activeTime, ua, androidId, oaid,mid ,ROW_NUMBER() OVER(ORDER BY activetime asc) AS r from ${tableName}  with(nolock) " +
             "where 1=1 " +
 //            "<if test='channel != null'> "+
 //            " and type in"+
 //            "<foreach collection='channel' index='index' item='item' open='(' separator=',' close=')'> #{item} </foreach>" +
 //            "</if>"+
 //            " and activetime >= #{date} and channel % ${sc} = #{sd} " +
-            " and activetime >= #{date} and DATEPART(ss, activetime) in (${sd}) " +
+            " and activetime >= #{date} and DATEPART(ss, activetime) &gt; = #{min} and DATEPART(ss, activetime) &lt; = #{max}  " +
             "</script>"
     )
     @ResultType(ActiveLogger.class)
-    List<ActiveLogger> getThirdActiveLogger( @Param("tableName") String tableName, @Param("date")Date date, @Param("sc")Integer sc, @Param("sd")String sd);
+    List<ActiveLogger> getThirdActiveLogger(@Param("tableName") String tableName, @Param("date") Date date, @Param("min") Integer sc, String min, @Param("max") String max);
 
     @Select(" select CASE datediff(day,'2019-09-09',getdate()) % 2   WHEN 0 THEN 'ActiveLogger_B' else 'ActiveLogger' end ")
     String getTableName();

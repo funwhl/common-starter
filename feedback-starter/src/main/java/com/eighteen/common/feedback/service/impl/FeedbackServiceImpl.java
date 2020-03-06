@@ -93,7 +93,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     WebLogMapper webLogMapper;
     @Autowired
     FsService fsService;
-    List<String> sds = Lists.newArrayList("0,1", "2,3,4,5", "6,7,8,9");
+//    List<String> sds = Lists.newArrayList("0,1", "2,3,4,5", "6,7,8,9");
+    List<String> sds = new ArrayList<>();
     @Autowired(required = false)
     private Redis redis;
     @Value("${spring.application.name}")
@@ -134,8 +135,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 StopWatch watch = StopWatch.createStarted();
                 String uuid = UUID.randomUUID().toString();
                 //
+                String[] sd = sds.get(sc.getShardingItem()).split(",");
                 List<ActiveLogger> tupleList = dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e).where(activeLogger.status.eq(0).and(activeLogger.sd.eq(sc == null ? 0 : sc.getShardingItem())).and(activeLogger.activeTime.goe(new Date(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset()))))
-                        .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).in(sds.get(sc.getShardingItem()).split(",")))).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
+                        .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).between(sd[0],sd[1]))).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
                 logger.info("step1 {},{},{}", key, watch.toString(), uuid);
                 if (CollectionUtils.isEmpty(tupleList)) return;
                 List<ActiveLogger> list = tupleList.stream()
@@ -251,10 +253,10 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 }
 
                 oldUsers.stream().collect(Collectors.groupingBy(o -> o.getCoid() + "," + o.getNcoid())).forEach((s, activeLoggers) -> {
-                    Set<String> collect = activeLoggers.stream().map(o -> ReflectionUtils.getFieldValue(o, (key.equals("ipua")?key:key+"Md5")).toString()).collect(Collectors.toSet());
+                    Set<String> collect = activeLoggers.stream().map(o -> ReflectionUtils.getFieldValue(o, (key.equals("ipua") ? key : key + "Md5")).toString()).collect(Collectors.toSet());
                     Page.create(1, 500, i -> new ArrayList<>(collect)).forEach(strings -> {
                         Example example = new Example(ActiveLogger.class);
-                        example.createCriteria().andIn((key.equals("ipua")?key:key+"Md5"), strings)
+                        example.createCriteria().andIn((key.equals("ipua") ? key : key + "Md5"), strings)
 //                                .andIn("id",ids)
                                 .andEqualTo("coid", Integer.valueOf(s.split(",")[0])).andEqualTo("ncoid", Integer.valueOf(s.split(",")[1]));
                         activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
@@ -309,8 +311,11 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         });
     }
 
+
+
     @Override
     public void syncActive(ShardingContext c) {
+        int item = c.getShardingItem();
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
         List<String> channel = Lists.newArrayList(etprop.getChannel());
         String types = etprop.getTypes();
@@ -325,36 +330,40 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             List<ActiveLogger> data;
             Date maxActiveTime;
             // 跨天AB表处理
-            String sd = sds.get(c.getShardingItem());
-            String key = "sync_active";
-            Double process = null;
-            if (redis != null) process = redis.process(j -> j.zscore(getDayCacheRedisKey(key), sd + "##" + sd + "###"));
-            if (process == null)
-                maxActiveTime = Optional.ofNullable(dsl.select(activeLogger.activeTime.max()).from(activeLogger).fetchOne()).orElse(new Date(current - TimeUnit.MINUTES.toMillis(etprop.syncOffset)));
-            else maxActiveTime = new Date(process.longValue());
+            String sd = sds.get(item);
+            String sdk = "active" + sd;
 
+            Double process = null;//toutiao-feedback-dir_dev#dayHistory#sync_active
+            if (redis != null) process = redis.process(j -> j.zscore(getDayCacheRedisKey("sync_active"), item + "##" + item + "##" + sd));
+            if (process != null) {
+                maxActiveTime = new Date(process.longValue());
+            } else
+                maxActiveTime = Optional.ofNullable(dsl.select(activeLogger.activeTime.max()).from(activeLogger).where(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).goe(sd.split(",")[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).loe(sd.split(",")[1]))
+//                        .between(,sd.split(",")[1])
+                ).fetchOne()).orElse(new Date(current - TimeUnit.MINUTES.toMillis(etprop.syncOffset)));
+            log.info("{}maxtime: {}, sd: {}",item,maxActiveTime,sd);
             if (etprop.getAllAttributed()) {
                 if (!format.format(date).equals(format.format(new Date(current + offset)))) {
-                    data = webLogMapper.getThirdActiveLogger("ActiveLogger", maxActiveTime, etprop.getSc(), sd);
-                    data.addAll(webLogMapper.getThirdActiveLogger("ActiveLogger_B", maxActiveTime, etprop.getSc(), sd));
+                    data = webLogMapper.getThirdActiveLogger("ActiveLogger", maxActiveTime, etprop.getSc(), sd.split(",")[0],sd.split(",")[1]);
+                    data.addAll(webLogMapper.getThirdActiveLogger("ActiveLogger_B", maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]));
                 } else
-                    data = webLogMapper.getThirdActiveLogger(webLogMapper.getTableName(), maxActiveTime, etprop.getSc(), sd);
+                    data = webLogMapper.getThirdActiveLogger(webLogMapper.getTableName(), maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]);
             } else {
                 if (!format.format(date).equals(format.format(new Date(current + offset)))) {
-                    data = feedBackMapper.getThirdActiveLogger(finalChannel, "ActiveLogger", maxActiveTime, etprop.getSc(), sd);
-                    data.addAll(feedBackMapper.getThirdActiveLogger(finalChannel, "ActiveLogger_B", maxActiveTime, etprop.getSc(), sd));
+                    data = feedBackMapper.getThirdActiveLogger(finalChannel, "ActiveLogger", maxActiveTime, etprop.getSc(), sd.split(",")[1]);
+                    data.addAll(feedBackMapper.getThirdActiveLogger(finalChannel, "ActiveLogger_B", maxActiveTime, etprop.getSc(), sd.split(",")[1]));
                 } else
-                    data = feedBackMapper.getThirdActiveLogger(finalChannel, feedBackMapper.getTableName(), maxActiveTime, etprop.getSc(), sd);
+                    data = feedBackMapper.getThirdActiveLogger(finalChannel, feedBackMapper.getTableName(), maxActiveTime, etprop.getSc(), sd.split(",")[1]);
             }
 
-            List<ActiveLogger> active = activeLoggerCache.getIfPresent("active"+sd);
-
+            List<ActiveLogger> active = activeLoggerCache.getIfPresent(sdk);
             List<ActiveLogger> iimeiActive = new ArrayList<>();
 
             data = data.stream().collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o -> o.getIimei() + o.getCoid() + o.getNcoid()))), ArrayList::new));
             data = data.parallelStream().filter(o -> (active == null || !active.contains(o))
 //                    &&!countHistory(new DayHistory().setWd("imei").setValue(o.getImei()).setCoid(o.getCoid()).setNcoid(o.getNcoid()))
             ).collect(Collectors.toList());
+
             data.forEach(activeLogger -> {
                 if (activeHandler != null) activeHandler.handler(activeLogger);
                 activeLogger.setImeiMd5(getMd5StrWithPlaceholder(activeLogger.getImei()))
@@ -362,7 +371,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         .setOaidMd5(getMd5StrWithPlaceholder(activeLogger.getOaid()))
                         .setWifimacMd5(getMd5StrWithPlaceholder(activeLogger.getWifimac()))
                         .setIpua(getMd5StrWithPlaceholder(activeLogger.getIp() + "#" + activeLogger.getUa()))
-                        .setCreateTime(new Date()).setPlot(1).setSd(c.getShardingItem()).setStatus(0);
+                        .setCreateTime(new Date()).setPlot(1).setSd(item).setStatus(0);
                 String iimei = activeLogger.getIimei();
                 if (etprop.getMultipleImei() && StringUtils.isNotBlank(iimei)) {
                     String[] imeis = iimei.split(",");
@@ -380,11 +389,12 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             if (!CollectionUtils.isEmpty(iimeiActive)) data.addAll(iimeiActive);
             if (!CollectionUtils.isEmpty(data)) {
                 Date activeTime = data.stream().max(Comparator.comparing(ActiveLogger::getActiveTime)).get().getActiveTime();
-                addDayCache(key, Collections.singletonList(new DayHistory().setWd(key).setCoid(c.getShardingItem()).setNcoid(c.getShardingItem()).setValue("#").setCreateTime(activeTime)));
+                addDayCache("sync_active", Collections.singletonList(new DayHistory().setCoid(item).setNcoid(item).setValue(sd).setCreateTime(activeTime)));
+                log.info("{}maxtimenex: {} sd: {}",item,activeTime,sd);
                 Page.create(data).forEachParallel(activeLoggers -> activeLoggerMapper.insertList(activeLoggers));
-                activeLoggerCache.invalidate("active"+sd);
+                activeLoggerCache.invalidate(sdk);
                 if (!CollectionUtils.isEmpty(iimeiActive)) data.removeAll(iimeiActive);
-                activeLoggerCache.put("active"+sd, data);
+                activeLoggerCache.put(sdk, data);
             }
             return data.size();
         }, SYNC_ACTIVE, c);
@@ -674,6 +684,57 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             clearCache(null);
             wd.keySet().forEach(s -> getDayCache(s));
         }
+        int sc = etprop.getSc();
+        sds = sharding(sc);
+    }
+
+    public static void main(String[] args) {
+        List<Integer> taskList = new ArrayList<>();
+        for (int i = 0; i <60; i++) {
+            taskList.add(i);
+        }
+        int total = taskList.size();
+        int threadNum = 5;
+        int remaider = total % threadNum; // 计算出余数
+        int number = total / threadNum; // 计算出商
+        int offset = 0;// 偏移量
+        for (int i = 0; i < threadNum; i++) {
+            if (remaider > 0) {
+                List<Integer> subList = taskList.subList(i * number + offset, (i + 1) * number + offset + 1);
+                remaider--;
+                offset++;
+                System.out.println(subList.get(0) + "--" + subList.get(subList.size() - 1));
+            } else {
+                List<Integer> subList = taskList.subList(i * number + offset, (i + 1) * number + offset);
+                System.out.println(subList.get(0) + "--" + subList.get(subList.size() - 1));
+            }
+        }
+    }
+
+    private List<String> sharding(Integer sc) {
+        List<Integer> taskList = new ArrayList<>();
+        List<String> ret = new ArrayList<>();
+
+        for (int i = 0; i <60; i++) {
+            taskList.add(i);
+        }
+        int total = taskList.size();
+        int threadNum = sc;
+        int remaider = total % threadNum; // 计算出余数
+        int number = total / threadNum; // 计算出商
+        int offset = 0;// 偏移量
+        for (int i = 0; i < threadNum; i++) {
+            if (remaider > 0) {
+                List<Integer> subList = taskList.subList(i * number + offset, (i + 1) * number + offset + 1);
+                remaider--;
+                offset++;
+                ret.add(subList.get(0) + "," + subList.get(subList.size() - 1));
+            } else {
+                List<Integer> subList = taskList.subList(i * number + offset, (i + 1) * number + offset);
+                ret.add(subList.get(0) + "," + subList.get(subList.size() - 1));
+            }
+        }
+        return ret;
     }
 
     public enum JobType {
