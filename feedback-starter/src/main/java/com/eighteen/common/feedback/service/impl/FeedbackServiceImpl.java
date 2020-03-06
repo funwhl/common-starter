@@ -136,7 +136,11 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 String uuid = UUID.randomUUID().toString();
                 //
 //                String[] sd = sds.get(sc.getShardingItem()).split(",");
-                List<ActiveLogger> tupleList = dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e).where(activeLogger.status.eq(0).and(activeLogger.sd.eq(sc == null ? 0 : sc.getShardingItem())).and(activeLogger.activeTime.goe(new Date(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset()))))
+                long timeMillis = System.currentTimeMillis();
+                List<ActiveLogger> tupleList = dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e).where(activeLogger.status.eq(0)
+//                                .and(activeLogger.sd.eq(sc == null ? 0 : sc.getShardingItem()))
+                                .and(activeLogger.activeTime.goe(new Date(timeMillis - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset())))
+                                .and(activeLogger.activeTime.lt()))
 //                        .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).between(sd[0],sd[1]))
                 ).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
                 logger.info("step1 {},{},{}", key, watch.toString(), uuid);
@@ -343,12 +347,13 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //                        .between(,sd.split(",")[1])
                 ).fetchOne()).orElse(new Date(current - TimeUnit.MINUTES.toMillis(etprop.syncOffset)));
             log.info("{}maxtime: {}, sd: {}",item,maxActiveTime,sd);
+            int count = etprop.getPreFetchActive();
             if (etprop.getAllAttributed()) {
                 if (!format.format(date).equals(format.format(new Date(current + offset)))) {
-                    data = webLogMapper.getThirdActiveLogger("ActiveLogger", maxActiveTime, etprop.getSc(), sd.split(",")[0],sd.split(",")[1]);
-                    data.addAll(webLogMapper.getThirdActiveLogger("ActiveLogger_B", maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]));
+                    data = webLogMapper.getThirdActiveLogger("ActiveLogger",count ,maxActiveTime, etprop.getSc(), sd.split(",")[0],sd.split(",")[1]);
+                    data.addAll(webLogMapper.getThirdActiveLogger("ActiveLogger_B", count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]));
                 } else
-                    data = webLogMapper.getThirdActiveLogger(webLogMapper.getTableName(), maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]);
+                    data = webLogMapper.getThirdActiveLogger(webLogMapper.getTableName(), count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]);
             } else {
                 if (!format.format(date).equals(format.format(new Date(current + offset)))) {
                     data = feedBackMapper.getThirdActiveLogger(finalChannel, "ActiveLogger", maxActiveTime, etprop.getSc(), sd.split(",")[1]);

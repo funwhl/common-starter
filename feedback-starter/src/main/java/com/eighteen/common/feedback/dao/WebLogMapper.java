@@ -19,7 +19,7 @@ import java.util.List;
 @Mapper
 public interface WebLogMapper {
     @Select("<script>" +
-            "select top 10000  imei,iimei,channel, versionname versionName, coid, ncoid, wifimac,ip, activetime activeTime, ua, androidId, oaid,mid ,ROW_NUMBER() OVER(ORDER BY activetime asc) AS r from ${tableName}  with(nolock) " +
+            "select top ${count}  imei,iimei,channel, versionname versionName, coid, ncoid, wifimac,ip, activetime activeTime, ua, androidId, oaid,mid ,ROW_NUMBER() OVER(ORDER BY activetime asc) AS r from ${tableName}  with(nolock) " +
             "where 1=1 " +
 //            "<if test='channel != null'> "+
 //            " and type in"+
@@ -30,7 +30,7 @@ public interface WebLogMapper {
             "</script>"
     )
     @ResultType(ActiveLogger.class)
-    List<ActiveLogger> getThirdActiveLogger(@Param("tableName") String tableName, @Param("date") Date date, @Param("min") Integer sc, String min, @Param("max") String max);
+    List<ActiveLogger> getThirdActiveLogger(@Param("tableName") String tableName,@Param("count") Integer count, @Param("date") Date date, @Param("min") Integer sc, String min, @Param("max") String max);
 
     @Select(" select CASE datediff(day,'2019-09-09',getdate()) % 2   WHEN 0 THEN 'ActiveLogger_B' else 'ActiveLogger' end ")
     String getTableName();

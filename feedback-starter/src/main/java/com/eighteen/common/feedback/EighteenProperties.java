@@ -23,6 +23,7 @@ public class EighteenProperties {
     private Integer clickDataExpire;
     //接口回调每次预处理数
     private Integer preFetch = 1000;
+    private Integer preFetchActive = 5000;
     //job
     private String cleanClickCron = "0 10/30 * * * ?";
     private String cleanImeiCron = "0 0 0/1 * * ?";
