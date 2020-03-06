@@ -571,9 +571,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 }
             }
             if (type == SYNC_ACTIVE) {
-                redis.process(j -> j.setnx(getDayCacheRedisKey(sync), ""));
+                redis.process(j -> j.setnx(sync, ""));
             } else if (type == FEED_BACK) {
-                Long process = redis.process(j -> j.setnx(getDayCacheRedisKey(sync), ""));
+                Long process = redis.process(j -> j.setnx(sync, ""));
                 if (process<=0) return;
             }
             Long start = System.currentTimeMillis();
@@ -589,7 +589,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             e.printStackTrace();
             fsService.sendMsg(String.format("%s-%s error -> %s", appName, type.getKey(), e.getMessage()));
         }finally {
-            redis.del(sync);
+            if(type!=FEED_BACK)redis.del(sync);
         }
     }
 
