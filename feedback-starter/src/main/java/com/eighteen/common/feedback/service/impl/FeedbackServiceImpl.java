@@ -443,8 +443,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             case CLEAN_ACTIVE_HISTORY:
                 tryWork(r -> {
                     List<ActiveLogger> activeLoggers = dsl.selectFrom(activeLogger).setLockMode(LockModeType.NONE)
-                            .where(activeLogger.status.ne(0).and(activeLogger.createTime
-                                    .before(JPAExpressions.select(activeLogger.createTime.max()).from(activeLogger)))).fetch();
+                            .where(activeLogger.status.gt(0)
+//                                    .and(activeLogger.createTime.before(JPAExpressions.select(activeLogger.createTime.max()).from(activeLogger)))
+                            ).fetch();
                     if (CollectionUtils.isEmpty(activeLoggers)) return 0L;
 
                     cleanActiveLogger(activeLoggers);
