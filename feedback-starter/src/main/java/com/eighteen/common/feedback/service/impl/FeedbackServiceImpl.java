@@ -563,22 +563,23 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         Integer mode = etprop.getMode();
         String sync = getDayCacheRedisKey("sync##");
         try {
-            logger.info("start {}{} {}", k, c.getShardingItem());
             if (!Lists.newArrayList(SYNC_ACTIVE).contains(type)) {
                 if (c.getShardingItem() != 0) {
-                    logger.info("skip task {} ", k);
+//                    logger.info("skip task {} ", k);
                     return;
                 }
             }
-            if (type == SYNC_ACTIVE) {
+            if (type == FEED_BACK) {
                 redis.process(j -> j.setnx(sync, ""));
-            } else if (type == FEED_BACK) {
+            } else if (type == SYNC_ACTIVE) {
                 Long process = redis.process(j -> j.setnx(sync, ""));
                 if (process<=0) return;
             }
+            logger.info("start {}{} {}", k, c.getShardingItem());
             Long start = System.currentTimeMillis();
-            if (mode == 2 && redis.process(jedis -> jedis.setnx(k, "")).equals(0L))
+            if (mode == 2 && redis.process(jedis -> jedis.setnx(k, "")).equals(0L)) {
                 throw new RuntimeException(type.getKey() + " failed because redis setnx return 0");
+            }
             Object r = consumer.apply(type);
             if (mode == 2) redis.expire(k, type.getExpire().intValue());
             long end = System.currentTimeMillis() - start;
@@ -589,7 +590,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             e.printStackTrace();
             fsService.sendMsg(String.format("%s-%s error -> %s", appName, type.getKey(), e.getMessage()));
         }finally {
-            if(type!=FEED_BACK)redis.del(sync);
+            if(type==FEED_BACK)redis.del(sync);
         }
     }
 
