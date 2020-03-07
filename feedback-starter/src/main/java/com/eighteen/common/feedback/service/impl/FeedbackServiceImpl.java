@@ -152,7 +152,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             map.forEach((key, e) -> {
                 StopWatch watch = StopWatch.createStarted();
                 logger.info("{}start {},{},{}",sd, key, watch.toString());
-                lock.lock(FEED_BACK.name(),FEED_BACK.name(),() -> {
+                lock.lock(getDayCacheRedisKey(FEED_BACK.name()),appName + FEED_BACK.name(),() -> {
                 if (CollectionUtils.isEmpty(e)) return;
                 List<ActiveLogger> list = e.stream()
                         .sorted((o1, o2) -> o2.getClickLog().getClickTime().compareTo(o1.getClickLog().getClickTime()))
