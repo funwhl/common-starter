@@ -327,6 +327,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
 
     @Override
+    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
     public void syncActive(ShardingContext c) {
         int item = c.getShardingItem();
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
