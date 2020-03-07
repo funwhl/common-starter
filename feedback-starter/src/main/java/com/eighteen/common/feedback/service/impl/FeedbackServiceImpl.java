@@ -138,7 +138,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             List<FeedbackLog> feedbackLogs = new ArrayList<>();
             List<IpuaNewUser> ipuaNewUsers = new ArrayList<>();
             String[] sd = sds.get(sc.getShardingItem()).split(",");
-            Date date = dsl.select(activeLogger.activeTime.max()).from(activeLogger).fetchOne();
+            Date date = Optional.ofNullable(dsl.select(activeLogger.activeTime.max()).from(activeLogger).fetchOne()).orElse(new Date());
             Map<String, List<ActiveLogger>> map = queryMap.entrySet().parallelStream().collect(Collectors.toMap(Map.Entry::getKey, e ->
                     dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.getValue())
                             .where(activeLogger.status.eq(0)
@@ -327,7 +327,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
 
     @Override
-    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
     public void syncActive(ShardingContext c) {
         int item = c.getShardingItem();
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
