@@ -50,6 +50,9 @@ public class EighteenProperties {
 
     private String ignoreImei;
     private Boolean warning = false;
+    private Boolean persistClick = true;
+    private Boolean persistActive = true;
+    private Boolean parale = true;
 
     private String appid;
     private String appSecret;

@@ -9,6 +9,8 @@ import com.dangdang.ddframe.job.lite.config.LiteJobConfiguration;
 import com.dangdang.ddframe.job.lite.spring.api.SpringJobScheduler;
 import com.dangdang.ddframe.job.reg.zookeeper.ZookeeperConfiguration;
 import com.dangdang.ddframe.job.reg.zookeeper.ZookeeperRegistryCenter;
+import com.eighteen.common.distribution.DistributedLock;
+import com.eighteen.common.distribution.ZooKeeperConnector;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -33,6 +35,7 @@ import org.springframework.web.context.support.GenericWebApplicationContext;
 
 import javax.sql.DataSource;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by eighteen.
@@ -74,6 +77,26 @@ public class JobAutoConfiguration implements EmbeddedValueResolverAware {
     @ConditionalOnBean(value = {ZookeeperRegistryCenter.class})
     public RegisterJobs registerJobs(ApplicationContext applicationContext, ZookeeperRegistryCenter zookeeperRegistryCenter) {
         return new RegisterJobs(applicationContext, zookeeperRegistryCenter);
+    }
+    @Bean
+    DistributedLock distributedLock() {
+        DistributedLock distributedLock = new DistributedLock();
+        distributedLock.setZooKeeperConnector(new ZooKeeperConnector(jobZkProperties.getServerlist(), jobZkProperties.getNamespace()
+                , (retryCount, elapsedTimeMs, sleeper) -> {
+            try {
+                 sleeper.sleepFor(5,TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return true;
+        }));
+        distributedLock.setTimeout(TimeUnit.MINUTES.toMillis(2));
+        return distributedLock;
+    }
+
+    @Bean
+     public ZooKeeperConnector zooKeeperConnector () {
+        return new ZooKeeperConnector(jobZkProperties.getServerlist(),jobZkProperties.getNamespace(),(retryCount, elapsedTimeMs, sleeper) -> false);
     }
 
     private LiteJobConfiguration getJobConfiguration(Job job) {
