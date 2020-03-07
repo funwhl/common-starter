@@ -18,14 +18,14 @@ import java.util.Objects;
         indexes = {
                 @Index(name = "imei", columnList = "imei"),
                 @Index(name = "imei_md5", columnList = "imei_md5"),
-                @Index(name = "coid", columnList = "coid"),
-                @Index(name = "ncoid", columnList = "coid"),
+//                @Index(name = "coid", columnList = "coid"),
+//                @Index(name = "ncoid", columnList = "coid"),
                 @Index(name = "oaid_md5", columnList = "oaid_md5"),
                 @Index(name = "activeTime", columnList = "activeTime"),
                 @Index(name = "android_id_md5", columnList = "android_id_md5"),
                 @Index(name = "plot", columnList = "plot"),
-                @Index(name = "sd", columnList = "sd"),
-                @Index(name = "type", columnList = "type")
+//                @Index(name = "sd", columnList = "sd"),
+//                @Index(name = "type", columnList = "type")
         })
 @Accessors(chain = true)
 @Data
