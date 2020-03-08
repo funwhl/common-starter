@@ -447,7 +447,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 maxActiveTime = Optional.ofNullable(dsl.select(activeLogger.activeTime.max()).from(activeLogger).where(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).goe(sd.split(",")[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).loe(sd.split(",")[1]))
 //                        .between(,sd.split(",")[1])
                 ).fetchOne()).orElse(new Date(current - TimeUnit.MINUTES.toMillis(etprop.syncOffset)));
-            log.info("{}maxtime: {}, sd: {}", item, maxActiveTime, sd);
+            log.info("{} maxtime: {}, sd: {}", item, maxActiveTime, sd);
 
             int count = etprop.getPreFetchActive();
             if (etprop.getAllAttributed()) {
@@ -522,13 +522,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
                 activeLoggerCache.invalidate(sdk);
                 if (!CollectionUtils.isEmpty(iimeiActive)) data.removeAll(iimeiActive);
-                Set<ActiveLogger> ifPresent = activeLoggerCache.getIfPresent(sdk);
-                if (ifPresent == null) {
-                    activeLoggerCache.put(sdk, new HashSet<>(data));
-                } else
-                    ifPresent.addAll(data);
+                activeLoggerCache.put(sdk, new HashSet<>(data));
                 addDayCache("sync_active", Collections.singletonList(new DayHistory().setCoid(item).setNcoid(item).setValue(sd).setCreateTime(activeTime)));
-                log.info("{}maxtimenex: {} sd: {}", item, activeTime, sd);
+                log.info("{} maxtimenex: {} sd: {}", item, activeTime, sd);
             }
             return data.size();
         }, SYNC_ACTIVE, c);
