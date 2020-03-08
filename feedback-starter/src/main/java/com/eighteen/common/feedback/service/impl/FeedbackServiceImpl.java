@@ -746,7 +746,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //                Map<String, Double> map = new HashMap<>(dayHistories.size());
 //                dayHistories.forEach(dayHistory -> map.put(String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()), (double) dayHistory.getCreateTime().getTime()));
                 Long count = redisTemplate.opsForZSet().add(redisKey, dayHistories.stream().map(o -> new DefaultTypedTuple<Object>(String.format("%d##%d##%s", o.getCoid(), o.getNcoid(), o.getValue()), (double) o.getCreateTime().getTime())).collect(Collectors.toSet()));
-                logger.info("addredis :{},{}", key, count);
 //                redis.process(j -> j.zadd(redisKey, map));
             } else {
                 List<DayHistory> list = dayCache.getIfPresent(key);
@@ -906,8 +905,11 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             queryMap.put(s, e);
         });
         if (etprop.clearCache) {
+            logger.info("开始清理缓存 :{},{}");
             clearCache(null);
             wd.keySet().forEach(s -> getDayCache(s));
+            wd.keySet().forEach(s -> logger.info("增加缓存数据量 :{},{}", redisTemplate.opsForZSet().count(getDayCacheRedisKey(s), 0d, -1d)));
+            logger.info("初始化完成");
         }
         redis.del(getDayCacheRedisKey("sync_active"));
         int sc = etprop.getSc();
