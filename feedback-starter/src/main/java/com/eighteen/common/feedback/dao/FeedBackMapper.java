@@ -105,4 +105,7 @@ public interface FeedBackMapper {
             "<foreach collection='ids' index='index' item='item' open='(' separator=',' close=')'> #{item} </foreach>" +
             "</script>")
     void insertInTo(@Param("tableName") String tableName, @Param("ids") List<Long> ids);
+
+    @Select("select wd,value,coid,ncoid,create_time from t_day_history with(nolock) where wd = #{wd} and create_time >= #{date} ")
+    List<DayHistory> dayHistorys(@Param("wd") String wd, @Param("date") Date date);
 }

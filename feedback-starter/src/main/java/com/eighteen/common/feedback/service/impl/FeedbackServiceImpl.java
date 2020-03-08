@@ -34,6 +34,8 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.data.redis.core.DefaultTypedTuple;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -57,6 +59,7 @@ import java.util.stream.Collectors;
 
 import static com.eighteen.common.feedback.entity.QActiveLogger.activeLogger;
 import static com.eighteen.common.feedback.entity.QClickLog.clickLog;
+import static com.eighteen.common.feedback.entity.QDayHistory.dayHistory;
 import static com.eighteen.common.feedback.entity.QIpuaNewUser.ipuaNewUser;
 import static com.eighteen.common.feedback.service.impl.FeedbackServiceImpl.JobType.*;
 import static com.eighteen.common.utils.DigestUtils.getMd5StrWithPlaceholder;
@@ -108,9 +111,10 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     DistributedLock lock;
     @Autowired
     ActiveLoggerDao activeLoggerDao;
-    Jedis jedis;
     @Autowired(required = false)
     private Redis redis;
+    @Autowired
+    private RedisTemplate redisTemplate;
     @Value("${spring.application.name}")
     private String appName;
     @Value("#{'${18.feedback.range:}'.split(',')}")
@@ -174,7 +178,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             List<DayHistory> histories = Collections.synchronizedList(new ArrayList<>());
             List<FeedbackLog> feedbackLogs = Collections.synchronizedList(new ArrayList<>());
             List<IpuaNewUser> ipuaNewUsers = Collections.synchronizedList(new ArrayList<>());
-
+            StopWatch query = StopWatch.createStarted();
             String[] sd = sds.get(sc.getShardingItem()).split(",");
             Date date = Optional.ofNullable(dsl.select(activeLogger.activeTime.max()).from(activeLogger).fetchOne()).orElse(new Date());
             Map<String, List<ActiveLogger>> map = queryMap.entrySet().parallelStream().collect(Collectors.toMap(Map.Entry::getKey, e ->
@@ -185,20 +189,20 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                                             )
 //                                            .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).loe(sd[1])))
                             ).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList())));
-
+            logger.info("{}feedbackquery,{}", sd, query.toString());
             map.forEach((key, e) -> {
                 StopWatch watch = StopWatch.createStarted();
-                logger.info("{}start {},{},{}", sd, key, watch.toString());
+                logger.info("{}step{},{},{}", sd, key, watch.toString());
                 if (CollectionUtils.isEmpty(e)) return;
                 List<ActiveLogger> list = e.stream()
                         .sorted((o1, o2) -> o2.getClickLog().getClickTime().compareTo(o1.getClickLog().getClickTime()))
                         .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> gekeyString(key, o2)))), ArrayList::new)
                         );
-
+                logger.info("{}step{}2,{},{}", sd, key, watch.toString());
                 if (etprop.getDoindb())
                     lock.lock(getDayCacheRedisKey(FEED_BACK.name()), appName + FEED_BACK.name(), () -> doIndb(success, histories, feedbackLogs, ipuaNewUsers, key, list));
                 else doIndb(success, histories, feedbackLogs, ipuaNewUsers, key, list);
-                logger.info("{}end {},{},{}", sd, key, watch.toString());
+                logger.info("{}step{}end,{},{}", sd, key, watch.toString());
             });
 
             handerResult(histories, feedbackLogs, ipuaNewUsers);
@@ -222,10 +226,21 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     }
 
     private void handlerFeedback(AtomicLong success, List<DayHistory> histories, List<FeedbackLog> feedbackLogs, List<IpuaNewUser> ipuaNewUsers, String key, List<ActiveLogger> oldUsers, List<ActiveLogger> filter) {
+//        List<DayHistory> dayHistoryList = getDayCache(key);
 
         filter.parallelStream().forEach(activeLogger -> {
             String value = ReflectionUtils.getFieldValue(activeLogger, key).toString();
             DayHistory history = new DayHistory().setNcoid(activeLogger.getNcoid()).setCoid(activeLogger.getCoid()).setWd(key).setValue(activeLogger.getImei()).setCreateTime(new Date());
+
+//            if (dayHistoryList.contains(history)) {
+//                oldUsers.add(activeLogger);
+//            } else if (check(key, activeLogger,dayHistoryList)) {
+//                logger.info("other_field_matched : key:{},value:{}#{}#{} ,{}", key, value, activeLogger.getCoid(), activeLogger.getNcoid(), activeLogger.toString());
+//                addDayCache(key, Collections.singletonList(history));
+//                histories.add(history);
+//                oldUsers.add(activeLogger);
+//            }
+
             if (countHistory(history)) {
                 oldUsers.add(activeLogger);
             } else if (check(key, activeLogger)) {
@@ -324,14 +339,15 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         String key = s.getWd();
         try {
             if (redis != null) {
-                Double process = redis.process(j -> j.zscore(getDayCacheRedisKey(key), String.format("%d##%d##%s", s.getCoid(), s.getNcoid(), s.getValue())));
+                Double score = redisTemplate.opsForZSet().score(getDayCacheRedisKey(key), String.format("%d##%d##%s", s.getCoid(), s.getNcoid(), s.getValue()));
+//                Double process = redis.process(j -> j.zscore(getDayCacheRedisKey(key), String.format("%d##%d##%s", s.getCoid(), s.getNcoid(), s.getValue())));
 //                boolean exist = process != null && process > 0;
 //                if (!exist && redis.process(j -> j.zcount(getDayCacheRedisKey(key), (double) 0, (double) Long.MAX_VALUE) <= 0)) {
 //                    getDayCache(key);
 //                    process = redis.process(j -> j.zscore(getDayCacheRedisKey(key), s.getCoid() + "##" + s.getNcoid() + "##" + s.getValue()));
 //                    return process != null && process > 0;
 //                }
-                return process != null && process > 0;
+                return score != null && score > 0;
             } else {
                 List<DayHistory> histories = dayCache.getIfPresent(key);
                 return histories == null || histories.stream().anyMatch(o -> o.equals(s));
@@ -379,6 +395,19 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             Object object = ReflectionUtils.getFieldValue(activeLogger, s);
             String fieldValue = object == null ? null : object.toString();
             return !filters.contains(fieldValue) && countHistory(new DayHistory().setValue(fieldValue).setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd(s));
+        });
+    }
+
+    private Boolean check(String key, ActiveLogger activeLogger,List<DayHistory> dayHistories) {
+        return queryMap.keySet().stream().filter(s -> !s.equals(key)).anyMatch(s -> {
+            if (StringUtils.isNotBlank(activeLogger.getIimei())) {
+                boolean anyMatch = Arrays.stream(activeLogger.getIimei().split(",")).anyMatch(s1 -> !filters.contains(s1)
+                        && dayHistories.contains(new DayHistory().setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd("imei").setValue(s1)));
+                if (anyMatch) return true;
+            }
+            Object object = ReflectionUtils.getFieldValue(activeLogger, s);
+            String fieldValue = object == null ? null : object.toString();
+            return !filters.contains(fieldValue) && dayHistories.contains(new DayHistory().setValue(fieldValue).setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd(s));
         });
     }
 
@@ -680,7 +709,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     }
 
     public String getDayCacheRedisKey(String key) {
-        return appName + "#dayHistory#" + key;
+        return appName + "#dayHistory#v2#" + key;
     }
 
     @Override
@@ -694,9 +723,10 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             if (CollectionUtils.isEmpty(dayHistories)) return;
             if (redis != null) {
                 String redisKey = getDayCacheRedisKey(key);
-                Map<String, Double> map = new HashMap<>(dayHistories.size());
-                dayHistories.forEach(dayHistory -> map.put(String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()), (double) dayHistory.getCreateTime().getTime()));
-                redis.process(j -> j.zadd(redisKey, map));
+//                Map<String, Double> map = new HashMap<>(dayHistories.size());
+//                dayHistories.forEach(dayHistory -> map.put(String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()), (double) dayHistory.getCreateTime().getTime()));
+                redisTemplate.opsForZSet().add(redisKey, dayHistories.stream().map(o -> new DefaultTypedTuple<Object>(String.format("%d##%d##%s", o.getCoid(), o.getNcoid(), o.getValue()), (double) o.getCreateTime().getTime())).collect(Collectors.toSet()));
+//                redis.process(j -> j.zadd(redisKey, map));
             } else {
                 List<DayHistory> list = dayCache.getIfPresent(key);
                 if (CollectionUtils.isEmpty(list)) {
@@ -718,13 +748,24 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             if (redis != null) {
                 String redisKey = getDayCacheRedisKey(key);
                 long end = System.currentTimeMillis();
-//                dayHistories = redis.zrange(redisKey, (double) end - TimeUnit.DAYS.toMillis(offset + 1), (double) end + TimeUnit.HOURS.toMillis(8)).stream().map(s -> {
+                Set<String> range = redisTemplate.opsForZSet().range(redisKey, end - TimeUnit.DAYS.toMillis(offset + 1), Long.MAX_VALUE);
+//                dayHistories = redis.zrange(redisKey, (double) end - TimeUnit.DAYS.toMillis(offset + 1), (double) Long.MAX_VALUE).stream().map(s -> {
 //                    String[] split = s.split("##");
 //                    String value = split.length < 3 ? "" : split[2];
 //                    return new DayHistory().setWd(key).setCoid(split[0] == null ? null : Integer.valueOf(split[0]))
 //                            .setNcoid(split[1] == null ? null : Integer.valueOf(split[1])).setValue(value);
 //                }).collect(Collectors.toList());
-                Long process = redis.process(j -> j.zcount(redisKey, (double) end - TimeUnit.DAYS.toMillis(offset + 1), (double) Long.MAX_VALUE));
+
+                dayHistories = range.stream().map(s -> {
+                    String[] split = s.split("##");
+                    String value = split.length < 3 ? "" : split[2];
+                    return new DayHistory().setWd(key).setCoid(split[0] == null ? null : Integer.valueOf(split[0]))
+                            .setNcoid(split[1] == null ? null : Integer.valueOf(split[1])).setValue(value);
+                }).collect(Collectors.toList());
+
+
+//                Long process = redis.process(j -> j.zcount(redisKey, (double) end - TimeUnit.DAYS.toMillis(offset + 1), (double) Long.MAX_VALUE));
+                Long process = redisTemplate.opsForZSet().count(redisKey, (double) end - TimeUnit.DAYS.toMillis(offset + 1), (double) Long.MAX_VALUE);
 //                logger.info("get_redis:{}", dayHistories == null ? "0" : dayHistories.size());
                 if (process <= 0) flag = true;
             } else {
@@ -732,12 +773,10 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 flag = CollectionUtils.isEmpty(dayHistories);
             }
             if (CollectionUtils.isEmpty(dayHistories)) {
-                Example example = new Example(DayHistory.class);
-                Example.Criteria criteria = example.createCriteria();
-                criteria.andEqualTo("wd", key);
-                criteria.andGreaterThan("createTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset + 1)));
-                dayHistories = dayHistoryMapper.selectByExample(example);
-                if (flag) addDayCache(key, dayHistories);
+                dayHistories = feedBackMapper.dayHistorys(key, new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset + 1)));
+                dayHistories = dayHistories.stream().sorted((o1, o2) -> o2.getCreateTime().compareTo(o1.getCreateTime()))
+                        .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> o2.getWd() + o2.getValue() + o2.getCoid() + o2.getNcoid()))), ArrayList::new));
+                if (flag &&!CollectionUtils.isEmpty(dayHistories)) addDayCache(key, dayHistories);
             }
         } catch (Exception e) {
             logger.error("redis_cache_error: {}", e.getMessage());
