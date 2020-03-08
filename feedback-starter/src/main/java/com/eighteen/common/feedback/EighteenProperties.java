@@ -47,6 +47,7 @@ public class EighteenProperties {
     private Integer matchMinuteOffset = 0;
     private Integer activeMinuteOffset = 30;
     private Boolean multipleImei = false;
+    private Boolean doindb = false;
 
     private String ignoreImei;
     private Boolean warning = false;

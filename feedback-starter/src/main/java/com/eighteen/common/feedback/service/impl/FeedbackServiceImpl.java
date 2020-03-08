@@ -183,8 +183,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //                                .and(activeLogger.sd.eq(sc == null ? 0 : sc.getShardingItem()))
                                             .and(activeLogger.activeTime.goe(new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset())))
                                             )
-//                        .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).between(sd[0],sd[1]))
-                                            .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).loe(sd[1])))
+//                                            .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).loe(sd[1])))
                             ).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList())));
 
             map.forEach((key, e) -> {
@@ -196,26 +195,30 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> gekeyString(key, o2)))), ArrayList::new)
                         );
 
-                lock.lock(getDayCacheRedisKey(FEED_BACK.name()), appName + FEED_BACK.name(), () -> {
-                    List<ActiveLogger> oldUsers = new ArrayList<>();
-                    handlerFeedback(success, histories, feedbackLogs, ipuaNewUsers, key, oldUsers, list);
-
-                    oldUsers.stream().collect(Collectors.groupingBy(o -> o.getCoid() + "," + o.getNcoid())).forEach((s, activeLoggers) -> {
-                        Set<String> collect = activeLoggers.stream().map(o -> ReflectionUtils.getFieldValue(o, (key.equals("ipua") ? key : key + "Md5")).toString()).collect(Collectors.toSet());
-                        Page.create(500, new ArrayList<>(collect)).forEach(strings -> {
-                            Example example = new Example(ActiveLogger.class);
-                            example.createCriteria().andIn((key.equals("ipua") ? key : key + "Md5"), strings)
-                                    .andEqualTo("coid", Integer.valueOf(s.split(",")[0])).andEqualTo("ncoid", Integer.valueOf(s.split(",")[1]));
-                            activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
-                        });
-                    });
-                });
+                if (etprop.getDoindb())
+                    lock.lock(getDayCacheRedisKey(FEED_BACK.name()), appName + FEED_BACK.name(), () -> doIndb(success, histories, feedbackLogs, ipuaNewUsers, key, list));
+                else doIndb(success, histories, feedbackLogs, ipuaNewUsers, key, list);
                 logger.info("{}end {},{},{}", sd, key, watch.toString());
             });
 
             handerResult(histories, feedbackLogs, ipuaNewUsers);
             return success.get();
         }, FEED_BACK, sc);
+    }
+
+    private void doIndb(AtomicLong success, List<DayHistory> histories, List<FeedbackLog> feedbackLogs, List<IpuaNewUser> ipuaNewUsers, String key, List<ActiveLogger> list) {
+        List<ActiveLogger> oldUsers = new ArrayList<>();
+        handlerFeedback(success, histories, feedbackLogs, ipuaNewUsers, key, oldUsers, list);
+
+        oldUsers.stream().collect(Collectors.groupingBy(o -> o.getCoid() + "," + o.getNcoid())).forEach((s, activeLoggers) -> {
+            Set<String> collect = activeLoggers.stream().map(o -> ReflectionUtils.getFieldValue(o, (key.equals("ipua") ? key : key + "Md5")).toString()).collect(Collectors.toSet());
+            Page.create(500, new ArrayList<>(collect)).forEach(strings -> {
+                Example example = new Example(ActiveLogger.class);
+                example.createCriteria().andIn((key.equals("ipua") ? key : key + "Md5"), strings)
+                        .andEqualTo("coid", Integer.valueOf(s.split(",")[0])).andEqualTo("ncoid", Integer.valueOf(s.split(",")[1]));
+                activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
+            });
+        });
     }
 
     private void handlerFeedback(AtomicLong success, List<DayHistory> histories, List<FeedbackLog> feedbackLogs, List<IpuaNewUser> ipuaNewUsers, String key, List<ActiveLogger> oldUsers, List<ActiveLogger> filter) {
@@ -378,7 +381,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             return !filters.contains(fieldValue) && countHistory(new DayHistory().setValue(fieldValue).setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd(s));
         });
     }
-
 
 
     @Override
@@ -653,7 +655,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         Integer mode = etprop.getMode();
 //        String sync = getDayCacheRedisKey("sync##");
         try {
-            if (!Lists.newArrayList(SYNC_ACTIVE, FEED_BACK).contains(type)) {
+            if (!Lists.newArrayList(SYNC_ACTIVE).contains(type)) {
                 if (c.getShardingItem() != 0) {
                     logger.info("skip task {} ", k);
                     return;
