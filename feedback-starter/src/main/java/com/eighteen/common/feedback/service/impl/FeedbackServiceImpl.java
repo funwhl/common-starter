@@ -466,6 +466,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 } else
                     data = feedBackMapper.getThirdActiveLogger(finalChannel, feedBackMapper.getTableName(), maxActiveTime, etprop.getSc(), sd.split(",")[1]);
             }
+            Date activeTime = data.stream().max(Comparator.comparing(ActiveLogger::getActiveTime)).get().getActiveTime();
+
             log.info("{} 查询激活数据 : {}, sd: {}", item, maxActiveTime, sd);
 
             Set<ActiveLogger> active = activeLoggerCache.getIfPresent(sdk);
@@ -484,7 +486,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
 
             if (!CollectionUtils.isEmpty(data)) {
-                Date activeTime = data.stream().max(Comparator.comparing(ActiveLogger::getActiveTime)).get().getActiveTime();
                 if (etprop.getPersistRedis()) {
                     data.parallelStream().forEach(a -> {
                         ActiveLogger log = activeLoggerDao.save(a);
