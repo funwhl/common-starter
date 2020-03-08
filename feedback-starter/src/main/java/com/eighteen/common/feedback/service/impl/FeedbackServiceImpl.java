@@ -180,7 +180,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             StopWatch query = StopWatch.createStarted();
             String[] sd = sds.get(sc.getShardingItem()).split(",");
             Date date = Optional.ofNullable(dsl.select(activeLogger.activeTime.max()).from(activeLogger).fetchOne()).orElse(new Date());
-            logger.info("{} 开始查询:,{}", sd, query.toString());
+            logger.info("{} 开始查询 ", sd, query.toString());
             Map<String, List<ActiveLogger>> map = queryMap.entrySet().parallelStream().collect(Collectors.toMap(Map.Entry::getKey, e ->
                     dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.getValue())
                             .where(activeLogger.status.eq(0)
@@ -227,7 +227,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         logger.info("开始去重:,{}", query.toString());
         filter.parallelStream().forEach(activeLogger -> {
             String value = ReflectionUtils.getFieldValue(activeLogger, key).toString();
-            DayHistory history = new DayHistory().setNcoid(activeLogger.getNcoid()).setCoid(activeLogger.getCoid()).setWd(key).setValue(activeLogger.getImei()).setCreateTime(new Date());
+            DayHistory history = new DayHistory().setNcoid(activeLogger.getNcoid()).setCoid(activeLogger.getCoid()).setWd(key).setValue(value).setCreateTime(new Date());
 
 //            if (dayHistoryList.contains(history)) {
 //                oldUsers.add(activeLogger);
