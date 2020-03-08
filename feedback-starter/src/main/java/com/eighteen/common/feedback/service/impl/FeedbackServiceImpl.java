@@ -191,14 +191,20 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                             ).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList())));
             logger.info("{} 查询耗时:,{}", sd, query.toString());
             map.forEach((key, e) -> {
-                if (CollectionUtils.isEmpty(e)) return;
-                List<ActiveLogger> list = e.stream()
-                        .sorted((o1, o2) -> o2.getClickLog().getClickTime().compareTo(o1.getClickLog().getClickTime()))
-                        .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> gekeyString(key, o2)))), ArrayList::new)
-                        );
-                if (etprop.getDoindb())
-                    lock.lock(getDayCacheRedisKey(FEED_BACK.name()), appName + FEED_BACK.name(), () -> doIndb(success, histories, feedbackLogs, ipuaNewUsers, key, list));
-                else doIndb(success, histories, feedbackLogs, ipuaNewUsers, key, list);
+                try {
+                    if (CollectionUtils.isEmpty(e)) return;
+                    List<ActiveLogger> list = e.stream()
+                            .sorted((o1, o2) -> o2.getClickLog().getClickTime().compareTo(o1.getClickLog().getClickTime()))
+                            .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> gekeyString(key, o2)))), ArrayList::new)
+                            );
+                    if (etprop.getDoindb())
+                        lock.lock(getDayCacheRedisKey(FEED_BACK.name()), appName + FEED_BACK.name(), () -> doIndb(success, histories, feedbackLogs, ipuaNewUsers, key, list));
+                    else doIndb(success, histories, feedbackLogs, ipuaNewUsers, key, list);
+                } catch (Exception e1) {
+                    e1.printStackTrace();
+                    logger.error("step 去重 ,{}",e1.getMessage());
+                    fsService.sendMsg(e1.getMessage());
+                }
             });
 
             handerResult(histories, feedbackLogs, ipuaNewUsers);
