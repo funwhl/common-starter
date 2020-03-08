@@ -726,7 +726,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             e.printStackTrace();
             logger.error("error {} ," ,e.toString());
             logger.error("error {} ," ,e.getCause()==null?"":e.getCause());
-            fsService.sendMsg(String.format("%s-%s error -> %s", appName, type.getKey(), e.getMessage(),));
+            fsService.sendMsg(String.format("%s-%s error -> %s", appName, type.getKey(), e.getMessage(),e.toString()));
         }
     }
 
