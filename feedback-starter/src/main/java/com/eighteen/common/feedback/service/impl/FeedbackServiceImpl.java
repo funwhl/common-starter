@@ -575,7 +575,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         Example.Criteria criteria = example.createCriteria();
                         criteria.andLessThan("activeTime", new Date(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(etprop.getCleanActiveOffset())));
 //                        activeLoggerMapper.deleteByExample(example);
-                        activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(-1), example);
+                        return  activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(-1), example);
                     }
                     List<ActiveLogger> activeLoggers = dsl.selectFrom(activeLogger).setLockMode(LockModeType.NONE)
                             .where(activeLogger.activeTime.before(new Date(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(etprop.getCleanActiveOffset())))).limit(10000).fetch();
