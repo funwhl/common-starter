@@ -908,7 +908,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             logger.info("开始清理缓存 :{},{}");
             clearCache(null);
             wd.keySet().forEach(s -> getDayCache(s));
-            wd.keySet().forEach(s -> logger.info("增加缓存数据量 :{},{}", redisTemplate.opsForZSet().count(getDayCacheRedisKey(s), 0d, -1d)));
+            wd.keySet().forEach(s -> logger.info("增加缓存数据量 :{},{}", redisTemplate.opsForZSet().count(getDayCacheRedisKey(s), 0d, Long.MAX_VALUE)));
             logger.info("初始化完成");
         }
         redis.del(getDayCacheRedisKey("sync_active"));
