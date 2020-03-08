@@ -36,6 +36,11 @@ public class ClusterRedis implements Redis {
         return jedisTFunction.apply(this.jedisCluster);
     }
 
+    @Override
+    public Jedis getJedis() {
+        return null;
+    }
+
     public void setJedisCluster(JedisCluster jedisCluster) {
         this.jedisCluster = jedisCluster;
     }

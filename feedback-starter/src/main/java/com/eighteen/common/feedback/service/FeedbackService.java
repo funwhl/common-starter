@@ -30,7 +30,13 @@ public interface FeedbackService {
      */
     void secondStay(JobType type,ShardingContext c);
 
+    String getDayCacheRedisKey(String key);
+
+    String generMember(Integer coid,Integer ncoid, String value);
+
     void addDayCache(String key, List<DayHistory> dayHistories);
 
     List<DayHistory> getDayCache(String key);
+
+    Long fb();
 }

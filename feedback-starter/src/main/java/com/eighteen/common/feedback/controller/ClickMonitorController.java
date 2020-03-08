@@ -9,6 +9,7 @@ import com.eighteen.common.feedback.handler.ClickLogHandler;
 import com.eighteen.common.feedback.handler.RetHandler;
 import com.eighteen.common.feedback.service.FeedbackService;
 import com.eighteen.common.mq.rabbitmq.MessageSender;
+import com.eighteen.common.spring.boot.autoconfigure.cache.redis.Redis;
 import com.google.common.collect.ImmutableMap;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
@@ -55,6 +56,8 @@ public class ClickMonitorController {
     RabbitTemplate rabbitTemplate;
     @Autowired
     ClickLogMapper clickLogMapper;
+    @Autowired
+    ClickLogDao clickLogDao;
     @Autowired(required = false)
     ClickLogHandler clickLogHandler;
     @Autowired
@@ -63,6 +66,10 @@ public class ClickMonitorController {
     RetHandler retHandler;
     @Autowired
     FeedbackService feedbackService;
+    @Autowired
+    Redis redis;
+    @Value("18.feedback.persist-redis")
+    Boolean persisi;
     @Value("${18.feedback.channel}")
     private String channel;
     @Value("${18.feedback.clickQueue:}")
@@ -140,8 +147,17 @@ public class ClickMonitorController {
         try {
             template.execute((RetryCallback<Object, Exception>) context -> {
                 ClickLog clickLog = (ClickLog) msg.getPayload();
-//                clickLogDao.save(clickLog);
-                clickLogMapper.insertList(Collections.singletonList(clickLog));
+                if (persisi) {
+                    ClickLog log = clickLogDao.save(clickLog);
+                    if (StringUtils.isNotBlank(clickLog.getImeiMd5()))
+                        redis.zadd(feedbackService.getDayCacheRedisKey("click#imei"), log.getId().doubleValue(), clickLog.getImeiMd5());
+                    if (StringUtils.isNotBlank(clickLog.getOaidMd5()))
+                        redis.zadd(feedbackService.getDayCacheRedisKey("click#oaid"), log.getId().doubleValue(), clickLog.getOaidMd5());
+                    if (StringUtils.isNotBlank(clickLog.getAndroidIdMd5()))
+                        redis.zadd(feedbackService.getDayCacheRedisKey("click#android"), log.getId().doubleValue(), clickLog.getAndroidIdMd5());
+                } else {
+                    clickLogMapper.insertList(Collections.singletonList(clickLog));
+                }
                 return 0;
             });
         } catch (Exception e) {

@@ -39,6 +39,11 @@ public class SingleRedis implements Redis {
         return var4;
     }
 
+    @Override
+    public Jedis getJedis() {
+        return this.jedisPool.getResource();
+    }
+
     public void setJedisPool(JedisPool jedisPool) {
         this.jedisPool = jedisPool;
     }

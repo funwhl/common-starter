@@ -39,7 +39,7 @@ public class DayHistory {
     private Date createTime;
 
     @Transient
-    private Integer status;
+    private Integer status = 0;
 
     @Override
     public boolean equals(Object o) {

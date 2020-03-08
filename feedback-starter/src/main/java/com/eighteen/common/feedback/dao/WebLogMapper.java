@@ -6,6 +6,8 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.ResultType;
 import org.apache.ibatis.annotations.Select;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Date;
 import java.util.List;
@@ -17,6 +19,7 @@ import java.util.List;
  */
 @DS("webLog_")
 @Mapper
+@Transactional(isolation = Isolation.READ_UNCOMMITTED)
 public interface WebLogMapper {
     @Select("<script>" +
             "select top ${count}  imei,iimei,channel, versionname versionName, coid, ncoid, wifimac,ip, activetime activeTime, ua, androidId, oaid,mid ,ROW_NUMBER() OVER(ORDER BY activetime asc) AS r from ${tableName}  with(nolock) " +

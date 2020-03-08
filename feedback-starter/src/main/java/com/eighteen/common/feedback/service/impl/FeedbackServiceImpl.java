@@ -9,6 +9,7 @@ import com.eighteen.common.feedback.EighteenProperties;
 import com.eighteen.common.feedback.dao.*;
 import com.eighteen.common.feedback.domain.ThirdRetentionLog;
 import com.eighteen.common.feedback.entity.*;
+import com.eighteen.common.feedback.entity.dao2.ActiveLoggerDao;
 import com.eighteen.common.feedback.handler.ActiveHandler;
 import com.eighteen.common.feedback.handler.FeedbackHandler;
 import com.eighteen.common.feedback.service.FeedbackService;
@@ -38,6 +39,9 @@ import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestTemplate;
+import redis.clients.jedis.Jedis;
+import redis.clients.jedis.Tuple;
+import redis.clients.jedis.ZParams;
 import tk.mybatis.mapper.entity.Example;
 
 import javax.persistence.LockModeType;
@@ -96,8 +100,15 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     WebLogMapper webLogMapper;
     @Autowired
     FsService fsService;
-//    List<String> sds = Lists.newArrayList("0,1", "2,3,4,5", "6,7,8,9");
+    //    List<String> sds = Lists.newArrayList("0,1", "2,3,4,5", "6,7,8,9");
     List<String> sds = new ArrayList<>();
+    @Autowired
+    ZooKeeperConnector zooKeeperConnector;
+    @Autowired
+    DistributedLock lock;
+    @Autowired
+    ActiveLoggerDao activeLoggerDao;
+    Jedis jedis;
     @Autowired(required = false)
     private Redis redis;
     @Value("${spring.application.name}")
@@ -123,174 +134,195 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             .build();
     private Map<String, BooleanExpression> queryMap = new LinkedHashMap<>(4);
 
+
     public FeedbackServiceImpl(EighteenProperties properties) {
         this.etprop = properties;
     }
 
-    @Autowired
-    ZooKeeperConnector zooKeeperConnector;
+    public static void main(String[] args) {
+        List<Integer> taskList = new ArrayList<>();
+        for (int i = 0; i < 60; i++) {
+            taskList.add(i);
+        }
+        int total = taskList.size();
+        int threadNum = 5;
+        int remaider = total % threadNum; // 计算出余数
+        int number = total / threadNum; // 计算出商
+        int offset = 0;// 偏移量
+        for (int i = 0; i < threadNum; i++) {
+            if (remaider > 0) {
+                List<Integer> subList = taskList.subList(i * number + offset, (i + 1) * number + offset + 1);
+                remaider--;
+                offset++;
+                System.out.println(subList.get(0) + "--" + subList.get(subList.size() - 1));
+            } else {
+                List<Integer> subList = taskList.subList(i * number + offset, (i + 1) * number + offset);
+                System.out.println(subList.get(0) + "--" + subList.get(subList.size() - 1));
+            }
+        }
+    }
+
+    public static String[] prodKeys() {
+        return null;
+    }
+
     @Override
     @Transactional(isolation = Isolation.READ_UNCOMMITTED)
     public void feedback(ShardingContext sc) {
         tryWork(r -> {
             AtomicLong success = new AtomicLong(0);
-            List<DayHistory> histories = new ArrayList<>();
-            List<FeedbackLog> feedbackLogs = new ArrayList<>();
-            List<IpuaNewUser> ipuaNewUsers = new ArrayList<>();
+            List<DayHistory> histories = Collections.synchronizedList(new ArrayList<>());
+            List<FeedbackLog> feedbackLogs = Collections.synchronizedList(new ArrayList<>());
+            List<IpuaNewUser> ipuaNewUsers = Collections.synchronizedList(new ArrayList<>());
+
             String[] sd = sds.get(sc.getShardingItem()).split(",");
             Date date = Optional.ofNullable(dsl.select(activeLogger.activeTime.max()).from(activeLogger).fetchOne()).orElse(new Date());
             Map<String, List<ActiveLogger>> map = queryMap.entrySet().parallelStream().collect(Collectors.toMap(Map.Entry::getKey, e ->
                     dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.getValue())
                             .where(activeLogger.status.eq(0)
 //                                .and(activeLogger.sd.eq(sc == null ? 0 : sc.getShardingItem()))
-                            .and(activeLogger.activeTime.goe(new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset())))
-                            )
+                                            .and(activeLogger.activeTime.goe(new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset())))
+                                            )
 //                        .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).between(sd[0],sd[1]))
-                        .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).loe(sd[1])))
-            ).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList())));
+                                            .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).loe(sd[1])))
+                            ).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList())));
 
             map.forEach((key, e) -> {
                 StopWatch watch = StopWatch.createStarted();
-                logger.info("{}start {},{},{}",sd, key, watch.toString());
-                lock.lock(getDayCacheRedisKey(FEED_BACK.name()),appName + FEED_BACK.name(),() -> {
+                logger.info("{}start {},{},{}", sd, key, watch.toString());
                 if (CollectionUtils.isEmpty(e)) return;
                 List<ActiveLogger> list = e.stream()
                         .sorted((o1, o2) -> o2.getClickLog().getClickTime().compareTo(o1.getClickLog().getClickTime()))
-                        .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> {
-                                    switch (key) {
-                                        case "oaid":
-                                            return o2.getOaid() + o2.getCoid() + o2.getNcoid();
-                                        case "androidId":
-                                            return o2.getAndroidId() + o2.getWifimac() + o2.getCoid() + o2.getNcoid();
-                                        case "ipua":
-                                            return o2.getIpua() + o2.getCoid() + o2.getNcoid();
-                                        default:
-                                            return o2.getImei() + o2.getCoid() + o2.getNcoid();
-                                    }
-                                }))), ArrayList::new)
+                        .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> gekeyString(key, o2)))), ArrayList::new)
                         );
-                List<ActiveLogger> oldUsers = new ArrayList<>();
 
-                 list.forEach(activeLogger -> {
-                        String value = ReflectionUtils.getFieldValue(activeLogger, key).toString();
-                        DayHistory history = new DayHistory().setNcoid(activeLogger.getNcoid()).setCoid(activeLogger.getCoid()).setWd(key).setValue(value).setCreateTime(new Date());
-                        if (countHistory(history)) {
-                            oldUsers.add(activeLogger);
-                        } else if (check(key, activeLogger)) {
-                            logger.info("other_field_matched : key:{},value:{}#{}#{} ,{}", key, value, activeLogger.getCoid(), activeLogger.getNcoid(), activeLogger.toString());
-                            addDayCache(key, Collections.singletonList(history));
-                            histories.add(history);
-                            oldUsers.add(activeLogger);
-                        }
-                    });
-                    List<String> retErrors = errorCache.getIfPresent("errors");
-                    List<ActiveLogger> filter = list.stream()
-                            .filter(o -> !oldUsers.contains(o) && (retErrors == null || !retErrors.contains(o.getClickLog().getCallbackUrl())))
-                            .collect(Collectors.toList());
-
-                    List<String> values = filter.stream().map(o -> ReflectionUtils.getFieldValue(o, key).toString()).collect(Collectors.toList());
-
-                    if (!CollectionUtils.isEmpty(values)) {
-                        List<DayHistory> exist;
-                        if (key.equals("ipua")) {
-                            exist = dsl.selectFrom(ipuaNewUser).where(ipuaNewUser.ipua.in(values)).fetch()
-                                    .stream().map(o -> new DayHistory().setCoid(o.getCoid()).setNcoid(o.getNcoid()).setValue(o.getIpua())).collect(Collectors.toList());
-                        } else exist = feedBackMapper.listFromStatistics(key, values, null, null);
-                        exist.forEach(o -> o.setWd(key));
-                        List<DayHistory> finalExist = exist;
-                        List<ActiveLogger> newUsers = filter.stream().filter(o -> {
-                            String value = ReflectionUtils.getFieldValue(o, key).toString();
-                            DayHistory history = new DayHistory().setNcoid(o.getNcoid()).setCoid(o.getCoid()).setWd(key).setValue(value).setCreateTime(new Date());
-                            boolean b = finalExist.contains(history);
-                            if (b) {
-                                addDayCache(key, Collections.singletonList(history));
-                                histories.add(history);
-                                oldUsers.add(o);
-                            }
-                            return !b;
-                        }).collect(Collectors.toList());
-
-                        newUsers.forEach(a -> {
-                            try {
-                                ClickLog c = a.getClickLog();
-                                Boolean flag;
-                                if (feedbackHandler != null) flag = feedbackHandler.handler(c);
-                                else
-                                    flag = restTemplate.getForEntity(c.getCallbackUrl(), String.class).getStatusCode().value() == 200;
-                                if (flag) {
-                                    FeedbackLog feedbackLog = new FeedbackLog();
-                                    BeanUtils.copyProperties(c, feedbackLog);
-                                    feedbackLog.setImei(a.getImei()).setOaid(a.getOaid()).setAndroidId(a.getAndroidId());
-                                    feedbackLogs.add(feedbackLog.setCreateTime(new Date()).setMid(a.getMid()).setEventType(1).setActiveChannel(a.getChannel()).setActiveTime(a.getActiveTime())
-                                            .setMatchField(key).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setPlot(a.getPlot()).setTs(c.getTs()));
-                                    String value = ReflectionUtils.getFieldValue(a, key).toString();
-                                    if (key.equals("ipua")) {
-                                        ipuaNewUsers.add(new IpuaNewUser().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setIp(a.getIp()).setUa(a.getUa()).setIpua(value).setCreateTime(new Date()));
-                                        if (StringUtils.isNotBlank(a.getImei()) && !filters.contains(a.getImei()))
-                                            addDayCache(key, Collections.singletonList(new DayHistory().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setWd("imei").setValue(a.getImei())));
-                                    }
-                                    DayHistory history = new DayHistory().setWd(key).setValue(value).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setCreateTime(new Date());
-                                    if (etprop.getMultipleImei() && key.equals("imei")) {
-                                        String iimei = a.getIimei();
-                                        if (StringUtils.isNotBlank(iimei)) {
-                                            List<DayHistory> imeiList = new ArrayList<>();
-                                            String[] imeis = iimei.split(",");
-                                            DayHistory imeiHistory = new DayHistory();
-                                            for (String v : imeis) {
-                                                BeanUtils.copyProperties(history, imeiHistory);
-                                                if (StringUtils.isNotBlank(v) && !v.equals(value))
-                                                    imeiList.add(imeiHistory.setValue(v));
-                                            }
-                                            if (!CollectionUtils.isEmpty(imeiList)) {
-                                                addDayCache(key, imeiList);
-                                                histories.addAll(imeiList);
-                                            }
-                                        }
-                                    }
-                                    addDayCache(key, Collections.singletonList(history));
-                                    success.incrementAndGet();
-                                    histories.add(history);
-                                    oldUsers.add(a);
-                                } else {
-                                    if (StringUtils.isNotBlank(c.getCallbackUrl())) {
-                                        List<String> errors = errorCache.getIfPresent("errors");
-                                        if (errors == null)
-                                            errorCache.put("errors", Lists.newArrayList(c.getCallbackUrl()));
-                                        else errors.add(c.getCallbackUrl());
-                                    }
-                                }
-                            } catch (Exception e1) {
-                                logger.error(e1.getMessage());
-                            }
-                        });
-                    }
+                lock.lock(getDayCacheRedisKey(FEED_BACK.name()), appName + FEED_BACK.name(), () -> {
+                    List<ActiveLogger> oldUsers = new ArrayList<>();
+                    handlerFeedback(success, histories, feedbackLogs, ipuaNewUsers, key, oldUsers, list);
 
                     oldUsers.stream().collect(Collectors.groupingBy(o -> o.getCoid() + "," + o.getNcoid())).forEach((s, activeLoggers) -> {
                         Set<String> collect = activeLoggers.stream().map(o -> ReflectionUtils.getFieldValue(o, (key.equals("ipua") ? key : key + "Md5")).toString()).collect(Collectors.toSet());
-                        Page.create(1, 500, i -> new ArrayList<>(collect)).forEach(strings -> {
+                        Page.create(500, new ArrayList<>(collect)).forEach(strings -> {
                             Example example = new Example(ActiveLogger.class);
                             example.createCriteria().andIn((key.equals("ipua") ? key : key + "Md5"), strings)
-//                                .andIn("id",ids)
                                     .andEqualTo("coid", Integer.valueOf(s.split(",")[0])).andEqualTo("ncoid", Integer.valueOf(s.split(",")[1]));
                             activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
                         });
                     });
                 });
-                logger.info("{}end {},{},{}",sd, key, watch.toString());
+                logger.info("{}end {},{},{}", sd, key, watch.toString());
             });
 
-            Page.create(feedbackLogs).forEach(o -> executor.execute(() -> feedbackLogMapper.insertList(o)));
-            Page.create(ipuaNewUsers).forEach(o -> executor.execute(() -> ipuaNewUserMapper.insertList(o)));
-            Page.create(histories).forEach(o -> executor.execute(() -> dayHistoryMapper.insertList(o)));
+            handerResult(histories, feedbackLogs, ipuaNewUsers);
             return success.get();
         }, FEED_BACK, sc);
+    }
+
+    private void handlerFeedback(AtomicLong success, List<DayHistory> histories, List<FeedbackLog> feedbackLogs, List<IpuaNewUser> ipuaNewUsers, String key, List<ActiveLogger> oldUsers, List<ActiveLogger> filter) {
+
+        filter.stream().forEach(activeLogger -> {
+            String value = ReflectionUtils.getFieldValue(activeLogger, key).toString();
+            DayHistory history = new DayHistory().setNcoid(activeLogger.getNcoid()).setCoid(activeLogger.getCoid()).setWd(key).setValue(activeLogger.getImei()).setCreateTime(new Date());
+
+            if (countHistory(history)) {
+                oldUsers.add(activeLogger);
+            } else if (check(key, activeLogger)) {
+                logger.info("other_field_matched : key:{},value:{}#{}#{} ,{}", key, value, activeLogger.getCoid(), activeLogger.getNcoid(), activeLogger.toString());
+                addDayCache(key, Collections.singletonList(history));
+                histories.add(history);
+                oldUsers.add(activeLogger);
+            }
+        });
+
+        List<String> retErrors = errorCache.getIfPresent("errors");
+        filter = filter.stream()
+                .filter(o -> !oldUsers.contains(o) && (retErrors == null || !retErrors.contains(o.getClickLog().getCallbackUrl())))
+                .collect(Collectors.toList());
+
+
+        List<String> values = filter.stream().map(o -> ReflectionUtils.getFieldValue(o, key).toString()).collect(Collectors.toList());
+        if (!CollectionUtils.isEmpty(values)) {
+            List<DayHistory> exist;
+            if (key.equals("ipua")) {
+                exist = dsl.selectFrom(ipuaNewUser).where(ipuaNewUser.ipua.in(values)).fetch()
+                        .stream().map(o -> new DayHistory().setCoid(o.getCoid()).setNcoid(o.getNcoid()).setValue(o.getIpua())).collect(Collectors.toList());
+            } else exist = feedBackMapper.listFromStatistics(key, values, null, null);
+            exist.forEach(o -> o.setWd(key));
+            List<DayHistory> finalExist = exist;
+            List<ActiveLogger> newUsers = filter.stream().filter(o -> {
+                String value = ReflectionUtils.getFieldValue(o, key).toString();
+                DayHistory history = new DayHistory().setNcoid(o.getNcoid()).setCoid(o.getCoid()).setWd(key).setValue(value).setCreateTime(new Date());
+                boolean b = finalExist.contains(history);
+                if (b) {
+                    addDayCache(key, Collections.singletonList(history));
+                    histories.add(history);
+                    oldUsers.add(o);
+                }
+                return !b;
+            }).collect(Collectors.toList());
+
+            newUsers.forEach(a -> {
+                try {
+                    ClickLog c = a.getClickLog();
+                    Boolean flag;
+                    if (feedbackHandler != null) flag = feedbackHandler.handler(c);
+                    else
+                        flag = restTemplate.getForEntity(c.getCallbackUrl(), String.class).getStatusCode().value() == 200;
+                    if (flag) {
+                        FeedbackLog feedbackLog = new FeedbackLog();
+                        BeanUtils.copyProperties(c, feedbackLog);
+                        feedbackLog.setImei(a.getImei()).setOaid(a.getOaid()).setAndroidId(a.getAndroidId());
+                        feedbackLogs.add(feedbackLog.setCreateTime(new Date()).setMid(a.getMid()).setEventType(1).setActiveChannel(a.getChannel()).setActiveTime(a.getActiveTime())
+                                .setMatchField(key).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setPlot(a.getPlot()).setTs(c.getTs()));
+                        String value = ReflectionUtils.getFieldValue(a, key).toString();
+                        if (key.equals("ipua")) {
+                            ipuaNewUsers.add(new IpuaNewUser().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setIp(a.getIp()).setUa(a.getUa()).setIpua(value).setCreateTime(new Date()));
+                            if (StringUtils.isNotBlank(a.getImei()) && !filters.contains(a.getImei()))
+                                addDayCache(key, Collections.singletonList(new DayHistory().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setWd("imei").setValue(a.getImei())));
+                        }
+                        DayHistory history = new DayHistory().setWd(key).setValue(value).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setCreateTime(new Date());
+                        if (etprop.getMultipleImei() && key.equals("imei")) {
+                            String iimei = a.getIimei();
+                            if (StringUtils.isNotBlank(iimei)) {
+                                List<DayHistory> imeiList = new ArrayList<>();
+                                String[] imeis = iimei.split(",");
+                                DayHistory imeiHistory = new DayHistory();
+                                for (String v : imeis) {
+                                    BeanUtils.copyProperties(history, imeiHistory);
+                                    if (StringUtils.isNotBlank(v) && !v.equals(value))
+                                        imeiList.add(imeiHistory.setValue(v));
+                                }
+                                if (!CollectionUtils.isEmpty(imeiList)) {
+                                    addDayCache(key, imeiList);
+                                    histories.addAll(imeiList);
+                                }
+                            }
+                        }
+                        addDayCache(key, Collections.singletonList(history));
+                        success.incrementAndGet();
+                        histories.add(history);
+//                        oldUsers.add(a);
+                        Optional.ofNullable(oldUsers).ifPresent(activeLoggers -> activeLoggers.add(a));
+                    } else {
+                        if (StringUtils.isNotBlank(c.getCallbackUrl())) {
+                            List<String> errors = errorCache.getIfPresent("errors");
+                            if (errors == null)
+                                errorCache.put("errors", Lists.newArrayList(c.getCallbackUrl()));
+                            else errors.add(c.getCallbackUrl());
+                        }
+                    }
+                } catch (Exception e1) {
+                    logger.error(e1.getMessage());
+                }
+            });
+        }
     }
 
     private boolean countHistory(DayHistory s) {
         String key = s.getWd();
         try {
             if (redis != null) {
-                Double process = redis.process(j -> j.zscore(getDayCacheRedisKey(key), s.getCoid() + "##" + s.getNcoid() + "##" + s.getValue()));
+                Double process = redis.process(j -> j.zscore(getDayCacheRedisKey(key), String.format("%d##%d##%s", s.getCoid(), s.getNcoid(), s.getValue())));
 //                boolean exist = process != null && process > 0;
 //                if (!exist && redis.process(j -> j.zcount(getDayCacheRedisKey(key), (double) 0, (double) Long.MAX_VALUE) <= 0)) {
 //                    getDayCache(key);
@@ -311,6 +343,30 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             return dayHistoryMapper.selectCountByExample(example) > 0;
         }
     }
+
+//    private DayHistory checkHistory(DayHistory s) {
+//        String key = s.getWd();
+//        try {
+//            if (redis != null) {
+//                Double process = redis.process(j -> j.zscore(getDayCacheRedisKey(key), String.format("%d##%d##%s", s.getCoid(), s.getNcoid(), s.getValue())));
+//
+//                if (process != null && process > 0) s.setStatus(1);
+//            } else {
+//                List<DayHistory> histories = dayCache.getIfPresent(key);
+//                if (histories == null || histories.stream().anyMatch(o -> o.equals(s))) {
+//                    s.setStatus(1);
+//                }
+//            }
+//        } catch (Exception e) {
+//            logger.error("count_error:{}", e.getMessage());
+//            Example example = new Example(DayHistory.class);
+//            Example.Criteria criteria = example.createCriteria();
+//            criteria.andEqualTo("wd", key).andEqualTo("value", s.getValue()).andEqualTo("coid", s.getCoid());
+//            criteria.andEqualTo("ncoid", s.getNcoid());
+//            if (dayHistoryMapper.selectCountByExample(example) > 0) s.setStatus(1);
+//        }
+//        return s;
+//    }
 
     private Boolean check(String key, ActiveLogger activeLogger) {
         return queryMap.keySet().stream().filter(s -> !s.equals(key)).anyMatch(s -> {
@@ -347,19 +403,20 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             String sdk = "active" + sd;
 
             Double process = null;//toutiao-feedback-dir_dev#dayHistory#sync_active
-            if (redis != null) process = redis.process(j -> j.zscore(getDayCacheRedisKey("sync_active"), item + "##" + item + "##" + sd));
+            if (redis != null)
+                process = redis.process(j -> j.zscore(getDayCacheRedisKey("sync_active"), item + "##" + item + "##" + sd));
             if (process != null) {
                 maxActiveTime = new Date(process.longValue());
             } else
                 maxActiveTime = Optional.ofNullable(dsl.select(activeLogger.activeTime.max()).from(activeLogger).where(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).goe(sd.split(",")[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).loe(sd.split(",")[1]))
 //                        .between(,sd.split(",")[1])
                 ).fetchOne()).orElse(new Date(current - TimeUnit.MINUTES.toMillis(etprop.syncOffset)));
-            log.info("{}maxtime: {}, sd: {}",item,maxActiveTime,sd);
+            log.info("{}maxtime: {}, sd: {}", item, maxActiveTime, sd);
 
             int count = etprop.getPreFetchActive();
             if (etprop.getAllAttributed()) {
                 if (!format.format(date).equals(format.format(new Date(current + offset)))) {
-                    data = webLogMapper.getThirdActiveLogger("ActiveLogger",count ,maxActiveTime, etprop.getSc(), sd.split(",")[0],sd.split(",")[1]);
+                    data = webLogMapper.getThirdActiveLogger("ActiveLogger", count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]);
                     data.addAll(webLogMapper.getThirdActiveLogger("ActiveLogger_B", count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]));
                 } else
                     data = webLogMapper.getThirdActiveLogger(webLogMapper.getTableName(), count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]);
@@ -404,12 +461,27 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             if (!CollectionUtils.isEmpty(iimeiActive)) data.addAll(iimeiActive);
             if (!CollectionUtils.isEmpty(data)) {
                 Date activeTime = data.stream().max(Comparator.comparing(ActiveLogger::getActiveTime)).get().getActiveTime();
-                Page.create(data).forEachParallel(activeLoggers -> activeLoggerMapper.insertList(activeLoggers));
+                if (etprop.getPersistRedis()) {
+                    data.parallelStream().forEach(a -> {
+                        ActiveLogger log = activeLoggerDao.save(a);
+                        if (StringUtils.isNotBlank(a.getImeiMd5()))
+                            redis.zadd(getDayCacheRedisKey("active#imei#" + a.getCoid() + "#" + a.getNcoid()), log.getId().doubleValue(), a.getImeiMd5());
+                        if (StringUtils.isNotBlank(a.getOaidMd5()))
+                            redis.zadd(getDayCacheRedisKey("active#oaid#") + a.getCoid() + "#" + a.getNcoid(), log.getId().doubleValue(), a.getOaidMd5());
+                        if (StringUtils.isNotBlank(a.getAndroidIdMd5()))
+                            redis.zadd(getDayCacheRedisKey("active#android#") + a.getCoid() + "#" + a.getNcoid(), log.getId().doubleValue(), a.getAndroidIdMd5());
+                    });
+                } else {
+                    Page.create(data).forEachParallel(activeLoggers -> {
+                        activeLoggerMapper.insertList(activeLoggers);
+                    });
+                }
+
                 activeLoggerCache.invalidate(sdk);
                 if (!CollectionUtils.isEmpty(iimeiActive)) data.removeAll(iimeiActive);
                 activeLoggerCache.put(sdk, data);
                 addDayCache("sync_active", Collections.singletonList(new DayHistory().setCoid(item).setNcoid(item).setValue(sd).setCreateTime(activeTime)));
-                log.info("{}maxtimenex: {} sd: {}",item,activeTime,sd);
+                log.info("{}maxtimenex: {} sd: {}", item, activeTime, sd);
             }
             return data.size();
         }, SYNC_ACTIVE, c);
@@ -417,7 +489,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     }
 
     @Override
-//    @Transactional
+    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
     public void clean(JobType type, ShardingContext c) {
         Integer offset = etprop.getOffset();
         switch (type) {
@@ -426,7 +498,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 tryWork(r -> {
                             Example example = new Example(DayHistory.class);
                             Example.Criteria criteria = example.createCriteria();
-                            criteria.andLessThan("createTime", new Date(current));
+                            criteria.andLessThan("clickTime", new Date(current));
                             return clickLogMapper.deleteByExample(example);
                         },
                         CLEAN_IMEI, c);
@@ -444,22 +516,20 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     if (!etprop.getPersistActive()) {
                         Example example = new Example(ActiveLogger.class);
                         Example.Criteria criteria = example.createCriteria();
-                        criteria.andLessThan("createTime", new Date(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(etprop.getCleanActiveOffset())));
+                        criteria.andLessThan("activeTime", new Date(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(etprop.getCleanActiveOffset())));
                         activeLoggerMapper.deleteByExample(example);
                     }
                     List<ActiveLogger> activeLoggers = dsl.selectFrom(activeLogger).setLockMode(LockModeType.NONE)
-                            .where(activeLogger.createTime.before(new Date(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(etprop.getCleanActiveOffset())))).limit(10000).fetch();
+                            .where(activeLogger.activeTime.before(new Date(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(etprop.getCleanActiveOffset())))).limit(10000).fetch();
                     if (CollectionUtils.isEmpty(activeLoggers)) return 0L;
-                    cleanActiveLogger(activeLoggers,etprop.getPersistActive());
+                    cleanActiveLogger(activeLoggers, etprop.getPersistActive());
                     return (long) activeLoggers.size();
                 }, CLEAN_ACTIVE, c);
                 break;
             case CLEAN_ACTIVE_HISTORY:
                 tryWork(r -> {
                     List<ActiveLogger> activeLoggers = dsl.selectFrom(activeLogger).setLockMode(LockModeType.NONE)
-                            .where(activeLogger.status.gt(0)
-//                                    .and(activeLogger.createTime.before(JPAExpressions.select(activeLogger.createTime.max()).from(activeLogger)))
-                            ).fetch();
+                            .where(activeLogger.status.gt(0)).fetch();
                     if (CollectionUtils.isEmpty(activeLoggers)) return 0L;
 
                     cleanActiveLogger(activeLoggers, etprop.getPersistActive());
@@ -468,6 +538,12 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 break;
             case CLEAN_CLICK:
                 tryWork(r -> {
+                            if (!etprop.getPersistClick()) {
+                                Example example = new Example(ActiveLogger.class);
+                                Example.Criteria criteria = example.createCriteria();
+                                criteria.andLessThan("clickTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(etprop.getClickDataExpire())));
+                                activeLoggerMapper.deleteByExample(example);
+                            }
                             List<ClickLog> clickLogs = dsl.selectFrom(clickLog).setLockMode(LockModeType.NONE)
                                     .where(clickLog.createTime.before(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(Optional.ofNullable(etprop.getClickDataExpire()).orElse(offset))))).fetch();
                             if (CollectionUtils.isEmpty(clickLogs)) return 0;
@@ -573,38 +649,22 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         }, RETENTION, c);
     }
 
-    @Autowired
-    DistributedLock lock;
     private void tryWork(Function<JobType, Object> consumer, JobType type, ShardingContext c) {
         String k = String.format("%s#%s", etprop.getChannel(), type.getKey());
         Integer mode = etprop.getMode();
 //        String sync = getDayCacheRedisKey("sync##");
         try {
-            if (!Lists.newArrayList(SYNC_ACTIVE,FEED_BACK).contains(type)) {
+            if (!Lists.newArrayList(SYNC_ACTIVE, FEED_BACK).contains(type)) {
                 if (c.getShardingItem() != 0) {
                     logger.info("skip task {} ", k);
                     return;
                 }
             }
-//            if (type == FEED_BACK) {
-//                redis.process(j -> j.setnx(sync, ""));
-//            }
-//            else if (type == SYNC_ACTIVE) {
-//                Boolean process = redis.process(j -> j.exists(sync));
-//                if (process) return;
-//            }
             logger.info("start {}{} {}", k, c.getShardingItem());
             Long start = System.currentTimeMillis();
             if (mode == 2 && redis.process(jedis -> jedis.setnx(k, "")).equals(0L)) {
                 throw new RuntimeException(type.getKey() + " failed because redis setnx return 0");
             }
-//            AtomicReference<Object> r = new AtomicReference<>();
-//            if (type==FEED_BACK) {
-//                lock.lock(FEED_BACK.name(),FEED_BACK.name(),() -> {
-//                    r.set(consumer.apply(type));
-//                });
-//            }
-//            else r.set(consumer.apply(type));
 
             Object r = consumer.apply(type);
             if (mode == 2) redis.expire(k, type.getExpire().intValue());
@@ -620,6 +680,11 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
     public String getDayCacheRedisKey(String key) {
         return appName + "#dayHistory#" + key;
+    }
+
+    @Override
+    public String generMember(Integer coid, Integer ncoid, String value) {
+        return coid + "#" + ncoid + "#" + value;
     }
 
     @Override
@@ -687,6 +752,62 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     }
 
     @Override
+    public Long fb() {
+        List<DayHistory> histories = Collections.synchronizedList(new ArrayList<>());
+        List<FeedbackLog> feedbacks = Collections.synchronizedList(new ArrayList<>());
+        List<IpuaNewUser> ipuas = Collections.synchronizedList(new ArrayList<>());
+        AtomicLong count = new AtomicLong();
+        queryMap.keySet().forEach(key -> {
+            ZParams zParams = new ZParams();
+            zParams.aggregate(ZParams.Aggregate.MAX);
+            zParams.weightsByDouble(1, 0);
+            Jedis jedis = redis.getJedis();
+            jedis.zinterstore(getDayCacheRedisKey("zinter"), zParams, getDayCacheRedisKey("click#" + key), getDayCacheRedisKey("active#" + key));
+
+            ZParams params = new ZParams();
+            params.weightsByDouble(1, 0);
+            params.aggregate(ZParams.Aggregate.MIN);
+            String zinter = getDayCacheRedisKey("zinter");
+            jedis.zunionstore(zinter, params, "");
+            jedis.zremrangeByScore(zinter, 0, 0);
+            Set<Tuple> tuples = jedis.zrangeWithScores(zinter, 0, -1);
+
+            List<ActiveLogger> activeLoggers = dsl.select(clickLog, activeLogger).innerJoin(activeLogger)
+                    .on(clickLog.imeiMd5.eq(activeLogger.imeiMd5)).where(clickLog.id.in(tuples.stream().map(tuple -> new Double(tuple.getScore()).longValue()).collect(Collectors.toList()))).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
+
+            activeLoggers = activeLoggers.stream()
+                    .sorted(Comparator.comparing(ActiveLogger::getActiveTime))
+                    .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> gekeyString(key, o2)))), ArrayList::new)
+                    );
+
+            handlerFeedback(count, histories, feedbacks, ipuas, key, null, activeLoggers);
+        });
+
+        handerResult(histories, feedbacks, ipuas);
+//        System.out.println(this.jedis.zrange(getDayCacheRedisKey("feedback"), 0, -1));
+        return count.get();
+    }
+
+    private void handerResult(List<DayHistory> histories, List<FeedbackLog> feedbacks, List<IpuaNewUser> ipuas) {
+        Page.create(feedbacks).forEachParallel(o -> executor.execute(() -> feedbackLogMapper.insertList(o)));
+        Page.create(ipuas).forEachParallel(o -> executor.execute(() -> ipuaNewUserMapper.insertList(o)));
+        Page.create(histories).forEachParallel(o -> executor.execute(() -> dayHistoryMapper.insertList(o)));
+    }
+
+    private String gekeyString(String key, ActiveLogger o2) {
+        switch (key) {
+            case "oaid":
+                return o2.getOaid() + o2.getCoid() + o2.getNcoid();
+            case "androidId":
+                return o2.getAndroidId() + o2.getWifimac() + o2.getCoid() + o2.getNcoid();
+            case "ipua":
+                return o2.getIpua() + o2.getCoid() + o2.getNcoid();
+            default:
+                return o2.getImei() + o2.getCoid() + o2.getNcoid();
+        }
+    }
+
+    @Override
     public void afterPropertiesSet() {
         if (StringUtils.isNotBlank(etprop.getFilters())) filters.addAll(Arrays.asList(etprop.getFilters().split(",")));
         BooleanExpression imeiBe = activeLogger.imeiMd5.eq(clickLog.imeiMd5);
@@ -732,34 +853,11 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         sds = sharding(sc);
     }
 
-    public static void main(String[] args) {
-        List<Integer> taskList = new ArrayList<>();
-        for (int i = 0; i <60; i++) {
-            taskList.add(i);
-        }
-        int total = taskList.size();
-        int threadNum = 5;
-        int remaider = total % threadNum; // 计算出余数
-        int number = total / threadNum; // 计算出商
-        int offset = 0;// 偏移量
-        for (int i = 0; i < threadNum; i++) {
-            if (remaider > 0) {
-                List<Integer> subList = taskList.subList(i * number + offset, (i + 1) * number + offset + 1);
-                remaider--;
-                offset++;
-                System.out.println(subList.get(0) + "--" + subList.get(subList.size() - 1));
-            } else {
-                List<Integer> subList = taskList.subList(i * number + offset, (i + 1) * number + offset);
-                System.out.println(subList.get(0) + "--" + subList.get(subList.size() - 1));
-            }
-        }
-    }
-
     private List<String> sharding(Integer sc) {
         List<Integer> taskList = new ArrayList<>();
         List<String> ret = new ArrayList<>();
 
-        for (int i = 0; i <60; i++) {
+        for (int i = 0; i < 60; i++) {
             taskList.add(i);
         }
         int total = taskList.size();

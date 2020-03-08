@@ -6,6 +6,7 @@ package com.eighteen.common.spring.boot.autoconfigure.cache.redis;
  * Time: 0:59
  */
 
+import redis.clients.jedis.Jedis;
 import redis.clients.jedis.JedisCommands;
 
 import java.util.List;
@@ -15,6 +16,8 @@ import java.util.function.Supplier;
 
 public interface Redis {
     <T> T process(Function<JedisCommands, T> var1);
+
+    Jedis getJedis();
 
     String setex(byte[] var1, int var2, byte[] var3);
 
