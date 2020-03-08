@@ -241,7 +241,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //                oldUsers.add(activeLogger);
 //            }
 
-            if (countHistory(history)) {
+            if (feedBackMapper.count(key,value,activeLogger.getCoid(),activeLogger.getNcoid())>0) {
                 oldUsers.add(activeLogger);
             } else if (check(key, activeLogger)) {
                 logger.info("other_field_matched : key:{},value:{}#{}#{} ,{}", key, value, activeLogger.getCoid(), activeLogger.getNcoid(), activeLogger.toString());
@@ -249,6 +249,15 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 histories.add(history);
                 oldUsers.add(activeLogger);
             }
+
+//            if (countHistory(history)) {
+//                oldUsers.add(activeLogger);
+//            } else if (check(key, activeLogger)) {
+//                logger.info("other_field_matched : key:{},value:{}#{}#{} ,{}", key, value, activeLogger.getCoid(), activeLogger.getNcoid(), activeLogger.toString());
+//                addDayCache(key, Collections.singletonList(history));
+//                histories.add(history);
+//                oldUsers.add(activeLogger);
+//            }
         });
 
         List<String> retErrors = errorCache.getIfPresent("errors");
@@ -389,12 +398,17 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     private Boolean check(String key, ActiveLogger activeLogger) {
         return queryMap.keySet().stream().filter(s -> !s.equals(key)).anyMatch(s -> {
             if (StringUtils.isNotBlank(activeLogger.getIimei())) {
-                boolean anyMatch = Arrays.stream(activeLogger.getIimei().split(",")).anyMatch(s1 -> !filters.contains(s1) && countHistory(new DayHistory().setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd("imei").setValue(s1)));
+                boolean anyMatch = Arrays.stream(activeLogger.getIimei().split(",")).anyMatch(s1 -> !filters.contains(s1)
+//                        && countHistory(new DayHistory().setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd("imei").setValue(s1))
+                        && feedBackMapper.count("imei",s1,activeLogger.getCoid(),activeLogger.getNcoid())>0
+                );
                 if (anyMatch) return true;
             }
             Object object = ReflectionUtils.getFieldValue(activeLogger, s);
             String fieldValue = object == null ? null : object.toString();
-            return !filters.contains(fieldValue) && countHistory(new DayHistory().setValue(fieldValue).setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd(s));
+            return !filters.contains(fieldValue) &&
+//                    countHistory(new DayHistory().setValue(fieldValue).setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd(s));
+                    feedBackMapper.count(s,fieldValue,activeLogger.getCoid(),activeLogger.getNcoid())>0;
         });
     }
 

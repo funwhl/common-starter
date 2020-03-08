@@ -108,4 +108,7 @@ public interface FeedBackMapper {
 
     @Select("select wd,value,coid,ncoid,create_time from t_day_history with(nolock) where wd = #{wd} and create_time >= #{date} ")
     List<DayHistory> dayHistorys(@Param("wd") String wd, @Param("date") Date date);
+
+    @Select("select count(1) from  t_day_history where wd = #{wd} and value = #{value} and coid = #{coid} and ncoid = #{ncoid}")
+    Long count(@Param("wd") String wd, @Param("value") String value,@Param("coid") Integer coid, @Param("ncoid") Integer ncoid);
 }
