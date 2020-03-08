@@ -741,7 +741,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //                Map<String, Double> map = new HashMap<>(dayHistories.size());
 //                dayHistories.forEach(dayHistory -> map.put(String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()), (double) dayHistory.getCreateTime().getTime()));
                 Long count = redisTemplate.opsForZSet().add(redisKey, dayHistories.stream().map(o -> new DefaultTypedTuple<Object>(String.format("%d##%d##%s", o.getCoid(), o.getNcoid(), o.getValue()), (double) o.getCreateTime().getTime())).collect(Collectors.toSet()));
-                logger.info("addredis:{},{}", key, count);
+                logger.info("addredis :{},{}", key, count);
 //                redis.process(j -> j.zadd(redisKey, map));
             } else {
                 List<DayHistory> list = dayCache.getIfPresent(key);
