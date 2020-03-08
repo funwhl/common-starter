@@ -216,15 +216,19 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         List<ActiveLogger> oldUsers = new ArrayList<>();
         handlerFeedback(success, histories, feedbackLogs, ipuaNewUsers, key, oldUsers, list);
 
-        if (oldUsers.size()>0)oldUsers.stream().collect(Collectors.groupingBy(o -> o.getCoid() + "," + o.getNcoid())).forEach((s, activeLoggers) -> {
-            Set<String> collect = activeLoggers.stream().map(o -> ReflectionUtils.getFieldValue(o, (key.equals("ipua") ? key : key + "Md5")).toString()).collect(Collectors.toSet());
-            Page.create(500, new ArrayList<>(collect)).forEach(strings -> {
-                Example example = new Example(ActiveLogger.class);
-                example.createCriteria().andIn((key.equals("ipua") ? key : key + "Md5"), strings)
-                        .andEqualTo("coid", Integer.valueOf(s.split(",")[0])).andEqualTo("ncoid", Integer.valueOf(s.split(",")[1]));
-                activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
+        try {
+            if (oldUsers.size()>0)oldUsers.stream().collect(Collectors.groupingBy(o -> o.getCoid() + "," + o.getNcoid())).forEach((s, activeLoggers) -> {
+                Set<String> collect = activeLoggers.stream().map(o -> ReflectionUtils.getFieldValue(o, (key.equals("ipua") ? key : key + "Md5")).toString()).collect(Collectors.toSet());
+                Page.create(500, new ArrayList<>(collect)).forEach(strings -> {
+                    Example example = new Example(ActiveLogger.class);
+                    example.createCriteria().andIn((key.equals("ipua") ? key : key + "Md5"), strings)
+                            .andEqualTo("coid", Integer.valueOf(s.split(",")[0])).andEqualTo("ncoid", Integer.valueOf(s.split(",")[1]));
+                    activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
+                });
             });
-        });
+        } catch (Exception e) {
+            logger.error("step update stauts error :{}" + e.getMessage());
+        }
     }
 
     private void handlerFeedback(AtomicLong success, List<DayHistory> histories, List<FeedbackLog> feedbackLogs, List<IpuaNewUser> ipuaNewUsers, String key, List<ActiveLogger> oldUsers, List<ActiveLogger> filter) {
