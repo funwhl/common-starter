@@ -14,7 +14,7 @@ import java.util.List;
 public interface FeedbackService {
     void feedback(ShardingContext c);
 
-    void syncActive(ShardingContext c) throws InterruptedException;
+    void syncActive(ShardingContext c);
 
     void clean(JobType type,ShardingContext c);
 
