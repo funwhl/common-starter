@@ -473,7 +473,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                                 o.getImei());
                         return (active == null || !active.contains(o))
                                 //                    &&!countHistory(new DayHistory().setWd("imei").setValue(o.getImei()).setCoid(o.getCoid()).setNcoid(o.getNcoid()))
-                                && score == null || score <= 0;
+                                && (score == null || score <= 0);
                     }
             ).collect(Collectors.toList());
 
