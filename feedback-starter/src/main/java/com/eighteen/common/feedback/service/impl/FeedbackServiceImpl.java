@@ -447,7 +447,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 maxActiveTime = Optional.ofNullable(dsl.select(activeLogger.activeTime.max()).from(activeLogger).where(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).goe(sd.split(",")[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).loe(sd.split(",")[1]))
 //                        .between(,sd.split(",")[1])
                 ).fetchOne()).orElse(new Date(current - TimeUnit.MINUTES.toMillis(etprop.syncOffset)));
-            log.info("{} maxtime: {}, sd: {}", item, maxActiveTime, sd);
+            log.info("{} 开始激活时间 : {}, sd: {}", item, maxActiveTime, sd);
 
             int count = etprop.getPreFetchActive();
             if (etprop.getAllAttributed()) {
@@ -463,6 +463,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 } else
                     data = feedBackMapper.getThirdActiveLogger(finalChannel, feedBackMapper.getTableName(), maxActiveTime, etprop.getSc(), sd.split(",")[1]);
             }
+            log.info("{} 查询激活数据 : {}, sd: {}", item, maxActiveTime, sd);
 
             Set<ActiveLogger> active = activeLoggerCache.getIfPresent(sdk);
             List<ActiveLogger> iimeiActive = new ArrayList<>();
@@ -476,6 +477,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                                 && (score == null || score <= 0);
                     }
             ).collect(Collectors.toList());
+            log.info("{} 激活去重 : {}, sd: {}", item, maxActiveTime, sd);
 
             data.forEach(activeLogger -> {
                 if (activeHandler != null) activeHandler.handler(activeLogger);
@@ -499,6 +501,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     }
                 }
             });
+            log.info("{} 处理多卡 : {}, sd: {}", item, maxActiveTime, sd);
+
             if (!CollectionUtils.isEmpty(iimeiActive)) data.addAll(iimeiActive);
             if (!CollectionUtils.isEmpty(data)) {
                 Date activeTime = data.stream().max(Comparator.comparing(ActiveLogger::getActiveTime)).get().getActiveTime();
@@ -519,12 +523,13 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         activeLoggerMapper.insertList(activeLoggers);
                     });
                 }
+                log.info("{} 增加激活 : {}, sd: {}", item, maxActiveTime, sd);
 
                 activeLoggerCache.invalidate(sdk);
                 if (!CollectionUtils.isEmpty(iimeiActive)) data.removeAll(iimeiActive);
                 activeLoggerCache.put(sdk, new HashSet<>(data));
                 addDayCache("sync_active", Collections.singletonList(new DayHistory().setCoid(item).setNcoid(item).setValue(sd).setCreateTime(activeTime)));
-                log.info("{} maxtimenex: {} sd: {}", item, activeTime, sd);
+                log.info("{} 结束激活时间 : {} sd: {}", item, activeTime, sd);
             }
             return data.size();
         }, SYNC_ACTIVE, c);
