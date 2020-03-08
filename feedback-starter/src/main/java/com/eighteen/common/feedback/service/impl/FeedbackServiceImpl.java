@@ -349,13 +349,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         try {
             if (redis != null) {
                 Double score = redisTemplate.opsForZSet().score(getDayCacheRedisKey(key), String.format("%d##%d##%s", s.getCoid(), s.getNcoid(), s.getValue()));
-//                Double process = redis.process(j -> j.zscore(getDayCacheRedisKey(key), String.format("%d##%d##%s", s.getCoid(), s.getNcoid(), s.getValue())));
-//                boolean exist = process != null && process > 0;
-//                if (!exist && redis.process(j -> j.zcount(getDayCacheRedisKey(key), (double) 0, (double) Long.MAX_VALUE) <= 0)) {
-//                    getDayCache(key);
-//                    process = redis.process(j -> j.zscore(getDayCacheRedisKey(key), s.getCoid() + "##" + s.getNcoid() + "##" + s.getValue()));
-//                    return process != null && process > 0;
-//                }
                 return score != null && score > 0;
             } else {
                 List<DayHistory> histories = dayCache.getIfPresent(key);
@@ -399,16 +392,16 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         return queryMap.keySet().stream().filter(s -> !s.equals(key)).anyMatch(s -> {
             if (StringUtils.isNotBlank(activeLogger.getIimei())) {
                 boolean anyMatch = Arrays.stream(activeLogger.getIimei().split(",")).anyMatch(s1 -> !filters.contains(s1)
-//                        && countHistory(new DayHistory().setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd("imei").setValue(s1))
-                        && feedBackMapper.count("imei",s1,activeLogger.getCoid(),activeLogger.getNcoid())>0
+                        && countHistory(new DayHistory().setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd("imei").setValue(s1))
+//                        && feedBackMapper.count("imei",s1,activeLogger.getCoid(),activeLogger.getNcoid())>0
                 );
                 if (anyMatch) return true;
             }
             Object object = ReflectionUtils.getFieldValue(activeLogger, s);
             String fieldValue = object == null ? null : object.toString();
             return !filters.contains(fieldValue) &&
-//                    countHistory(new DayHistory().setValue(fieldValue).setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd(s));
-                    feedBackMapper.count(s,fieldValue,activeLogger.getCoid(),activeLogger.getNcoid())>0;
+                    countHistory(new DayHistory().setValue(fieldValue).setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd(s));
+//                    feedBackMapper.count(s,fieldValue,activeLogger.getCoid(),activeLogger.getNcoid())>0;
         });
     }
 
@@ -476,8 +469,13 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             List<ActiveLogger> iimeiActive = new ArrayList<>();
 
             data = data.stream().collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o -> o.getIimei() + o.getCoid() + o.getNcoid()))), ArrayList::new));
-            data = data.parallelStream().filter(o -> (active == null || !active.contains(o))
-//                    &&!countHistory(new DayHistory().setWd("imei").setValue(o.getImei()).setCoid(o.getCoid()).setNcoid(o.getNcoid()))
+            data = data.parallelStream().filter(o -> {
+                        Double score = redisTemplate.opsForZSet().score(getDayCacheRedisKey(String.format("active#imei#%d#%d", o.getCoid(), o.getNcoid())),
+                                o.getImei());
+                        return (active == null || !active.contains(o))
+    //                    &&!countHistory(new DayHistory().setWd("imei").setValue(o.getImei()).setCoid(o.getCoid()).setNcoid(o.getNcoid()))
+                        &&score==null||score <=0;
+                    }
             ).collect(Collectors.toList());
 
             data.forEach(activeLogger -> {
@@ -509,11 +507,13 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     data.parallelStream().forEach(a -> {
                         ActiveLogger log = activeLoggerDao.save(a);
                         if (StringUtils.isNotBlank(a.getImeiMd5()))
-                            redis.zadd(getDayCacheRedisKey("active#imei#" + a.getCoid() + "#" + a.getNcoid()), log.getId().doubleValue(), a.getImeiMd5());
-                        if (StringUtils.isNotBlank(a.getOaidMd5()))
-                            redis.zadd(getDayCacheRedisKey("active#oaid#") + a.getCoid() + "#" + a.getNcoid(), log.getId().doubleValue(), a.getOaidMd5());
-                        if (StringUtils.isNotBlank(a.getAndroidIdMd5()))
-                            redis.zadd(getDayCacheRedisKey("active#android#") + a.getCoid() + "#" + a.getNcoid(), log.getId().doubleValue(), a.getAndroidIdMd5());
+                            redisTemplate.opsForZSet().add(getDayCacheRedisKey(String.format("active#imei#%d#%d", a.getCoid(), a.getNcoid())),log.getImei(),a.getId().doubleValue());
+
+//                            redis.zadd(getDayCacheRedisKey("active#imei#" + a.getCoid() + "#" + a.getNcoid()), log.getId().doubleValue(), a.getImeiMd5());
+//                        if (StringUtils.isNotBlank(a.getOaidMd5()))
+//                            redis.zadd(getDayCacheRedisKey("active#oaid#") + a.getCoid() + "#" + a.getNcoid(), log.getId().doubleValue(), a.getOaidMd5());
+//                        if (StringUtils.isNotBlank(a.getAndroidIdMd5()))
+//                            redis.zadd(getDayCacheRedisKey("active#android#") + a.getCoid() + "#" + a.getNcoid(), log.getId().doubleValue(), a.getAndroidIdMd5());
                     });
                 } else {
                     Page.create(data).forEachParallel(activeLoggers -> {
