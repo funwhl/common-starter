@@ -546,7 +546,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 tryWork(r -> {
                             Example example = new Example(DayHistory.class);
                             Example.Criteria criteria = example.createCriteria();
-                            criteria.andLessThan("clickTime", new Date(current));
+                            criteria.andLessThan("createTime", new Date(current));
                             return dayHistoryMapper.deleteByExample(example);
                         },
                         CLEAN_IMEI, c);
