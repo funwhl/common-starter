@@ -484,6 +484,35 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             ).collect(Collectors.toList());
             log.info("{} 激活去重 : {}, sd: {}", item, maxActiveTime, sd);
 
+            data.forEach(activeLogger -> {
+                if (activeHandler != null) activeHandler.handler(activeLogger);
+                activeLogger.setImeiMd5(getMd5StrWithPlaceholder(activeLogger.getImei()))
+                        .setAndroidIdMd5(getMd5StrWithPlaceholder(activeLogger.getAndroidId()))
+                        .setOaidMd5(getMd5StrWithPlaceholder(activeLogger.getOaid()))
+                        .setWifimacMd5(getMd5StrWithPlaceholder(activeLogger.getWifimac()))
+                        .setIpua(getMd5StrWithPlaceholder(activeLogger.getIp() + "#" + activeLogger.getUa()))
+                        .setCreateTime(new Date()).setPlot(1).setSd(item).setStatus(0);
+                String iimei = activeLogger.getIimei();
+                if (etprop.getMultipleImei() && StringUtils.isNotBlank(iimei)) {
+                    String[] imeis = iimei.split(",");
+                    for (int i = 0; i < imeis.length; i++) {
+                        String placeholder = "imei#";
+                        String currentImei = imeis[i];
+                        if (StringUtils.isNotBlank(currentImei) && !currentImei.equals(activeLogger.getImei())) {
+                            ActiveLogger e = new ActiveLogger();
+                            BeanUtils.copyProperties(activeLogger, e);
+                            iimeiActive.add(e.setIpua(placeholder).setOaidMd5(placeholder).setAndroidIdMd5(placeholder).setImei(currentImei).setImeiMd5(getMd5StrWithPlaceholder(currentImei)).setPlot(2));
+                        }
+                    }
+                }
+            });
+
+            log.info("{} 处理多卡 : {}, sd: {}", item, maxActiveTime, sd);
+
+            if (!CollectionUtils.isEmpty(iimeiActive)){
+//                Page.create(iimeiActive).forEachParallel(activeLoggers -> activeLoggerMapper.insertList(activeLoggers));
+                data.addAll(iimeiActive);
+            }
 
             if (!CollectionUtils.isEmpty(data)) {
                 if (etprop.getPersistRedis()) {
@@ -512,35 +541,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 log.info("{} 结束激活时间 : {} sd: {}", item, activeTime, sd);
             }
 
-            data.forEach(activeLogger -> {
-                if (activeHandler != null) activeHandler.handler(activeLogger);
-                activeLogger.setImeiMd5(getMd5StrWithPlaceholder(activeLogger.getImei()))
-                        .setAndroidIdMd5(getMd5StrWithPlaceholder(activeLogger.getAndroidId()))
-                        .setOaidMd5(getMd5StrWithPlaceholder(activeLogger.getOaid()))
-                        .setWifimacMd5(getMd5StrWithPlaceholder(activeLogger.getWifimac()))
-                        .setIpua(getMd5StrWithPlaceholder(activeLogger.getIp() + "#" + activeLogger.getUa()))
-                        .setCreateTime(new Date()).setPlot(1).setSd(item).setStatus(0);
-                String iimei = activeLogger.getIimei();
-                if (etprop.getMultipleImei() && StringUtils.isNotBlank(iimei)) {
-                    String[] imeis = iimei.split(",");
-                    for (int i = 0; i < imeis.length; i++) {
-                        String placeholder = "imei#";
-                        String currentImei = imeis[i];
-                        if (StringUtils.isNotBlank(currentImei) && !currentImei.equals(activeLogger.getImei())) {
-                            ActiveLogger e = new ActiveLogger();
-                            BeanUtils.copyProperties(activeLogger, e);
-                            iimeiActive.add(e.setIpua(placeholder).setOaidMd5(placeholder).setAndroidIdMd5(placeholder).setImei(currentImei).setImeiMd5(getMd5StrWithPlaceholder(currentImei)).setPlot(2));
-                        }
-                    }
-                }
-            });
 
-            log.info("{} 处理多卡 : {}, sd: {}", item, maxActiveTime, sd);
-
-            if (!CollectionUtils.isEmpty(iimeiActive)){
-                Page.create(iimeiActive).forEachParallel(activeLoggers -> activeLoggerMapper.insertList(activeLoggers));
-            }
-            return data.size();
+            return data.size()-iimeiActive.size();
         }, SYNC_ACTIVE, c);
 
     }
