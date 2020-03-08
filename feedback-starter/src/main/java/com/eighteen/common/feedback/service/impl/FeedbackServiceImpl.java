@@ -220,10 +220,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
     private void handlerFeedback(AtomicLong success, List<DayHistory> histories, List<FeedbackLog> feedbackLogs, List<IpuaNewUser> ipuaNewUsers, String key, List<ActiveLogger> oldUsers, List<ActiveLogger> filter) {
 
-        filter.stream().forEach(activeLogger -> {
+        filter.parallelStream().forEach(activeLogger -> {
             String value = ReflectionUtils.getFieldValue(activeLogger, key).toString();
             DayHistory history = new DayHistory().setNcoid(activeLogger.getNcoid()).setCoid(activeLogger.getCoid()).setWd(key).setValue(activeLogger.getImei()).setCreateTime(new Date());
-
             if (countHistory(history)) {
                 oldUsers.add(activeLogger);
             } else if (check(key, activeLogger)) {
