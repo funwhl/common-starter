@@ -513,7 +513,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //                Page.create(iimeiActive).forEachParallel(activeLoggers -> activeLoggerMapper.insertList(activeLoggers));
                 data.addAll(iimeiActive);
             }
-
+            data = data.stream().collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o -> o.getIimei() + o.getCoid() + o.getNcoid()))), ArrayList::new));
             if (!CollectionUtils.isEmpty(data)) {
                 if (etprop.getPersistRedis()) {
                     data.parallelStream().forEach(a -> {
