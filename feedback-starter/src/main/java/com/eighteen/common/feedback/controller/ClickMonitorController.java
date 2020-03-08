@@ -68,7 +68,7 @@ public class ClickMonitorController {
     FeedbackService feedbackService;
     @Autowired
     Redis redis;
-    @Value("18.feedback.persist-redis")
+    @Value("18.feedback.persistRedis:false")
     Boolean persisi;
     @Value("${18.feedback.channel}")
     private String channel;
