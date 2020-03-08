@@ -61,11 +61,11 @@ public interface FeedBackMapper {
             "<foreach collection='channel' index='index' item='item' open='(' separator=',' close=')'> #{item} </foreach>" +
             "</if>"+
 //            " and activetime >= #{date} and channel % ${sc} = #{sd} " +
-            " and activetime >= #{date} and DATEPART(ss, activetime) &gt; = #{min} and DATEPART(ss, activetime) &lt; = #{max} " +
+            " and activetime >= #{date} and DATEPART(ss, activetime) &gt;= #{min} and DATEPART(ss, activetime) &lt;= #{max} " +
             "</script>"
     )
     @ResultType(ActiveLogger.class)
-    List<ActiveLogger> getThirdActiveLogger(@Param("channel") List<String> channel, @Param("tableName") String tableName,@Param("date")Date date,@Param("min")Integer min,@Param("max")String max);
+    List<ActiveLogger> getThirdActiveLogger(@Param("channel") List<String> channel, @Param("tableName") String tableName, @Param("date") Date date, @Param("min") String min, @Param("max") String max);
 
     @Insert("<script>" +
             "insert  into ClickLog" +

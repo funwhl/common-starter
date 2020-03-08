@@ -461,10 +461,10 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     data = webLogMapper.getThirdActiveLogger(webLogMapper.getTableName(), count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]);
             } else {
                 if (!format.format(date).equals(format.format(new Date(current + offset)))) {
-                    data = feedBackMapper.getThirdActiveLogger(finalChannel, "ActiveLogger", maxActiveTime, etprop.getSc(), sd.split(",")[1]);
-                    data.addAll(feedBackMapper.getThirdActiveLogger(finalChannel, "ActiveLogger_B", maxActiveTime, etprop.getSc(), sd.split(",")[1]));
+                    data = feedBackMapper.getThirdActiveLogger(finalChannel, "ActiveLogger", maxActiveTime, sd.split(",")[0], sd.split(",")[1]);
+                    data.addAll(feedBackMapper.getThirdActiveLogger(finalChannel, "ActiveLogger_B", maxActiveTime, sd.split(",")[0], sd.split(",")[1]));
                 } else
-                    data = feedBackMapper.getThirdActiveLogger(finalChannel, feedBackMapper.getTableName(), maxActiveTime, etprop.getSc(), sd.split(",")[1]);
+                    data = feedBackMapper.getThirdActiveLogger(finalChannel, feedBackMapper.getTableName(), maxActiveTime,  sd.split(",")[0], sd.split(",")[1]);
             }
             Date activeTime = data.stream().max(Comparator.comparing(ActiveLogger::getActiveTime)).get().getActiveTime();
 
