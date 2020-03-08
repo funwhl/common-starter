@@ -724,7 +724,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 fsService.sendMsg(String.format("%s-%s finished in %d at %s , {}", appName, k, end, new Date()), r.toString());
         } catch (Exception e) {
             e.printStackTrace();
-            fsService.sendMsg(String.format("%s-%s error -> %s", appName, type.getKey(), e.getMessage()));
+            logger.error("error {} ," ,e.toString());
+            logger.error("error {} ," ,e.getCause()==null?"":e.getCause());
+            fsService.sendMsg(String.format("%s-%s error -> %s", appName, type.getKey(), e.getMessage(),));
         }
     }
 
