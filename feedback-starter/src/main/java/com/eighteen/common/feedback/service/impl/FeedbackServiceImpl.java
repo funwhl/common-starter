@@ -422,9 +422,15 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
 
     @Override
-    public void syncActive(ShardingContext c) throws InterruptedException {
+    public void syncActive(ShardingContext c){
         int item = c.getShardingItem();
-        if(item>0) Thread.sleep((item * 50L));
+        if(item>0) {
+            try {
+                Thread.sleep((item * 50L));
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
         List<String> channel = Lists.newArrayList(etprop.getChannel());
         String types = etprop.getTypes();
