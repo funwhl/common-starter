@@ -216,7 +216,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         List<ActiveLogger> oldUsers = new ArrayList<>();
         handlerFeedback(success, histories, feedbackLogs, ipuaNewUsers, key, oldUsers, list);
 
-        oldUsers.stream().collect(Collectors.groupingBy(o -> o.getCoid() + "," + o.getNcoid())).forEach((s, activeLoggers) -> {
+        if (oldUsers.size()>0)oldUsers.stream().collect(Collectors.groupingBy(o -> o.getCoid() + "," + o.getNcoid())).forEach((s, activeLoggers) -> {
             Set<String> collect = activeLoggers.stream().map(o -> ReflectionUtils.getFieldValue(o, (key.equals("ipua") ? key : key + "Md5")).toString()).collect(Collectors.toSet());
             Page.create(500, new ArrayList<>(collect)).forEach(strings -> {
                 Example example = new Example(ActiveLogger.class);
@@ -232,26 +232,10 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         StopWatch query = StopWatch.createStarted();
         logger.info("开始去重:,{}", query.toString());
         filter.parallelStream().forEach(activeLogger -> {
-            String value = ReflectionUtils.getFieldValue(activeLogger, key).toString();
+            Object fieldValue = ReflectionUtils.getFieldValue(activeLogger, key);
+            if (fieldValue==null) return;
+            String value = fieldValue.toString();
             DayHistory history = new DayHistory().setNcoid(activeLogger.getNcoid()).setCoid(activeLogger.getCoid()).setWd(key).setValue(value).setCreateTime(new Date());
-
-//            if (dayHistoryList.contains(history)) {
-//                oldUsers.add(activeLogger);
-//            } else if (check(key, activeLogger,dayHistoryList)) {
-//                logger.info("other_field_matched : key:{},value:{}#{}#{} ,{}", key, value, activeLogger.getCoid(), activeLogger.getNcoid(), activeLogger.toString());
-//                addDayCache(key, Collections.singletonList(history));
-//                histories.add(history);
-//                oldUsers.add(activeLogger);
-//            }
-
-//            if (feedBackMapper.count(key, value, activeLogger.getCoid(), activeLogger.getNcoid()) > 0) {
-//                oldUsers.add(activeLogger);
-//            } else if (check(key, activeLogger)) {
-//                logger.info("other_field_matched : key:{},value:{}#{}#{} ,{}", key, value, activeLogger.getCoid(), activeLogger.getNcoid(), activeLogger.toString());
-//                addDayCache(key, Collections.singletonList(history));
-//                histories.add(history);
-//                oldUsers.add(activeLogger);
-//            }
             if (countHistory(history)) {
                 oldUsers.add(activeLogger);
             } else if (check(key, activeLogger)) {
@@ -263,10 +247,10 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         });
         logger.info("去重耗时:,{}", query.toString());
 
-        List<String> retErrors = errorCache.getIfPresent("errors");
-        filter = filter.stream()
-                .filter(o -> !oldUsers.contains(o) && (retErrors == null || !retErrors.contains(o.getClickLog().getCallbackUrl())))
-                .collect(Collectors.toList());
+//        List<String> retErrors = errorCache.getIfPresent("errors");
+//        filter = filter.stream()
+//                .filter(o -> !oldUsers.contains(o) && (retErrors == null || !retErrors.contains(o.getClickLog().getCallbackUrl())))
+//                .collect(Collectors.toList());
 
         logger.info("老用户去重:,{}", query.toString());
         List<String> values = filter.stream().map(o -> ReflectionUtils.getFieldValue(o, key).toString()).collect(Collectors.toList());
