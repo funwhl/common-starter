@@ -202,7 +202,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     else doIndb(success, histories, feedbackLogs, ipuaNewUsers, key, list);
                 } catch (Exception e1) {
                     e1.printStackTrace();
-                    logger.error("step 去重 ,{}",e1.getMessage());
+                    logger.error("step 去重 ,{}", e1.getMessage());
                     fsService.sendMsg(e1.getMessage());
                 }
             });
@@ -217,23 +217,24 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         handlerFeedback(success, histories, feedbackLogs, ipuaNewUsers, key, oldUsers, list);
 
         try {
-            if (oldUsers.size()>0)oldUsers.stream().collect(Collectors.groupingBy(o -> o.getCoid() + "," + o.getNcoid())).forEach((s, activeLoggers) -> {
-                Set<String> collect = activeLoggers.stream().map(o -> {
-                    Object value = ReflectionUtils.getFieldValue(o, (key.equals("ipua") ? key : key + "Md5"));
-                    if (value.equals("")) {
-                        logger.error("step update error:key{}, {}",key,o.toString());
-                        return "??";
-                    }
-                    return value.toString();
-                }).collect(Collectors.toSet());
+            if (oldUsers.size() > 0)
+                oldUsers.stream().collect(Collectors.groupingBy(o -> o.getCoid() + "," + o.getNcoid())).forEach((s, activeLoggers) -> {
+                    Set<String> collect = activeLoggers.stream().map(o -> {
+                        Object value = ReflectionUtils.getFieldValue(o, (key.equals("ipua") ? key : key + "Md5"));
+                        if (value.equals("")) {
+                            logger.error("step update error:key{}, {}", key, o.toString());
+                            return "??";
+                        }
+                        return value.toString();
+                    }).collect(Collectors.toSet());
 
-                Page.create(500, new ArrayList<>(collect)).forEach(strings -> {
-                    Example example = new Example(ActiveLogger.class);
-                    example.createCriteria().andIn((key.equals("ipua") ? key : key + "Md5"), strings)
-                            .andEqualTo("coid", Integer.valueOf(s.split(",")[0])).andEqualTo("ncoid", Integer.valueOf(s.split(",")[1]));
-                    activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
+                    Page.create(500, new ArrayList<>(collect)).forEach(strings -> {
+                        Example example = new Example(ActiveLogger.class);
+                        example.createCriteria().andIn((key.equals("ipua") ? key : key + "Md5"), strings)
+                                .andEqualTo("coid", Integer.valueOf(s.split(",")[0])).andEqualTo("ncoid", Integer.valueOf(s.split(",")[1]));
+                        activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
+                    });
                 });
-            });
         } catch (Exception e) {
             logger.error("step update stauts error :{}" + e.getMessage());
         }
@@ -245,7 +246,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         logger.info("开始去重:,{}", query.toString());
         filter.parallelStream().forEach(activeLogger -> {
             Object fieldValue = ReflectionUtils.getFieldValue(activeLogger, key);
-            if (fieldValue==null) return;
+            if (fieldValue == null) return;
             String value = fieldValue.toString();
             DayHistory history = new DayHistory().setNcoid(activeLogger.getNcoid()).setCoid(activeLogger.getCoid()).setWd(key).setValue(value).setCreateTime(new Date());
             if (countHistory(history)) {
@@ -481,35 +482,11 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             ).collect(Collectors.toList());
             log.info("{} 激活去重 : {}, sd: {}", item, maxActiveTime, sd);
 
-            data.forEach(activeLogger -> {
-                if (activeHandler != null) activeHandler.handler(activeLogger);
-                activeLogger.setImeiMd5(getMd5StrWithPlaceholder(activeLogger.getImei()))
-                        .setAndroidIdMd5(getMd5StrWithPlaceholder(activeLogger.getAndroidId()))
-                        .setOaidMd5(getMd5StrWithPlaceholder(activeLogger.getOaid()))
-                        .setWifimacMd5(getMd5StrWithPlaceholder(activeLogger.getWifimac()))
-                        .setIpua(getMd5StrWithPlaceholder(activeLogger.getIp() + "#" + activeLogger.getUa()))
-                        .setCreateTime(new Date()).setPlot(1).setSd(item).setStatus(0);
-                String iimei = activeLogger.getIimei();
-                if (etprop.getMultipleImei() && StringUtils.isNotBlank(iimei)) {
-                    String[] imeis = iimei.split(",");
-                    for (int i = 0; i < imeis.length; i++) {
-                        String placeholder = "imei#";
-                        String currentImei = imeis[i];
-                        if (StringUtils.isNotBlank(currentImei) && !currentImei.equals(activeLogger.getImei())) {
-                            ActiveLogger e = new ActiveLogger();
-                            BeanUtils.copyProperties(activeLogger, e);
-                            iimeiActive.add(e.setIpua(placeholder).setOaidMd5(placeholder).setAndroidIdMd5(placeholder).setImei(currentImei).setImeiMd5(getMd5StrWithPlaceholder(currentImei)).setPlot(2));
-                        }
-                    }
-                }
-            });
-            log.info("{} 处理多卡 : {}, sd: {}", item, maxActiveTime, sd);
 
-            if (!CollectionUtils.isEmpty(iimeiActive)) data.addAll(iimeiActive);
             if (!CollectionUtils.isEmpty(data)) {
                 Date activeTime = data.stream().max(Comparator.comparing(ActiveLogger::getActiveTime)).get().getActiveTime();
                 if (etprop.getPersistRedis()) {
-                    data.forEach(a -> {
+                    data.parallelStream().forEach(a -> {
                         ActiveLogger log = activeLoggerDao.save(a);
                         if (StringUtils.isNotBlank(a.getImeiMd5()))
                             redisTemplate.opsForZSet().add(getDayCacheRedisKey(String.format("active#imei#%d#%d", a.getCoid(), a.getNcoid())), log.getImei(), a.getId().doubleValue());
@@ -532,6 +509,35 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 activeLoggerCache.put(sdk, new HashSet<>(data));
                 addDayCache("sync_active", Collections.singletonList(new DayHistory().setCoid(item).setNcoid(item).setValue(sd).setCreateTime(activeTime)));
                 log.info("{} 结束激活时间 : {} sd: {}", item, activeTime, sd);
+            }
+
+            data.forEach(activeLogger -> {
+                if (activeHandler != null) activeHandler.handler(activeLogger);
+                activeLogger.setImeiMd5(getMd5StrWithPlaceholder(activeLogger.getImei()))
+                        .setAndroidIdMd5(getMd5StrWithPlaceholder(activeLogger.getAndroidId()))
+                        .setOaidMd5(getMd5StrWithPlaceholder(activeLogger.getOaid()))
+                        .setWifimacMd5(getMd5StrWithPlaceholder(activeLogger.getWifimac()))
+                        .setIpua(getMd5StrWithPlaceholder(activeLogger.getIp() + "#" + activeLogger.getUa()))
+                        .setCreateTime(new Date()).setPlot(1).setSd(item).setStatus(0);
+                String iimei = activeLogger.getIimei();
+                if (etprop.getMultipleImei() && StringUtils.isNotBlank(iimei)) {
+                    String[] imeis = iimei.split(",");
+                    for (int i = 0; i < imeis.length; i++) {
+                        String placeholder = "imei#";
+                        String currentImei = imeis[i];
+                        if (StringUtils.isNotBlank(currentImei) && !currentImei.equals(activeLogger.getImei())) {
+                            ActiveLogger e = new ActiveLogger();
+                            BeanUtils.copyProperties(activeLogger, e);
+                            iimeiActive.add(e.setIpua(placeholder).setOaidMd5(placeholder).setAndroidIdMd5(placeholder).setImei(currentImei).setImeiMd5(getMd5StrWithPlaceholder(currentImei)).setPlot(2));
+                        }
+                    }
+                }
+            });
+
+            log.info("{} 处理多卡 : {}, sd: {}", item, maxActiveTime, sd);
+
+            if (!CollectionUtils.isEmpty(iimeiActive)){
+                Page.create(iimeiActive).forEachParallel(activeLoggers -> activeLoggerMapper.insertList(activeLoggers));
             }
             return data.size();
         }, SYNC_ACTIVE, c);
@@ -726,9 +732,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 fsService.sendMsg(String.format("%s-%s finished in %d at %s , {}", appName, k, end, new Date()), r.toString());
         } catch (Exception e) {
             e.printStackTrace();
-            logger.error("error {} ," ,e.toString());
-            logger.error("error {} ," ,e.getCause()==null?"":e.getCause());
-            fsService.sendMsg(String.format("%s-%s error -> %s", appName, type.getKey(), e.getMessage(),e.toString()));
+            logger.error("error {} ,", e.toString());
+            logger.error("error {} ,", e.getCause() == null ? "" : e.getCause());
+            fsService.sendMsg(String.format("%s-%s error -> %s", appName, type.getKey(), e.getMessage(), e.toString()));
         }
     }
 
