@@ -112,6 +112,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     ActiveLoggerDao activeLoggerDao;
     @Autowired(required = false)
     private Redis redis;
+    @Value("${log.env:dev}")
+    String env;
     @Autowired
     private RedisTemplate redisTemplate;
     @Value("${spring.application.name}")
@@ -207,7 +209,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 }
             });
 
-            handerResult(histories, feedbackLogs, ipuaNewUsers);
+            if(env.equals("pro")) handerResult(histories, feedbackLogs, ipuaNewUsers);
             return success.get();
         }, FEED_BACK, sc);
     }
@@ -228,7 +230,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         return value.toString();
                     }).collect(Collectors.toSet());
 
-                    Page.create(500, new ArrayList<>(collect)).forEach(strings -> {
+                   if (env.equals("pro"))Page.create(500, new ArrayList<>(collect)).forEach(strings -> {
                         Example example = new Example(ActiveLogger.class);
                         example.createCriteria().andIn((key.equals("ipua") ? key : key + "Md5"), strings)
                                 .andEqualTo("coid", Integer.valueOf(s.split(",")[0])).andEqualTo("ncoid", Integer.valueOf(s.split(",")[1]));
@@ -909,7 +911,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //                    activeLogger.ncoid,activeLogger.ipua,activeLogger.wifimacMd5,activeLogger.wifimac,activeLogger.channel
 //                    , clickLog.clickTime,clickLog.callbackUrl,clickLog.channel,clickLog.param1,clickLog.param2,clickLog.param3,clickLog.param4
         wd.forEach((s, e) -> {
-            if (!s.equals("imei")) e = e.and(activeLogger.plot.eq(2));
+            if (!s.equals("imei")) e = e.and(activeLogger.plot.eq(1));
             if (!CollectionUtils.isEmpty(range) && !(range.size() == 1 && StringUtils.isBlank(range.get(0))))
                 e = e.and(activeLogger.channel.in(range));
             if (!CollectionUtils.isEmpty(filterChannels) && !(filterChannels.size() == 1 && StringUtils.isBlank(filterChannels.get(0))))
