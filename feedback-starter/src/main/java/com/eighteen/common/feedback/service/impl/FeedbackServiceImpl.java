@@ -478,9 +478,11 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
             data = data.stream().collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o -> o.getIimei() + o.getCoid() + o.getNcoid()))), ArrayList::new));
             data = data.parallelStream().filter(o -> {
+                Boolean b = (StringUtils.isBlank(o.getImei()));
+                        if (b) return true;
                         Double score = redisTemplate.opsForZSet().score(getDayCacheRedisKey(String.format("active#imei#%d#%d", o.getCoid(), o.getNcoid())),
-                                o.getImei());
-                        return (StringUtils.isBlank(o.getImei()))||((active == null || !active.contains(o))
+                                String.format("%s%d%s", o.getImei(), o.getCoid(), o.getAndroidId()));
+                        return ((active == null || !active.contains(o))
                                 //                    &&!countHistory(new DayHistory().setWd("imei").setValue(o.getImei()).setCoid(o.getCoid()).setNcoid(o.getNcoid()))
                                 && (score == null || score <= 0));
                     }
@@ -522,7 +524,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     data.parallelStream().forEach(a -> {
                         ActiveLogger log = activeLoggerDao.save(a);
                         if (StringUtils.isNotBlank(a.getImei()))
-                            redisTemplate.opsForZSet().add(getDayCacheRedisKey(String.format("active#imei#%d#%d", a.getCoid(), a.getNcoid())), log.getImei(), a.getId().doubleValue());
+                            redisTemplate.opsForZSet().add(getDayCacheRedisKey(String.format("active#imei#%d#%d", a.getCoid(), a.getNcoid())), String.format("%s%d%s", log.getImei(), log.getCoid(), log.getAndroidId()), a.getId().doubleValue());
 
 //                            redis.zadd(getDayCacheRedisKey("active#imei#" + a.getCoid() + "#" + a.getNcoid()), log.getId().doubleValue(), a.getImeiMd5());
 //                        if (StringUtils.isNotBlank(a.getOaidMd5()))
