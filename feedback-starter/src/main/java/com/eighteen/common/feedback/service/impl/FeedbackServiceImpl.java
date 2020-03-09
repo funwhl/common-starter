@@ -391,7 +391,10 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //    }
 
     private Boolean check(String key, ActiveLogger activeLogger) {
-        return queryMap.keySet().stream().filter(s -> !s.equals(key)).anyMatch(s -> {
+        return queryMap.keySet().stream().filter(s -> {
+            Object fieldValue = ReflectionUtils.getFieldValue(activeLogger, s);
+            return !s.equals(key)&& fieldValue !=null&&StringUtils.isNotBlank(fieldValue.toString());
+        }).anyMatch(s -> {
             if (StringUtils.isNotBlank(activeLogger.getIimei())) {
                 boolean anyMatch = Arrays.stream(activeLogger.getIimei().split(",")).anyMatch(s1 -> !filters.contains(s1)
                                 && countHistory(new DayHistory().setCoid(activeLogger.getCoid()).setNcoid(activeLogger.getNcoid()).setWd("imei").setValue(s1))
