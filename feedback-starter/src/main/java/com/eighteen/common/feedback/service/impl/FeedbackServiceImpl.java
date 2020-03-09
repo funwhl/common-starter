@@ -477,9 +477,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             data = data.parallelStream().filter(o -> {
                         Double score = redisTemplate.opsForZSet().score(getDayCacheRedisKey(String.format("active#imei#%d#%d", o.getCoid(), o.getNcoid())),
                                 o.getImei());
-                        return (active == null || !active.contains(o))
-                                //                    &&!countHistory(new DayHistory().setWd("imei").setValue(o.getImei()).setCoid(o.getCoid()).setNcoid(o.getNcoid()))
-                                && (score == null || score <= 0);
+                        return (StringUtils.isBlank(o.getImei()))||(active == null || !active.contains(o))
+                        //                    &&!countHistory(new DayHistory().setWd("imei").setValue(o.getImei()).setCoid(o.getCoid()).setNcoid(o.getNcoid()))
+                        && (score == null || score <= 0);
                     }
             ).collect(Collectors.toList());
             log.info("{} 激活去重 : {}, sd: {}", item, maxActiveTime, sd);
