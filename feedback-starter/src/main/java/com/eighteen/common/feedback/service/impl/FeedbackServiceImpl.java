@@ -477,9 +477,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             data = data.parallelStream().filter(o -> {
                         Double score = redisTemplate.opsForZSet().score(getDayCacheRedisKey(String.format("active#imei#%d#%d", o.getCoid(), o.getNcoid())),
                                 o.getImei());
-                        return (StringUtils.isBlank(o.getImei()))||(active == null || !active.contains(o))
-                        //                    &&!countHistory(new DayHistory().setWd("imei").setValue(o.getImei()).setCoid(o.getCoid()).setNcoid(o.getNcoid()))
-                        && (score == null || score <= 0);
+                        return (StringUtils.isBlank(o.getImei()))||((active == null || !active.contains(o))
+                                //                    &&!countHistory(new DayHistory().setWd("imei").setValue(o.getImei()).setCoid(o.getCoid()).setNcoid(o.getNcoid()))
+                                && (score == null || score <= 0));
                     }
             ).collect(Collectors.toList());
             log.info("{} 激活去重 : {}, sd: {}", item, maxActiveTime, sd);
@@ -518,7 +518,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 if (etprop.getPersistRedis()) {
                     data.parallelStream().forEach(a -> {
                         ActiveLogger log = activeLoggerDao.save(a);
-                        if (StringUtils.isNotBlank(a.getImeiMd5()))
+                        if (StringUtils.isNotBlank(a.getImei()))
                             redisTemplate.opsForZSet().add(getDayCacheRedisKey(String.format("active#imei#%d#%d", a.getCoid(), a.getNcoid())), log.getImei(), a.getId().doubleValue());
 
 //                            redis.zadd(getDayCacheRedisKey("active#imei#" + a.getCoid() + "#" + a.getNcoid()), log.getId().doubleValue(), a.getImeiMd5());
