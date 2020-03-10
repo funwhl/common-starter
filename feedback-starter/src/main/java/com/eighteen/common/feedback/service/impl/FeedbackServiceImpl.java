@@ -546,7 +546,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //                Page.create(iimeiActive).forEachParallel(activeLoggers -> activeLoggerMapper.insertList(activeLoggers));
                 data.addAll(iimeiActive);
             }
-            data = data.stream().collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o -> o.getIimei() + o.getCoid() + o.getNcoid()))), ArrayList::new));
+//            data = data.stream().collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o -> o.getIimei() + o.getCoid() + o.getNcoid()))), ArrayList::new));
             if (!CollectionUtils.isEmpty(data)) {
                 if (etprop.getPersistRedis()) {
                     data.parallelStream().forEach(a -> {
@@ -556,7 +556,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                             if (newUserHandler != null) {
                                 value = newUserHandler.check(item, a);
                             }
-                            redisTemplate.opsForZSet().add(getDayCacheRedisKey(String.format("active#imei#%d#%d", a.getCoid(), a.getNcoid())), value, a.getId().doubleValue());
+                            redisTemplate.opsForZSet().add(getDayCacheRedisKey(String.format("active#imei#%d#%d", a.getCoid(), a.getNcoid())), value, log.getId().doubleValue());
                         }
 
 //                            redis.zadd(getDayCacheRedisKey("active#imei#" + a.getCoid() + "#" + a.getNcoid()), log.getId().doubleValue(), a.getImeiMd5());
