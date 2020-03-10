@@ -192,8 +192,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 Date left = new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset()));
                 BooleanExpression expression = activeLogger.channel.eq(clickLog.channel);
                 if(index == 0) {
-                    expression = expression.and(activeLogger.activeTime.goe(left)).and(activeLogger.channel.lt("10013433")
-                            .and(activeLogger.channel.gt("10013437"))).and(activeLogger.status.eq(0));
+                    expression = expression.and(activeLogger.activeTime.goe(left)).and(activeLogger.channel.lt("10013433").or(activeLogger.channel.gt("10013437"))).and(activeLogger.status.eq(0));
                 }
                 if(index == 1) {
                     //10013433,10013437
