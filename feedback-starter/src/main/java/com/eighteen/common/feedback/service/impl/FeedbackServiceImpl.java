@@ -506,9 +506,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     .filter(o -> {
                                 String value = o.getImei();
                                 if (newUserHandler != null) {
-                                    String[] split = c.getShardingParameter().split(",");
-                                    List<String> channels = Arrays.asList(split);
-                                    value = newUserHandler.check(channels, o);
+                                    value = newUserHandler.check(item, o);
                                 }
                                 Double score = redisTemplate.opsForZSet().score(getDayCacheRedisKey(String.format("active#imei#%d#%d", o.getCoid(), o.getNcoid())),
                                         value);
@@ -556,9 +554,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         if (StringUtils.isNotBlank(a.getImei()) && !filters.contains(a.getImei())) {
                             String value = a.getImei();
                             if (newUserHandler != null) {
-                                String[] split = c.getShardingParameter().split(",");
-                                List<String> channels = Arrays.asList(split);
-                                value = newUserHandler.check(channels, a);
+                                value = newUserHandler.check(item, a);
                             }
                             redisTemplate.opsForZSet().add(getDayCacheRedisKey(String.format("active#imei#%d#%d", a.getCoid(), a.getNcoid())), value, a.getId().doubleValue());
                         }
