@@ -125,11 +125,19 @@ public class FeedbackAutoConfiguration {
         if (StringUtils.isNotBlank(properties.getCleanActiveHistoryCron()))jobs.put(CLEAN_ACTIVE_HISTORY.getKey(), Job.builder().jobName(CLEAN_ACTIVE_HISTORY.getKey()).cron(properties.getCleanActiveHistoryCron())
                 .job(c -> feedbackService().clean(CLEAN_ACTIVE_HISTORY,c)).build());
 
-        if (StringUtils.isNotBlank(properties.getSyncActiveCron()))jobs.put(SYNC_ACTIVE.getKey(), Job.builder().jobName(SYNC_ACTIVE.getKey()).cron(properties.getSyncActiveCron())
-                .job(c -> feedbackService().syncActive(c)).shardingTotalCount(properties.getSc()).build());
+        if (StringUtils.isNotBlank(properties.getSyncActiveCron())) {
+            Job.JobBuilder builder = Job.builder().jobName(SYNC_ACTIVE.getKey()).cron(properties.getSyncActiveCron())
+                    .job(c -> feedbackService().syncActive(c)).shardingTotalCount(properties.getSc());
+            if (!properties.getScParam().equals("")) builder.shardingItemParameters(properties.getScParam());
+            jobs.put(SYNC_ACTIVE.getKey(), builder.build());
+        }
 
-        if (StringUtils.isNotBlank(properties.getFeedbackCron()))jobs.put(FEED_BACK.getKey(), Job.builder().jobName(FEED_BACK.getKey()).cron(properties.getFeedbackCron())
-                .job(c -> feedbackService().feedback(c)).shardingTotalCount(properties.getSc()).build());
+        if (StringUtils.isNotBlank(properties.getFeedbackCron())) {
+            Job.JobBuilder builder = Job.builder().jobName(FEED_BACK.getKey()).cron(properties.getFeedbackCron())
+                    .job(c -> feedbackService().feedback(c)).shardingTotalCount(properties.getSc());
+            if (!properties.getScParam().equals("")) builder.shardingItemParameters(properties.getScParam());
+            jobs.put(FEED_BACK.getKey(), builder.build());
+        }
 
 //        jobs.put(STAT_DAY.getKey(), Job.builder().jobName(STAT_DAY.getKey()).cron(properties.getDayStatCron()).failover(true)
 //                .job(c -> feedbackService().stat(STAT_DAY)).build());

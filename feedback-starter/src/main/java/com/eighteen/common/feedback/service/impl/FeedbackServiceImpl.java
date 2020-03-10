@@ -12,6 +12,7 @@ import com.eighteen.common.feedback.entity.*;
 import com.eighteen.common.feedback.entity.dao2.ActiveLoggerDao;
 import com.eighteen.common.feedback.handler.ActiveHandler;
 import com.eighteen.common.feedback.handler.FeedbackHandler;
+import com.eighteen.common.feedback.handler.NewUserHandler;
 import com.eighteen.common.feedback.service.FeedbackService;
 import com.eighteen.common.spring.boot.autoconfigure.cache.redis.Redis;
 import com.eighteen.common.utils.FsService;
@@ -116,6 +117,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     String env;
     @Autowired
     private RedisTemplate redisTemplate;
+    @Autowired
+    NewUserHandler newUserHandler;
     @Value("${spring.application.name}")
     private String appName;
     @Value("#{'${18.feedback.range:}'.split(',')}")
@@ -124,7 +127,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     private List<String> filterChannels;
     @Value("#{'${18.feedback.ipuaChannels:}'.split(',')}")
     private List<String> ipuaChannels;
-    private List<String> filters = Lists.newArrayList("null", "Null", "NULL", "{{IMEI}}", "{{ANDDROID_ID}}", "{{OAID}}", "", "__IMEI__", "__OAID__");
+    private List<String> filters = Lists.newArrayList("null","Unknown", "Null", "NULL", "{{IMEI}}", "{{ANDDROID_ID}}", "{{OAID}}", "", "__IMEI__", "__OAID__");
     private ExecutorService executor = new ThreadPoolExecutor(20, 20,
             0L, TimeUnit.MILLISECONDS,
             new LinkedBlockingQueue<>());
@@ -479,10 +482,17 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             List<ActiveLogger> iimeiActive = new ArrayList<>();
 
             data = data.stream().collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o -> o.getIimei() + o.getCoid() + o.getNcoid()))), ArrayList::new));
-            data = data.parallelStream().filter(o -> {
+            data = data.parallelStream()
+                    .filter(o -> {
+                        String value = o.getImei();
+                        if (newUserHandler != null) {
+                            String[] split = c.getShardingParameter().split(",");
+                            List<String> channels = Arrays.asList(split);
+                            value = newUserHandler.check(channels, o);
+                        }
                         Double score = redisTemplate.opsForZSet().score(getDayCacheRedisKey(String.format("active#imei#%d#%d", o.getCoid(), o.getNcoid())),
-                                o.getImei());
-                        return (StringUtils.isBlank(o.getImei()))||((active == null || !active.contains(o))
+                                value);
+                        return filters.contains(o.getImei())||(StringUtils.isBlank(o.getImei()))||((active == null || !active.contains(o))
                                 //                    &&!countHistory(new DayHistory().setWd("imei").setValue(o.getImei()).setCoid(o.getCoid()).setNcoid(o.getNcoid()))
                                 && (score == null || score <= 0));
                     }
@@ -523,8 +533,15 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 if (etprop.getPersistRedis()) {
                     data.parallelStream().forEach(a -> {
                         ActiveLogger log = activeLoggerDao.save(a);
-                        if (StringUtils.isNotBlank(a.getImei()))
-                            redisTemplate.opsForZSet().add(getDayCacheRedisKey(String.format("active#imei#%d#%d", a.getCoid(), a.getNcoid())), log.getImei(), a.getId().doubleValue());
+                        if (StringUtils.isNotBlank(a.getImei())&&!filters.contains(a.getImei())) {
+                            String value = a.getImei();
+                            if (newUserHandler != null) {
+                                String[] split = c.getShardingParameter().split(",");
+                                List<String> channels = Arrays.asList(split);
+                                value = newUserHandler.check(channels, a);
+                            }
+                            redisTemplate.opsForZSet().add(getDayCacheRedisKey(String.format("active#imei#%d#%d", a.getCoid(), a.getNcoid())), value, a.getId().doubleValue());
+                        }
 
 //                            redis.zadd(getDayCacheRedisKey("active#imei#" + a.getCoid() + "#" + a.getNcoid()), log.getId().doubleValue(), a.getImeiMd5());
 //                        if (StringUtils.isNotBlank(a.getOaidMd5()))
@@ -918,7 +935,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 e = e.and(activeLogger.activeTime.after(clickLog.clickTime));
             if (etprop.getMatchMinuteOffset() > 0)
                 e = e.and(Expressions.
-                        booleanTemplate("abs(datediff(minute,{0},{1})) > {2}", clickLog.clickTime, activeLogger.activeTime, etprop.getMatchMinuteOffset()));
+                        booleanTemplate("abs(datediff(minute,{0},{1})) <= {2}", clickLog.clickTime, activeLogger.activeTime, etprop.getMatchMinuteOffset()));
             //dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e)
             queryMap.put(s, e);
         });

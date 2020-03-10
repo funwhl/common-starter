@@ -36,6 +36,7 @@ public class EighteenProperties {
 
     private Integer offset = 1;
     private Integer sc = 1;
+    private String scParam = "";
 
     private Integer mode;
     private Boolean retention = true;
