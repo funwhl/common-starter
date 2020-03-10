@@ -192,17 +192,17 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 Date left = new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset()));
                 BooleanExpression expression = activeLogger.channel.eq(clickLog.channel);
                 if(index == 0) {
-                    expression.and(activeLogger.activeTime.goe(left)).and(activeLogger.channel.lt("10013433")
+                    expression = expression.and(activeLogger.activeTime.goe(left)).and(activeLogger.channel.lt("10013433")
                             .and(activeLogger.channel.gt("10013437"))).and(activeLogger.status.eq(0));
                 }
                 if(index == 1) {
                     //10013433,10013437
-                    expression.and(activeLogger.activeTime.goe(left)).and(activeLogger.channel.goe("10013433")
+                    expression=expression.and(activeLogger.activeTime.goe(left)).and(activeLogger.channel.goe("10013433")
                             .and(activeLogger.channel.loe("10013437"))).and(activeLogger.status.eq(0));
                 }
-                if(index == 2) {
-                    expression.and(activeLogger.activeTime.loe(left)).and(activeLogger.status.eq(-1));
-                }
+//                if(index == 2&&sc.getShardingParameter().contains("history")) {
+//                    expression=expression.and(activeLogger.activeTime.loe(left)).and(activeLogger.status.eq(-1));
+//                }
 //                if (StringUtils.isNotBlank(sc.getShardingParameter())) {
 //                    expression.and(activeLogger.channel.in(sc.getShardingParameter()));
 //                }
@@ -760,7 +760,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 }
             }
             if (FEED_BACK ==type) {
-                if (c.getShardingItem() >1 ) {
+                if (c.getShardingItem() == 2 ) {
                     return;
                 }
             }

@@ -43,7 +43,7 @@ public interface FeedBackMapper {
     long countFromStatistics(@Param("wd") String wd, @Param("value") String value, @Param("coid") Integer coid, @Param("ncoid") Integer ncoid);
 
     @Select("<script>" +
-            "select ${wd} as value,coid,ncoid from LinkStatistics.dbo.LinkStatistics " +
+            "select distinct ${wd} as value,coid,ncoid from LinkStatistics.dbo.LinkStatistics " +
             " where 1=1 " +
             " and ${wd} in " +
             "<foreach collection='values' index='index' item='item' open='(' separator=',' close=')'> #{item} </foreach>" +
