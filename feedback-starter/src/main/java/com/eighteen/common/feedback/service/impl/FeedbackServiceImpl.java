@@ -182,6 +182,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             List<DayHistory> histories = Collections.synchronizedList(new ArrayList<>());
             List<FeedbackLog> feedbackLogs = Collections.synchronizedList(new ArrayList<>());
             List<IpuaNewUser> ipuaNewUsers = Collections.synchronizedList(new ArrayList<>());
+            List<Example> examples = Collections.synchronizedList(new ArrayList<>());
             StopWatch query = StopWatch.createStarted();
             int index = sc.getShardingItem();
             String[] sd = sds.get(index).split(",");
@@ -222,8 +223,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                             .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> gekeyString(key, o2)))), ArrayList::new)
                             );
                     if (etprop.getDoindb())
-                        lock.lock(getDayCacheRedisKey(FEED_BACK.name()), appName + FEED_BACK.name(), () -> doIndb(success, histories, feedbackLogs, ipuaNewUsers, key, list));
-                    else doIndb(success, histories, feedbackLogs, ipuaNewUsers, key, list);
+                        lock.lock(getDayCacheRedisKey(FEED_BACK.name()), appName + FEED_BACK.name(), () -> doIndb(success, histories, feedbackLogs, ipuaNewUsers,examples, key, list));
+                    else doIndb(success, histories, feedbackLogs, ipuaNewUsers,examples, key, list);
                 } catch (Exception e1) {
                     e1.printStackTrace();
                     logger.error("step 去重 ,{}", e1.getMessage());
@@ -231,12 +232,12 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 }
             });
 
-            if (env.equals("pro")) handerResult(histories, feedbackLogs, ipuaNewUsers);
+            if (env.equals("pro")) handerResult(histories, feedbackLogs, ipuaNewUsers,examples);
             return success.get();
         }, FEED_BACK, sc);
     }
 
-    private void doIndb(AtomicLong success, List<DayHistory> histories, List<FeedbackLog> feedbackLogs, List<IpuaNewUser> ipuaNewUsers, String key, List<ActiveLogger> list) {
+    private void doIndb(AtomicLong success, List<DayHistory> histories, List<FeedbackLog> feedbackLogs, List<IpuaNewUser> ipuaNewUsers,List<Example> examples, String key, List<ActiveLogger> list) {
         List<ActiveLogger> oldUsers = new ArrayList<>();
         handlerFeedback(success, histories, feedbackLogs, ipuaNewUsers, key, oldUsers, list);
 
@@ -256,7 +257,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         Example example = new Example(ActiveLogger.class);
                         example.createCriteria().andIn((key.equals("ipua") ? key : key + "Md5"), strings)
                                 .andEqualTo("coid", Integer.valueOf(s.split(",")[0])).andEqualTo("ncoid", Integer.valueOf(s.split(",")[1]));
-                        activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
+                        examples.add(example);
+//                        activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
                     });
                 });
         } catch (Exception e) {
@@ -642,6 +644,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                                 Example.Criteria criteria = example.createCriteria();
                                 criteria.andLessThan("clickTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(etprop.getClickDataExpire())));
                                 return clickLogMapper.deleteByExample(example);
+//                                return clickLogMapper.updateByExampleSelective(new ClickLog().setStatus(1), example);
                             }
                             List<ClickLog> clickLogs = dsl.selectFrom(clickLog).setLockMode(LockModeType.NONE)
                                     .where(clickLog.createTime.before(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(Optional.ofNullable(etprop.getClickDataExpire()).orElse(offset))))).fetch();
@@ -871,6 +874,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         List<DayHistory> histories = Collections.synchronizedList(new ArrayList<>());
         List<FeedbackLog> feedbacks = Collections.synchronizedList(new ArrayList<>());
         List<IpuaNewUser> ipuas = Collections.synchronizedList(new ArrayList<>());
+        List<Example> examples = Collections.synchronizedList(new ArrayList<>());
         AtomicLong count = new AtomicLong();
         queryMap.keySet().forEach(key -> {
             ZParams zParams = new ZParams();
@@ -898,15 +902,17 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             handlerFeedback(count, histories, feedbacks, ipuas, key, null, activeLoggers);
         });
 
-        handerResult(histories, feedbacks, ipuas);
+        handerResult(histories, feedbacks, ipuas,examples);
 //        System.out.println(this.jedis.zrange(getDayCacheRedisKey("feedback"), 0, -1));
         return count.get();
     }
 
-    private void handerResult(List<DayHistory> histories, List<FeedbackLog> feedbacks, List<IpuaNewUser> ipuas) {
+    private void handerResult(List<DayHistory> histories, List<FeedbackLog> feedbacks, List<IpuaNewUser> ipuas,List<Example> examples) {
         Page.create(feedbacks).forEach(o -> feedbackLogMapper.insertList(o));
         Page.create(ipuas).forEach(o -> ipuaNewUserMapper.insertList(o));
         Page.create(histories).forEach(o -> dayHistoryMapper.insertList(o));
+        examples.forEach(example -> executor.execute(() -> activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example)));
+
     }
 
     private String gekeyString(String key, ActiveLogger o2) {
