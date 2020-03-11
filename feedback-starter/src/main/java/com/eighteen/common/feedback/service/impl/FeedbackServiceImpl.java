@@ -594,23 +594,23 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             case CLEAN_IMEI:
                 Long current = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset + 1);
                 tryWork(r -> {
+                            queryMap.keySet().forEach(s -> redisTemplate.opsForZSet().removeRange(getDayCacheRedisKey(s), 0, (System.currentTimeMillis() - TimeUnit.DAYS.toMillis(3))));
+
                             Example example = new Example(DayHistory.class);
                             Example.Criteria criteria = example.createCriteria();
                             criteria.andLessThan("createTime", new Date(current));
                             return dayHistoryMapper.deleteByExample(example);
                         },
                         CLEAN_IMEI, c);
-                queryMap.keySet().forEach(s -> {
-//                    Long count = dsl.selectDistinct(dayHistory.coid, dayHistory.ncoid, dayHistory.value).from(dayHistory).where(dayHistory.wd.eq(s).and(dayHistory.createTime.gt(new Date(offset)))).fetchCount();
-//                    Long process = redis.process(j -> j.zcount(s, offset, Long.MAX_VALUE));
-//                    if (process - count > 10) {
-//                        logger.error("cache_verify_error:process:{},count:{}", process, count);
-//                        clearCache(null);
-//                    } else clearCache(current);
-                });
                 break;
             case CLEAN_ACTIVE:
                 tryWork(r -> {
+                    Set<String> keys = redisTemplate.keys("active#imei#");
+                    if (!CollectionUtils.isEmpty(keys)) {
+                        Long min = dsl.select(activeLogger.id.min()).from(activeLogger).fetchOne();
+                       if (min>0)keys.forEach(s -> redisTemplate.opsForZSet().removeRange(s,0,min));
+                    }
+
                     if (!etprop.getPersistActive()) {
                         Example example = new Example(ActiveLogger.class);
                         Example.Criteria criteria = example.createCriteria();
