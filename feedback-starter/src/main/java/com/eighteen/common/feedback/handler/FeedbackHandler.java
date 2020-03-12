@@ -1,6 +1,6 @@
 package com.eighteen.common.feedback.handler;
 
-import com.eighteen.common.feedback.entity.ClickLog;
+import com.eighteen.common.feedback.entity.ActiveLogger;
 
 /**
  * Created by wangwei.
@@ -8,5 +8,5 @@ import com.eighteen.common.feedback.entity.ClickLog;
  * Time: 15:31
  */
 public interface FeedbackHandler {
-   Boolean handler(ClickLog url);
+    Boolean handler(ActiveLogger activeLogger, String ret);
 }

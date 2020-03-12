@@ -327,7 +327,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 try {
                     ClickLog c = a.getClickLog();
                     Boolean flag;
-                    if (feedbackHandler != null) flag = feedbackHandler.handler(c);
+                    String ret = "";
+                    if (feedbackHandler != null) flag = feedbackHandler.handler(a,ret);
                     else {
                         ResponseEntity<String> forEntity = null;
                         try {
@@ -337,11 +338,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                                     .setCreateTime(new Date()).setMsg(e.getMessage())));
                         }
                         flag = forEntity.getStatusCode().value() == 200;
-                        if (!flag)
-                            feedbackErrorsService.insert(new FeedbackErrors().setChannel(a.getChannel()).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setType(etprop.getChannel())
-                                    .setCreateTime(new Date()).setMsg(forEntity.getBody()));
                     }
-                    if (flag) {
+                    if (false) {
                         FeedbackLog feedbackLog = new FeedbackLog();
                         BeanUtils.copyProperties(c, feedbackLog);
                         feedbackLog.setImei(a.getImei()).setOaid(a.getOaid()).setAndroidId(a.getAndroidId());
@@ -377,6 +375,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //                        oldUsers.add(a);
                         Optional.ofNullable(oldUsers).ifPresent(activeLoggers -> activeLoggers.add(a));
                     } else {
+                        feedbackErrorsService.insert(new FeedbackErrors().setChannel(a.getChannel()).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setType(etprop.getChannel())
+                                .setCreateTime(new Date()).setMsg(ret));
                         if (StringUtils.isNotBlank(c.getCallbackUrl())) {
                             List<String> errors = errorCache.getIfPresent("errors");
                             if (errors == null)
