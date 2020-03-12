@@ -4,7 +4,9 @@ package com.eighteen.common.feedback;
 import com.eighteen.common.feedback.config.ClickThreadPoolConfig;
 import com.eighteen.common.feedback.controller.ClickMonitorController;
 import com.eighteen.common.feedback.controller.WarningController;
+import com.eighteen.common.feedback.service.FeedbackErrorsService;
 import com.eighteen.common.feedback.service.FeedbackService;
+import com.eighteen.common.feedback.service.impl.FeedbackErrorsServiceImpl;
 import com.eighteen.common.feedback.service.impl.FeedbackServiceImpl;
 import com.eighteen.common.spring.boot.autoconfigure.job.Job;
 import com.eighteen.common.spring.boot.autoconfigure.job.JobAutoConfiguration;
@@ -60,6 +62,11 @@ public class FeedbackAutoConfiguration {
     private BeanFactory beanFactory;
     private AnnotationMetadata importingClassMetadata;
     private BeanDefinitionRegistry registry;
+
+    @Bean
+    FeedbackErrorsService feedbackErrorsService() {
+        return new FeedbackErrorsServiceImpl();
+    }
 
     @Bean
     FeedbackService feedbackService() {

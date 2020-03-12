@@ -14,6 +14,7 @@ import com.eighteen.common.feedback.entity.dao2.FeedbackErrorsDao;
 import com.eighteen.common.feedback.handler.ActiveHandler;
 import com.eighteen.common.feedback.handler.FeedbackHandler;
 import com.eighteen.common.feedback.handler.NewUserHandler;
+import com.eighteen.common.feedback.service.FeedbackErrorsService;
 import com.eighteen.common.feedback.service.FeedbackService;
 import com.eighteen.common.spring.boot.autoconfigure.cache.redis.Redis;
 import com.eighteen.common.utils.FsService;
@@ -43,6 +44,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import redis.clients.jedis.Jedis;
 import redis.clients.jedis.Tuple;
@@ -104,7 +106,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     @Autowired
     WebLogMapper webLogMapper;
     @Autowired
-    FeedbackErrorsDao feedbackErrorsDao;
+    FeedbackErrorsService feedbackErrorsService;
     @Autowired
     FsService fsService;
     //    List<String> sds = Lists.newArrayList("0,1", "2,3,4,5", "6,7,8,9");
@@ -327,10 +329,16 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     Boolean flag;
                     if (feedbackHandler != null) flag = feedbackHandler.handler(c);
                     else {
-                        ResponseEntity<String> forEntity = restTemplate.getForEntity(c.getCallbackUrl(), String.class);
+                        ResponseEntity<String> forEntity = null;
+                        try {
+                            forEntity = restTemplate.getForEntity(c.getCallbackUrl(), String.class);
+                        } catch (RestClientException e) {
+                            executor.execute(() -> feedbackErrorsService.insert(new FeedbackErrors().setChannel(a.getChannel()).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setType(etprop.getChannel())
+                                    .setCreateTime(new Date()).setMsg(e.getMessage())));
+                        }
                         flag = forEntity.getStatusCode().value() == 200;
-//                        if (!flag)
-                            feedbackErrorsDao.save(new FeedbackErrors().setChannel(a.getChannel()).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setType(a.getType())
+                        if (!flag)
+                            feedbackErrorsService.insert(new FeedbackErrors().setChannel(a.getChannel()).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setType(etprop.getChannel())
                                     .setCreateTime(new Date()).setMsg(forEntity.getBody()));
                     }
                     if (flag) {
