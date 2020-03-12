@@ -312,6 +312,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 DayHistory history = new DayHistory().setNcoid(o.getNcoid()).setCoid(o.getCoid()).setWd(key).setValue(value).setCreateTime(new Date());
                 boolean b = finalExist.contains(history);
                 if (b) {
+                    logger.info("step sssss4");
                     addDayCache(key, Collections.singletonList(history));
                     histories.add(history);
                     oldUsers.add(o);
@@ -345,8 +346,10 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         String value = ReflectionUtils.getFieldValue(a, key).toString();
                         if (key.equals("ipua")) {
                             ipuaNewUsers.add(new IpuaNewUser().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setIp(a.getIp()).setUa(a.getUa()).setIpua(value).setCreateTime(new Date()));
-                            if (StringUtils.isNotBlank(a.getImei()) && !filters.contains(a.getImei()))
+                            if (StringUtils.isNotBlank(a.getImei()) && !filters.contains(a.getImei())) {
+                                logger.info("step sssss3");
                                 addDayCache(key, Collections.singletonList(new DayHistory().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setWd("imei").setValue(a.getImei())));
+                            }
                         }
                         DayHistory history = new DayHistory().setWd(key).setValue(value).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setCreateTime(new Date());
                         if (etprop.getMultipleImei() && key.equals("imei")) {
@@ -361,11 +364,13 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                                         imeiList.add(imeiHistory.setValue(v));
                                 }
                                 if (!CollectionUtils.isEmpty(imeiList)) {
+                                    logger.info("step sssss2");
                                     addDayCache(key, imeiList);
                                     histories.addAll(imeiList);
                                 }
                             }
                         }
+                        logger.info("step sssss1");
                         addDayCache(key, Collections.singletonList(history));
                         success.incrementAndGet();
                         histories.add(history);
@@ -800,18 +805,20 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             if (CollectionUtils.isEmpty(dayHistories)) return;
             if (redis != null) {
                 String redisKey = getDayCacheRedisKey(key);
-//                Map<String, Double> map = new HashMap<>(dayHistories.size());
-//                dayHistories.forEach(dayHistory -> map.put(String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()), (double) dayHistory.getCreateTime().getTime()));
-                dayHistories.parallelStream().forEach(dayHistory -> {
-                    Boolean count = redisTemplate.opsForZSet().add(redisKey,String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()),(double) dayHistory.getCreateTime().getTime());
-                log.info("step addcache : ret {},{},{}",count, dayHistory.toString(),dayHistory.getCreateTime().getTime());
+                Map<String, Double> map = new HashMap<>(dayHistories.size());
+                dayHistories.forEach(dayHistory -> map.put(String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()), (double) dayHistory.getCreateTime().getTime()));
+                redis.process(j -> j.zadd(redisKey, map));
 
-                });
+//                dayHistories.parallelStream().forEach(dayHistory -> {
+//                    Boolean count = redisTemplate.opsForZSet().add(redisKey,String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()),(double) dayHistory.getCreateTime().getTime());
+//                log.info("step addcache : ret {},{},{}",count, dayHistory.toString(),dayHistory.getCreateTime().getTime());
+//                });
+
 //                Long count = redisTemplate.opsForZSet().add(redisKey, dayHistories.stream().map(o -> new DefaultTypedTuple<Object>(String.format("%d##%d##%s", o.getCoid(), o.getNcoid(), o.getValue()), (double) o.getCreateTime().getTime())).collect(Collectors.toSet()));
 //                DayHistory history = dayHistories.get(0);
 //                log.info("step addcache : ret {},{},{}",count, history.toString(),history.getCreateTime().getTime());
 
-//                redis.process(j -> j.zadd(redisKey, map));
+
             } else {
                 List<DayHistory> list = dayCache.getIfPresent(key);
                 if (CollectionUtils.isEmpty(list)) {
