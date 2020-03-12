@@ -470,6 +470,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     @Override
     public void syncActive(ShardingContext c) {
         int item = c.getShardingItem();
+
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
         List<String> channel = Lists.newArrayList(etprop.getChannel());
         String types = etprop.getTypes();
@@ -506,7 +507,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //                } else
 //                    data = webLogMapper.getThirdActiveLogger(webLogMapper.getTableName(), count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]);
 
-                data = linkedStasticMapper.getThirdActiveLogger(count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]);
+                data = linkedStasticMapper.getThirdActiveLogger(count, maxActiveTime,sd.split(",")[0], sd.split(",")[1]);
             } else {
                 if (!format.format(date).equals(format.format(new Date(current + offset)))) {
                     data = feedBackMapper.getThirdActiveLogger(finalChannel, "ActiveLogger", maxActiveTime, sd.split(",")[0], sd.split(",")[1]);
@@ -517,7 +518,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             if(CollectionUtils.isEmpty(data)) return 0;
             Date activeTime = data.stream().max(Comparator.comparing(ActiveLogger::getActiveTime)).get().getActiveTime();
 
-            log.info("{} 查询激活数据 : {}, sd: {}", item, maxActiveTime, sd);
+            log.info("{} step query active : {}, sd: {},{}", item, maxActiveTime, sd,data.size());
 
             Set<ActiveLogger> active = activeLoggerCache.getIfPresent(sdk);
             List<ActiveLogger> iimeiActive = new ArrayList<>();
