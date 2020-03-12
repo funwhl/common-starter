@@ -123,6 +123,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     private Redis redis;
     @Autowired
     private RedisTemplate redisTemplate;
+    @Autowired
+    private LinkedStasticMapper linkedStasticMapper;
     @Value("${spring.application.name}")
     private String appName;
     @Value("#{'${18.feedback.range:}'.split(',')}")
@@ -492,11 +494,13 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
             int count = etprop.getPreFetchActive();
             if (etprop.getAllAttributed()) {
-                if (!format.format(date).equals(format.format(new Date(current + offset)))) {
-                    data = webLogMapper.getThirdActiveLogger("ActiveLogger", count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]);
-                    data.addAll(webLogMapper.getThirdActiveLogger("ActiveLogger_B", count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]));
-                } else
-                    data = webLogMapper.getThirdActiveLogger(webLogMapper.getTableName(), count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]);
+//                if (!format.format(date).equals(format.format(new Date(current + offset)))) {
+//                    data = webLogMapper.getThirdActiveLogger("ActiveLogger", count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]);
+//                    data.addAll(webLogMapper.getThirdActiveLogger("ActiveLogger_B", count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]));
+//                } else
+//                    data = webLogMapper.getThirdActiveLogger(webLogMapper.getTableName(), count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]);
+
+                data = linkedStasticMapper.getThirdActiveLogger(count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]);
             } else {
                 if (!format.format(date).equals(format.format(new Date(current + offset)))) {
                     data = feedBackMapper.getThirdActiveLogger(finalChannel, "ActiveLogger", maxActiveTime, sd.split(",")[0], sd.split(",")[1]);

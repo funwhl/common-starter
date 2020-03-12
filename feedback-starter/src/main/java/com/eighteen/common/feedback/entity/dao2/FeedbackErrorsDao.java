@@ -9,6 +9,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
  * Date: 2020/3/12
  * Time: 17:23
  */
-@DS("master_")
+@DS("linkStat_")
 public interface FeedbackErrorsDao extends JpaRepository<FeedbackErrors, Long> {
 }
