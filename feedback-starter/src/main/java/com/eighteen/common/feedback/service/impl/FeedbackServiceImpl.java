@@ -10,6 +10,7 @@ import com.eighteen.common.feedback.dao.*;
 import com.eighteen.common.feedback.domain.ThirdRetentionLog;
 import com.eighteen.common.feedback.entity.*;
 import com.eighteen.common.feedback.entity.dao2.ActiveLoggerDao;
+import com.eighteen.common.feedback.entity.dao2.FeedbackErrorsDao;
 import com.eighteen.common.feedback.handler.ActiveHandler;
 import com.eighteen.common.feedback.handler.FeedbackHandler;
 import com.eighteen.common.feedback.handler.NewUserHandler;
@@ -37,6 +38,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.data.redis.core.DefaultTypedTuple;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -101,6 +103,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     IpuaNewUserMapper ipuaNewUserMapper;
     @Autowired
     WebLogMapper webLogMapper;
+    @Autowired
+    FeedbackErrorsDao feedbackErrorsDao;
     @Autowired
     FsService fsService;
     //    List<String> sds = Lists.newArrayList("0,1", "2,3,4,5", "6,7,8,9");
@@ -319,8 +323,13 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     ClickLog c = a.getClickLog();
                     Boolean flag;
                     if (feedbackHandler != null) flag = feedbackHandler.handler(c);
-                    else
-                        flag = restTemplate.getForEntity(c.getCallbackUrl(), String.class).getStatusCode().value() == 200;
+                    else {
+                        ResponseEntity<String> forEntity = restTemplate.getForEntity(c.getCallbackUrl(), String.class);
+                        flag = forEntity.getStatusCode().value() == 200;
+                        if (!flag)
+                            feedbackErrorsDao.save(new FeedbackErrors().setChannel(a.getChannel()).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setType(a.getType())
+                                    .setCreateTime(new Date()).setMsg(forEntity.getBody()));
+                    }
                     if (flag) {
                         FeedbackLog feedbackLog = new FeedbackLog();
                         BeanUtils.copyProperties(c, feedbackLog);
