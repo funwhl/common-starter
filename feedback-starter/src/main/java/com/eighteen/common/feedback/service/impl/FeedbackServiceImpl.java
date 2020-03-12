@@ -17,10 +17,7 @@ import com.eighteen.common.feedback.handler.NewUserHandler;
 import com.eighteen.common.feedback.service.FeedbackErrorsService;
 import com.eighteen.common.feedback.service.FeedbackService;
 import com.eighteen.common.spring.boot.autoconfigure.cache.redis.Redis;
-import com.eighteen.common.utils.FsService;
-import com.eighteen.common.utils.HttpClientUtils;
-import com.eighteen.common.utils.Page;
-import com.eighteen.common.utils.ReflectionUtils;
+import com.eighteen.common.utils.*;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
@@ -528,7 +525,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             data = data.stream().collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o -> o.getIimei() + o.getCoid() + o.getNcoid()))), ArrayList::new));
             data = data.parallelStream()
                     .filter(o -> {
-                                String value = o.getImei();
+                                String value = DigestUtils.getMd5Str(o.getImei()+"#"+o.getAndroidId()+"#"+o.getOaid());
                                 if (newUserHandler != null) {
                                     value = newUserHandler.check(item, o);
                                 }
@@ -576,7 +573,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     data.parallelStream().forEach(a -> {
                         ActiveLogger log = activeLoggerDao.save(a);
                         if (StringUtils.isNotBlank(a.getImei()) && !filters.contains(a.getImei())) {
-                            String value = a.getImei();
+                            String value = DigestUtils.getMd5Str(a.getImei()+"#"+a.getAndroidId()+"#"+a.getOaid());
                             if (newUserHandler != null) {
                                 value = newUserHandler.check(item, a);
                             }
