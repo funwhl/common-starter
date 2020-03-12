@@ -336,7 +336,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         }
                         flag = forEntity.getStatusCode().value() == 200;
                     }
-                    if (false) {
+                    if (true) {
                         FeedbackLog feedbackLog = new FeedbackLog();
                         BeanUtils.copyProperties(c, feedbackLog);
                         feedbackLog.setImei(a.getImei()).setOaid(a.getOaid()).setAndroidId(a.getAndroidId());
