@@ -778,16 +778,16 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         Integer mode = etprop.getMode();
 //        String sync = getDayCacheRedisKey("sync##");
         try {
-            if (!Lists.newArrayList(SYNC_ACTIVE,FEED_BACK).contains(type)) {
+            if (!Lists.newArrayList(SYNC_ACTIVE).contains(type)) {
                 if (c.getShardingItem() != 0) {
                     return;
                 }
             }
-            if (FEED_BACK ==type) {
-                if (c.getShardingItem() == 2 ) {
-                    return;
-                }
-            }
+//            if (FEED_BACK ==type) {
+//                if (c.getShardingItem() == 2 ) {
+//                    return;
+//                }
+//            }
             logger.info("start {}{} {}", k, c.getShardingItem());
             Long start = System.currentTimeMillis();
             if (mode == 2 && redis.process(jedis -> jedis.setnx(k, "")).equals(0L)) {
