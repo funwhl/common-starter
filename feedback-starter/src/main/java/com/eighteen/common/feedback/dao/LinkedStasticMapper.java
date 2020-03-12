@@ -28,6 +28,6 @@ public interface LinkedStasticMapper {
             "</script>"
     )
     @ResultType(ActiveLogger.class)
-    List<ActiveLogger> getThirdActiveLogger(@Param("count") Integer count, @Param("date") Date date, @Param("min") Integer sc, String min, @Param("max") String max);
+    List<ActiveLogger> getThirdActiveLogger(@Param("count") Integer count, @Param("date") Date date, Integer sc,@Param("min")  String min, @Param("max") String max);
 
 }
