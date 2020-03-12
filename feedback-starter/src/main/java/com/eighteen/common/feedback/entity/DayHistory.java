@@ -3,6 +3,7 @@ package com.eighteen.common.feedback.entity;
 import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import lombok.experimental.Accessors;
 
 import javax.persistence.*;
@@ -27,6 +28,7 @@ import java.util.Objects;
 @Accessors(chain = true)
 @Getter
 @Setter
+@ToString
 public class DayHistory {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
