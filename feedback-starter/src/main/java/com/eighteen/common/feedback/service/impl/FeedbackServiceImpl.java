@@ -394,6 +394,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         try {
             if (redis != null) {
                 Double score = redisTemplate.opsForZSet().score(getDayCacheRedisKey(key), String.format("%d##%d##%s", s.getCoid(), s.getNcoid(), s.getValue()));
+                log.info("step countCache : ret {},{}",score,s);
                 return score != null && score > 0;
             } else {
                 List<DayHistory> histories = dayCache.getIfPresent(key);
@@ -408,30 +409,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             return dayHistoryMapper.selectCountByExample(example) > 0;
         }
     }
-
-//    private DayHistory checkHistory(DayHistory s) {
-//        String key = s.getWd();
-//        try {
-//            if (redis != null) {
-//                Double process = redis.process(j -> j.zscore(getDayCacheRedisKey(key), String.format("%d##%d##%s", s.getCoid(), s.getNcoid(), s.getValue())));
-//
-//                if (process != null && process > 0) s.setStatus(1);
-//            } else {
-//                List<DayHistory> histories = dayCache.getIfPresent(key);
-//                if (histories == null || histories.stream().anyMatch(o -> o.equals(s))) {
-//                    s.setStatus(1);
-//                }
-//            }
-//        } catch (Exception e) {
-//            logger.error("count_error:{}", e.getMessage());
-//            Example example = new Example(DayHistory.class);
-//            Example.Criteria criteria = example.createCriteria();
-//            criteria.andEqualTo("wd", key).andEqualTo("value", s.getValue()).andEqualTo("coid", s.getCoid());
-//            criteria.andEqualTo("ncoid", s.getNcoid());
-//            if (dayHistoryMapper.selectCountByExample(example) > 0) s.setStatus(1);
-//        }
-//        return s;
-//    }
 
     private Boolean check(String key, ActiveLogger activeLogger) {
         return queryMap.keySet().stream().filter(s -> {
@@ -826,6 +803,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //                Map<String, Double> map = new HashMap<>(dayHistories.size());
 //                dayHistories.forEach(dayHistory -> map.put(String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()), (double) dayHistory.getCreateTime().getTime()));
                 Long count = redisTemplate.opsForZSet().add(redisKey, dayHistories.stream().map(o -> new DefaultTypedTuple<Object>(String.format("%d##%d##%s", o.getCoid(), o.getNcoid(), o.getValue()), (double) o.getCreateTime().getTime())).collect(Collectors.toSet()));
+                log.info("step addcache : ret {},{}",count,dayHistories.get(0).toString());
+
 //                redis.process(j -> j.zadd(redisKey, map));
             } else {
                 List<DayHistory> list = dayCache.getIfPresent(key);
