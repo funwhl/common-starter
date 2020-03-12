@@ -46,7 +46,7 @@ public class EighteenProperties {
     private Boolean datetimeAttributed  = false;
     private Boolean allAttributed  = false;
     private Integer matchMinuteOffset = 0;
-    private Integer activeMinuteOffset = 30;
+    private Integer activeMinuteOffset = 300;
     private Boolean multipleImei = false;
     private Boolean doindb = false;
 

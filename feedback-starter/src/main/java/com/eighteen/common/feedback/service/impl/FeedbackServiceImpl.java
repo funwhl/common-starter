@@ -197,15 +197,16 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             Map<String, List<ActiveLogger>> map = queryMap.entrySet().parallelStream().collect(Collectors.toMap(Map.Entry::getKey, e ->
             {
                 Date left = new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset()));
-                BooleanExpression expression = activeLogger.channel.eq(clickLog.channel);
-                if(index == 0) {
-                    expression = expression.and(activeLogger.activeTime.goe(left)).and(activeLogger.channel.lt("10013433").or(activeLogger.channel.gt("10013437"))).and(activeLogger.status.eq(0));
-                }
-                if(index == 1) {
-                    //10013433,10013437
-                    expression=expression.and(activeLogger.activeTime.goe(left)).and(activeLogger.channel.goe("10013433")
-                            .and(activeLogger.channel.loe("10013437"))).and(activeLogger.status.eq(0));
-                }
+                BooleanExpression expression = activeLogger.activeTime.goe(left);
+                if(!etprop.getAllAttributed())expression = expression.and(activeLogger.channel.eq(clickLog.channel));
+//                if(index == 0) {
+//                    expression = expression.and(activeLogger.activeTime.goe(left)).and(activeLogger.channel.lt("10013433").or(activeLogger.channel.gt("10013437"))).and(activeLogger.status.eq(0));
+//                }
+//                if(index == 1) {
+//                    //10013433,10013437
+//                    expression=expression.and(activeLogger.activeTime.goe(left)).and(activeLogger.channel.goe("10013433")
+//                            .and(activeLogger.channel.loe("10013437"))).and(activeLogger.status.eq(0));
+//                }
 //                if(index == 2&&sc.getShardingParameter().contains("history")) {
 //                    expression=expression.and(activeLogger.activeTime.loe(left)).and(activeLogger.status.eq(-1));
 //                }
@@ -328,7 +329,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     else {
                         ResponseEntity<String> forEntity = restTemplate.getForEntity(c.getCallbackUrl(), String.class);
                         flag = forEntity.getStatusCode().value() == 200;
-                        if (!flag)
+//                        if (!flag)
                             feedbackErrorsDao.save(new FeedbackErrors().setChannel(a.getChannel()).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setType(a.getType())
                                     .setCreateTime(new Date()).setMsg(forEntity.getBody()));
                     }
@@ -508,6 +509,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 } else
                     data = feedBackMapper.getThirdActiveLogger(finalChannel, feedBackMapper.getTableName(), maxActiveTime, sd.split(",")[0], sd.split(",")[1]);
             }
+            if(CollectionUtils.isEmpty(data)) return 0;
             Date activeTime = data.stream().max(Comparator.comparing(ActiveLogger::getActiveTime)).get().getActiveTime();
 
             log.info("{} 查询激活数据 : {}, sd: {}", item, maxActiveTime, sd);
