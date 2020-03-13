@@ -278,10 +278,10 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         });
         logger.info("去重耗时:,{}", query.toString());
 
-//        List<String> retErrors = errorCache.getIfPresent("errors");
-//        filter = filter.stream()
-//                .filter(o -> !oldUsers.contains(o) && (retErrors == null || !retErrors.contains(o.getClickLog().getCallbackUrl())))
-//                .collect(Collectors.toList());
+        List<String> retErrors = errorCache.getIfPresent("errors");
+        filter = filter.stream()
+                .filter(o -> !oldUsers.contains(o) && (retErrors == null || !retErrors.contains(o.getClickLog().getCallbackUrl())))
+                .collect(Collectors.toList());
 
         logger.info("老用户去重:,{}", query.toString());
         List<String> values = filter.stream().map(o -> ReflectionUtils.getFieldValue(o, key).toString()).collect(Collectors.toList());
