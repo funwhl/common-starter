@@ -198,20 +198,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 Date left = new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset()));
                 BooleanExpression expression = activeLogger.activeTime.goe(left);
                 if(!etprop.getAllAttributed())expression = expression.and(activeLogger.channel.eq(clickLog.channel));
-//                if(index == 0) {
-//                    expression = expression.and(activeLogger.activeTime.goe(left)).and(activeLogger.channel.lt("10013433").or(activeLogger.channel.gt("10013437"))).and(activeLogger.status.eq(0));
-//                }
-//                if(index == 1) {
-//                    //10013433,10013437
-//                    expression=expression.and(activeLogger.activeTime.goe(left)).and(activeLogger.channel.goe("10013433")
-//                            .and(activeLogger.channel.loe("10013437"))).and(activeLogger.status.eq(0));
-//                }
-//                if(index == 2&&sc.getShardingParameter().contains("history")) {
-//                    expression=expression.and(activeLogger.activeTime.loe(left)).and(activeLogger.status.eq(-1));
-//                }
-//                if (StringUtils.isNotBlank(sc.getShardingParameter())) {
-//                    expression.and(activeLogger.channel.in(sc.getShardingParameter()));
-//                }
                 return dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.getValue())
                         .where(expression
 //                                activeLogger.status.eq(0)
@@ -251,7 +237,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             if (oldUsers.size() > 0)
                 oldUsers.stream().collect(Collectors.groupingBy(o -> o.getCoid() + "," + o.getNcoid())).forEach((s, activeLoggers) -> {
                     Set<String> collect = activeLoggers.stream().map(o -> {
-                        Object value = ReflectionUtils.getFieldValue(o, (key.equals("ipua") ? key : key + "Md5"));
+                        Object value = ReflectionUtils.getFieldValue(o, key);
                         if (value.equals("")) {
                             logger.error("step update error:key{}, {}", key, o.toString());
                             return "??";
@@ -261,10 +247,10 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
                     if (env.equals("pro")) Page.create(500, new ArrayList<>(collect)).forEach(strings -> {
                         Example example = new Example(ActiveLogger.class);
-                        example.createCriteria().andIn((key.equals("ipua") ? key : key + "Md5"), strings)
+                        example.createCriteria().andIn((key), strings)
                                 .andEqualTo("coid", Integer.valueOf(s.split(",")[0])).andEqualTo("ncoid", Integer.valueOf(s.split(",")[1]));
-                        examples.add(example);
-//                        activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
+//                        examples.add(example);
+                        activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
                     });
                 });
         } catch (Exception e) {
@@ -326,8 +312,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     ClickLog c = a.getClickLog();
                     Boolean flag;
                     String ret = "";
-                    if (feedbackHandler != null) flag = feedbackHandler.handler(a,ret);
-                    else {
+                    if (feedbackHandler != null) {
+                        flag = feedbackHandler.handler(a,ret);
+                    } else {
                         ResponseEntity<String> forEntity = null;
                         try {
                             forEntity = restTemplate.getForEntity(c.getCallbackUrl(), String.class);
@@ -805,15 +792,16 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             if (CollectionUtils.isEmpty(dayHistories)) return;
             if (redis != null) {
                 String redisKey = getDayCacheRedisKey(key);
-                Map<String, Double> map = new HashMap<>(dayHistories.size());
-                dayHistories.forEach(dayHistory -> map.put(String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()), (double) dayHistory.getCreateTime().getTime()));
-                redis.process(j -> j.zadd(redisKey, map));
+//                Map<String, Double> map = new HashMap<>(dayHistories.size());
+//                dayHistories.forEach(dayHistory -> map.put(String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()), (double) dayHistory.getCreateTime().getTime()));
+//                redis.process(j -> j.zadd(redisKey, map));
 
-//                dayHistories.parallelStream().forEach(dayHistory -> {
-//                    Boolean count = redisTemplate.opsForZSet().add(redisKey,String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()),(double) dayHistory.getCreateTime().getTime());
-//                log.info("step addcache : ret {},{},{}",count, dayHistory.toString(),dayHistory.getCreateTime().getTime());
-//                });
-
+                dayHistories.forEach(dayHistory -> {
+                    Boolean count = redisTemplate.opsForZSet().add(redisKey,String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()),(double) dayHistory.getCreateTime().getTime());
+                log.info("step addcache : ret {},{},{}",count, dayHistory.toString(),dayHistory.getCreateTime().getTime());
+                if (!count)
+                    logger.error("rrrrrrrrrrrrrrrrr "+redisTemplate.opsForZSet().score(redisKey, String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue())));
+                });
 //                Long count = redisTemplate.opsForZSet().add(redisKey, dayHistories.stream().map(o -> new DefaultTypedTuple<Object>(String.format("%d##%d##%s", o.getCoid(), o.getNcoid(), o.getValue()), (double) o.getCreateTime().getTime())).collect(Collectors.toSet()));
 //                DayHistory history = dayHistories.get(0);
 //                log.info("step addcache : ret {},{},{}",count, history.toString(),history.getCreateTime().getTime());
