@@ -55,6 +55,8 @@ public class JobAutoConfiguration implements EmbeddedValueResolverAware {
     private StringValueResolver resolver;
     @Value("${spring.application.name}")
     private String appName;
+    @Value("${18.feedback.channel:}")
+    private String channel;
     @Autowired(required = false)
     DataSource dataSource;
 
@@ -101,7 +103,7 @@ public class JobAutoConfiguration implements EmbeddedValueResolverAware {
 
     private LiteJobConfiguration getJobConfiguration(Job job) {
         String c = resolver.resolveStringValue(job.getCron());
-        String jobName = appName + "#" + job.getJobName();
+        String jobName = appName +"#"+ (StringUtils.isBlank(channel)?"":channel) + "#" + job.getJobName();
 
 
         SimpleJobConfiguration simpleJobConfiguration = new SimpleJobConfiguration(
