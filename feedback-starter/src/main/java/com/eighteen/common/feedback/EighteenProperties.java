@@ -47,6 +47,7 @@ public class EighteenProperties {
     private Boolean allAttributed  = false;
     private Integer matchMinuteOffset = 0;
     private Integer activeMinuteOffset = 300;
+    private Integer clickMinuteOffset = 600;
     private Boolean multipleImei = false;
     private Boolean doindb = false;
 

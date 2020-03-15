@@ -196,7 +196,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             Map<String, List<ActiveLogger>> map = queryMap.entrySet().parallelStream().collect(Collectors.toMap(Map.Entry::getKey, e ->
             {
                 Date left = new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset()));
-                BooleanExpression expression = activeLogger.activeTime.goe(left);
+                Date leftClick = new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getClickMinuteOffset()));
+                BooleanExpression expression = activeLogger.activeTime.goe(left).and(clickLog.clickTime.goe(leftClick));
                 if(!etprop.getAllAttributed())expression = expression.and(activeLogger.channel.eq(clickLog.channel));
                 return dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.getValue())
                         .where(expression
@@ -249,8 +250,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         Example example = new Example(ActiveLogger.class);
                         example.createCriteria().andIn((key), strings)
                                 .andEqualTo("coid", Integer.valueOf(s.split(",")[0])).andEqualTo("ncoid", Integer.valueOf(s.split(",")[1]));
-//                        examples.add(example);
-                        activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
+                        examples.add(example);
+//                        activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
                     });
                 });
         } catch (Exception e) {
@@ -910,9 +911,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     }
 
     private void handerResult(List<DayHistory> histories, List<FeedbackLog> feedbacks, List<IpuaNewUser> ipuas,List<Example> examples) {
-        Page.create(feedbacks).forEach(o -> feedbackLogMapper.insertList(o));
-        Page.create(ipuas).forEach(o -> ipuaNewUserMapper.insertList(o));
-        Page.create(histories).forEach(o -> dayHistoryMapper.insertList(o));
+        Page.create(feedbacks).forEachParallel(o -> feedbackLogMapper.insertList(o));
+        Page.create(ipuas).forEachParallel(o -> ipuaNewUserMapper.insertList(o));
+        Page.create(histories).forEachParallel(o -> dayHistoryMapper.insertList(o));
         examples.forEach(example -> executor.execute(() -> activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example)));
 
     }
