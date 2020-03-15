@@ -49,7 +49,8 @@ public class EighteenProperties {
     private Integer activeMinuteOffset = 300;
     private Integer clickMinuteOffset = 600;
     private Boolean multipleImei = false;
-    private Boolean doindb = false;
+    private Boolean doindb = true;
+    private Boolean coldData = false;
 
     private String ignoreImei;
     private Boolean warning = false;
