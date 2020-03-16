@@ -13,7 +13,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class EighteenProperties {
     public static final String PREFIX = "18.feedback";
     public Integer syncOffset = 1;
-    public Integer cleanActiveOffset = 60;
+    public Integer cleanActiveOffset = 300;
     public boolean clearCache = false;
     // 渠道
     private String channel;
@@ -46,8 +46,8 @@ public class EighteenProperties {
     private Boolean datetimeAttributed  = false;
     private Boolean allAttributed  = false;
     private Integer matchMinuteOffset = 0;
-    private Integer activeMinuteOffset = 300;
-    private Integer clickMinuteOffset = 600;
+    private Integer activeMinuteOffset = 200;
+    private Integer clickMinuteOffset = 300;
     private Boolean multipleImei = false;
     private Boolean doindb = true;
     private Boolean coldData = false;

@@ -199,7 +199,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 Date leftClick = new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getClickMinuteOffset()));
                 BooleanExpression expression ;
                 if (!etprop.getColdData()) expression = activeLogger.activeTime.goe(left).and(clickLog.clickTime.goe(leftClick)).and(activeLogger.status.eq(0));
-                else expression = activeLogger.status.in(0,-1);
+                else expression = activeLogger.status.eq(-1);
 
                 if(!etprop.getAllAttributed())expression = expression.and(activeLogger.channel.eq(clickLog.channel));
                 return dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.getValue())
