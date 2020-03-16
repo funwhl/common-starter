@@ -255,7 +255,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         example.createCriteria().andIn(keyMd5, strings)
                                 .andEqualTo("coid", Integer.valueOf(s.split(",")[0])).andEqualTo("ncoid", Integer.valueOf(s.split(",")[1]));
 //                        examples.add(example);
-                        activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
+                        activeLoggerMapper.deleteByExample(example);
+//                        activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
                     });
                 });
         } catch (Exception e) {
