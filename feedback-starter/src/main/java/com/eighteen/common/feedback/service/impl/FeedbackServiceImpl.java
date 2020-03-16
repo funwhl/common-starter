@@ -617,7 +617,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     if (!etprop.getPersistActive()) {
                         Example example = new Example(ActiveLogger.class);
                         Example.Criteria criteria = example.createCriteria();
-                        criteria.andLessThan("activeTime", new Date(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(etprop.getCleanActiveOffset())));
+                        criteria.andEqualTo("status",0).andLessThan("activeTime", new Date(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(etprop.getCleanActiveOffset())));
 //                        activeLoggerMapper.deleteByExample(example);
                         return activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(-1), example);
                     }
@@ -1019,6 +1019,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         CLEAN_IMEI("CLEAN_IMEI", TimeUnit.DAYS.toSeconds(1) - 60 * 5),
         CLEAN_LC_IMEI("CLEAN_LC_IMEI", TimeUnit.DAYS.toSeconds(2) - 60 * 5),
         FEED_BACK("FEED_BACK", TimeUnit.MINUTES.toMillis(5) - 60),
+        FEED_BACK_COLD("FEED_BACK_COLD", TimeUnit.MINUTES.toMillis(5) - 60),
         SYNC_ACTIVE("SYNC_ACTIVE", TimeUnit.MINUTES.toMillis(5) - 60),
         STAT_DAY("STAT_DAY", TimeUnit.DAYS.toMillis(1) - 60 * 60),
         RETENTION("RETENTION", TimeUnit.DAYS.toMillis(10) - 60);
