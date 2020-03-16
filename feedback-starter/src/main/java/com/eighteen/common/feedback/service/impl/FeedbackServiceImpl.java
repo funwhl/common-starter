@@ -613,7 +613,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //                        Long min = dsl.select(activeLogger.id.min()).from(activeLogger).fetchOne();
 //                       if (min>0)keys.forEach(s -> redisTemplate.opsForZSet().removeRange(s,0,min));
 //                    }
-
+                    dsl.delete(activeLogger).where(activeLogger.activeTime.before(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(etprop.getActiveDataExpire())))).execute();
                     if (!etprop.getPersistActive()) {
                         Example example = new Example(ActiveLogger.class);
                         Example.Criteria criteria = example.createCriteria();

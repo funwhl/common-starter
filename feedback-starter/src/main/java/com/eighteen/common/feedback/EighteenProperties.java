@@ -21,6 +21,7 @@ public class EighteenProperties {
     private String filters;
     // 点击数据过期周期 天
     private Integer clickDataExpire;
+    private Integer activeDataExpire =1;
     //接口回调每次预处理数
     private Integer preFetch = 1000;
     private Integer preFetchActive = 5000;
