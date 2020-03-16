@@ -218,9 +218,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                             .sorted((o1, o2) -> o2.getClickLog().getClickTime().compareTo(o1.getClickLog().getClickTime()))
                             .collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o2 -> gekeyString(key, o2)))), ArrayList::new)
                             );
-                    if (etprop.getDoindb())
-                        lock.lock(getDayCacheRedisKey(FEED_BACK.name()), appName + FEED_BACK.name(), () -> doIndb(success, histories, feedbackLogs, ipuaNewUsers,examples, key, list));
-                    else doIndb(success, histories, feedbackLogs, ipuaNewUsers,examples, key, list);
+                    doIndb(success, histories, feedbackLogs, ipuaNewUsers,examples, key, list);
                 } catch (Exception e1) {
                     e1.printStackTrace();
                     logger.error("step 去重 ,{}", e1.getMessage());
@@ -235,7 +233,13 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
     private void doIndb(AtomicLong success, List<DayHistory> histories, List<FeedbackLog> feedbackLogs, List<IpuaNewUser> ipuaNewUsers,List<Example> examples, String key, List<ActiveLogger> list) {
         List<ActiveLogger> oldUsers = new ArrayList<>();
-        handlerFeedback(success, histories, feedbackLogs, ipuaNewUsers, key, oldUsers, list);
+        if (etprop.getDoindb()) {
+            lock.lock(getDayCacheRedisKey(FEED_BACK.name()), appName + FEED_BACK.name(), () -> {
+                handlerFeedback(success, histories, feedbackLogs, ipuaNewUsers, key, oldUsers, list);
+            });
+        } else {
+            handlerFeedback(success, histories, feedbackLogs, ipuaNewUsers, key, oldUsers, list);
+        }
 
         try {
             if (oldUsers.size() > 0)
@@ -268,6 +272,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //        List<DayHistory> dayHistoryList = getDayCache(key);
         StopWatch query = StopWatch.createStarted();
         logger.info("开始去重:,{}", query.toString());
+
         filter.parallelStream().forEach(activeLogger -> {
             Object fieldValue = ReflectionUtils.getFieldValue(activeLogger, key);
             if (fieldValue == null) return;

@@ -54,8 +54,8 @@ public class EighteenProperties {
 
     private String ignoreImei;
     private Boolean warning = false;
-    private Boolean persistClick = true;
-    private Boolean persistActive = true;
+    private Boolean persistClick = false;
+    private Boolean persistActive = false;
     private Boolean parale = true;
     private Boolean persistRedisActive = false;
     private Boolean persistRedisClick = false;
