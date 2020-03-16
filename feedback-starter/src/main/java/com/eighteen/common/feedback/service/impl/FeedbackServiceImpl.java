@@ -258,8 +258,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         Example example = new Example(ActiveLogger.class);
                         example.createCriteria().andIn(keyMd5, strings)
                                 .andEqualTo("coid", Integer.valueOf(s.split(",")[0])).andEqualTo("ncoid", Integer.valueOf(s.split(",")[1]));
-//                        examples.add(example);
-                        activeLoggerMapper.deleteByExample(example);
+                        examples.add(example);
+//                        activeLoggerMapper.deleteByExample(example);
 //                        activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
                     });
                 });
@@ -921,8 +921,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         Page.create(feedbacks).forEach(o -> executor.execute(() -> feedbackLogMapper.insertList(o)));
         Page.create(ipuas).forEach(o -> executor.execute(() -> ipuaNewUserMapper.insertList(o)));
         Page.create(histories).forEach(o -> executor.execute(() -> dayHistoryMapper.insertList(o)));
-        examples.forEach(example -> executor.execute(() -> activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example)));
-
+        examples.forEach(example -> executor.execute(() -> activeLoggerMapper.deleteByExample(example)));
     }
 
     private String gekeyString(String key, ActiveLogger o2) {
