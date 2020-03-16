@@ -57,7 +57,8 @@ public class EighteenProperties {
     private Boolean persistClick = true;
     private Boolean persistActive = true;
     private Boolean parale = true;
-    private Boolean persistRedis = false;
+    private Boolean persistRedisActive = false;
+    private Boolean persistRedisClick = false;
 
     private String appid;
     private String appSecret;

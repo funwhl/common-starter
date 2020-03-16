@@ -240,10 +240,11 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         try {
             if (oldUsers.size() > 0)
                 oldUsers.stream().collect(Collectors.groupingBy(o -> o.getCoid() + "," + o.getNcoid())).forEach((s, activeLoggers) -> {
+                    String keyMd5 = key.equals("ipua")?"ipua":(key + "Md5");
                     Set<String> collect = activeLoggers.stream().map(o -> {
-                        Object value = ReflectionUtils.getFieldValue(o, key);
+                        Object value = ReflectionUtils.getFieldValue(o, keyMd5);
                         if (value.equals("")) {
-                            logger.error("step update error:key{}, {}", key, o.toString());
+                            logger.error("step update error:key{}, {}", keyMd5, o.toString());
                             return "??";
                         }
                         return value.toString();
@@ -251,7 +252,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
                     if (env.equals("pro")) Page.create(500, new ArrayList<>(collect)).forEach(strings -> {
                         Example example = new Example(ActiveLogger.class);
-                        example.createCriteria().andIn((key), strings)
+                        example.createCriteria().andIn(keyMd5, strings)
                                 .andEqualTo("coid", Integer.valueOf(s.split(",")[0])).andEqualTo("ncoid", Integer.valueOf(s.split(",")[1]));
                         examples.add(example);
 //                        activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example);
@@ -544,7 +545,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             }
 //            data = data.stream().collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o -> o.getIimei() + o.getCoid() + o.getNcoid()))), ArrayList::new));
             if (!CollectionUtils.isEmpty(data)) {
-                if (etprop.getPersistRedis()) {
+                if (etprop.getPersistRedisActive()) {
                     data.parallelStream().forEach(a -> {
                         ActiveLogger log = activeLoggerDao.save(a);
 //                        if (StringUtils.isNotBlank(a.getImei()) && !filters.contains(a.getImei())) {
@@ -803,8 +804,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 dayHistories.forEach(dayHistory -> {
                     Boolean count = redisTemplate.opsForZSet().add(redisKey,String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()),(double) dayHistory.getCreateTime().getTime());
                 log.info("step addcache : ret {},{},{}",count, dayHistory.toString(),dayHistory.getCreateTime().getTime());
-                if (!count)
-                    logger.error("rrrrrrrrrrrrrrrrr "+redisTemplate.opsForZSet().score(redisKey, String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue())));
                 });
 //                Long count = redisTemplate.opsForZSet().add(redisKey, dayHistories.stream().map(o -> new DefaultTypedTuple<Object>(String.format("%d##%d##%s", o.getCoid(), o.getNcoid(), o.getValue()), (double) o.getCreateTime().getTime())).collect(Collectors.toSet()));
 //                DayHistory history = dayHistories.get(0);
@@ -909,14 +908,13 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         });
 
         handerResult(histories, feedbacks, ipuas,examples);
-//        System.out.println(this.jedis.zrange(getDayCacheRedisKey("feedback"), 0, -1));
         return count.get();
     }
 
     private void handerResult(List<DayHistory> histories, List<FeedbackLog> feedbacks, List<IpuaNewUser> ipuas,List<Example> examples) {
-        Page.create(feedbacks).forEachParallel(o -> feedbackLogMapper.insertList(o));
-        Page.create(ipuas).forEachParallel(o -> ipuaNewUserMapper.insertList(o));
-        Page.create(histories).forEachParallel(o -> dayHistoryMapper.insertList(o));
+        Page.create(feedbacks).forEach(o -> executor.execute(() -> feedbackLogMapper.insertList(o)));
+        Page.create(ipuas).forEach(o -> executor.execute(() -> ipuaNewUserMapper.insertList(o)));
+        Page.create(histories).forEach(o -> executor.execute(() -> dayHistoryMapper.insertList(o)));
         examples.forEach(example -> executor.execute(() -> activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(1), example)));
 
     }
