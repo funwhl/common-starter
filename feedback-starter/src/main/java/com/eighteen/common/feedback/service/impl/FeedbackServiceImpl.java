@@ -505,7 +505,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             data = data.stream().collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o -> o.getIimei() + o.getCoid() + o.getNcoid()))), ArrayList::new));
             data = data.parallelStream()
                     .filter(o -> {
-                                String value = DigestUtils.getMd5Str(o.getImei() + "#" + o.getAndroidId() + "#" + o.getOaid());
+                                String value = DigestUtils.getMd5Str(o.getChannel()+"#"+o.getImei() + "#" + o.getAndroidId() + "#" + o.getOaid());
                                 if (newUserHandler != null) {
                                     value = newUserHandler.check(item, o);
                                 }
@@ -558,7 +558,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     data.parallelStream().forEach(a -> {
                         ActiveLogger log = activeLoggerDao.save(a);
                         if (StringUtils.isNotBlank(a.getImei()) && !filters.contains(a.getImei())) {
-                            String value = DigestUtils.getMd5Str(a.getImei() + "#" + a.getAndroidId() + "#" + a.getOaid());
+                            String value = DigestUtils.getMd5Str(a.getChannel()+"#"+a.getImei() + "#" + a.getAndroidId() + "#" + a.getOaid());
                             if (newUserHandler != null) {
                                 value = newUserHandler.check(item, a);
                             }
