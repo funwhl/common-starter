@@ -196,7 +196,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 Date left = new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset()));
                 Date leftClick = new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getClickMinuteOffset()));
                 BooleanExpression expression;
-                if (etprop.getColdData() || cold) expression = activeLogger.status.eq(-1);
+                if (etprop.getColdData() || cold) expression = activeLogger.status.eq(-1).and(activeLogger.activeTime.goe(new Date(System.currentTimeMillis()-TimeUnit.HOURS.toMillis(etprop.getColdHourOffset()))));
                 else
                     expression = activeLogger.activeTime.goe(left).and(clickLog.clickTime.goe(leftClick)).and(activeLogger.status.eq(0));
 
