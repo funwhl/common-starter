@@ -58,7 +58,7 @@ public class WarningController {
 
         if (count < 0) ret.put("ret", 500);
         ret.put("ret", 200);
-        ret.put(minute + "内回传:", count);
+        ret.put(minute + "分钟内回传:", count);
         return ret;
     }
 }
