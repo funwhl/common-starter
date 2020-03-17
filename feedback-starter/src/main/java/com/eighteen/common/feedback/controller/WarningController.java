@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.text.SimpleDateFormat;
@@ -35,12 +36,13 @@ public class WarningController {
     private SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd");
 
     @GetMapping
-    public Map warning() {
+    public Map warning(@RequestParam(name = "test",defaultValue = "false")Boolean test) {
+        Map ret = new HashMap();
+        if (test) return ret;
         Calendar calendar = Calendar.getInstance();
         calendar.add(Calendar.HOUR_OF_DAY, -hour);
 
         List<HourStat> data = statMapper.statByHour(format.format(calendar.getTime()), calendar.get(Calendar.HOUR_OF_DAY));
-        Map ret = new HashMap();
 
         if (CollectionUtils.isEmpty(data) || data.size() < 3) ret.put("ret", 500);
         else ret.put("ret", 200);
