@@ -35,6 +35,6 @@ public interface StatMapper {
             " ) t1 where date = #{date} and hour = #{hour} ORDER BY  date desc,hour desc,type desc")
     List<HourStat> statByHour(@Param("date") String date, @Param("hour") Integer hour);
 
-    @Select(" select count(1) from t_feedback where event_type = 1 and create_time >= #{date} ")
+    @Select(" select count(1) from t_feedback_log where event_type = 1 and create_time >= #{date} ")
     Long statMiniute(@Param("date")Date date);
 }
