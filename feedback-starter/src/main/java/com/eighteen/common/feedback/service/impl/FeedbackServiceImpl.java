@@ -821,10 +821,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     Boolean count = redisTemplate.opsForZSet().add(redisKey, String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()), (double) dayHistory.getCreateTime().getTime());
                     log.info("step addcache : ret {},{},{}", count, dayHistory.toString(), dayHistory.getCreateTime().getTime());
                 });
-//                Long count = redisTemplate.opsForZSet().add(redisKey, dayHistories.stream().map(o -> new DefaultTypedTuple<Object>(String.format("%d##%d##%s", o.getCoid(), o.getNcoid(), o.getValue()), (double) o.getCreateTime().getTime())).collect(Collectors.toSet()));
-//                DayHistory history = dayHistories.get(0);
-//                log.info("step addcache : ret {},{},{}",count, history.toString(),history.getCreateTime().getTime());
-
 
             } else {
                 List<DayHistory> list = dayCache.getIfPresent(key);
@@ -833,8 +829,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 } else list.addAll(dayHistories);
             }
         } catch (Exception e) {
-//            redis = null;
-            logger.error("add_cache_error" + e.getMessage());
+            logger.error("add_cache_error :{} ,data-> {}" , e.getMessage(),dayHistories);
         }
     }
 
