@@ -63,4 +63,11 @@ public class WarningController {
         ret.put(minute + "分钟内回传:", count);
         return ret;
     }
+
+    @GetMapping(value = "test")
+    public Map test() {
+        Map ret = new HashMap();
+        ret.put("ret", 200);
+        return ret;
+    }
 }
