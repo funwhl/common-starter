@@ -326,7 +326,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 try {
                     ClickLog c = a.getClickLog();
                     Boolean flag;
-                    Boolean randomFlag =true;
+                    Boolean randomFlag = null;
                     String ret = "";
 
                     if (!c.getChannel().equals(a.getChannel())) {
@@ -341,7 +341,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         randomFlag = isNeedFeedback(list, c.getChannel());
                     }
 
-                    if (randomFlag) {
+                    if (randomFlag==null||randomFlag) {
                         if (feedbackHandler != null) {
                             flag = feedbackHandler.handler(a, ret);
                         } else {
@@ -354,6 +354,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                             }
                             flag = forEntity.getStatusCode().value() == 200;
                         }
+                        if (randomFlag!=null&&!flag) feedbackWeight(c.getChannel());
                     } else flag = true;
 
                     if (flag) {
