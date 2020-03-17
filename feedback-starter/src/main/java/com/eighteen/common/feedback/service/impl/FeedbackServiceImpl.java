@@ -321,25 +321,34 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 try {
                     ClickLog c = a.getClickLog();
                     Boolean flag;
+                    Boolean randomFlag =true;
                     String ret = "";
-                    if (feedbackHandler != null) {
-                        flag = feedbackHandler.handler(a, ret);
-                    } else {
-                        ResponseEntity<String> forEntity = null;
-                        try {
-                            forEntity = restTemplate.getForEntity(c.getCallbackUrl(), String.class);
-                        } catch (RestClientException e) {
-                            executor.execute(() -> feedbackErrorsService.insert(new FeedbackErrors().setChannel(a.getChannel()).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setType(etprop.getChannel())
-                                    .setCreateTime(new Date()).setMsg(e.getMessage())));
-                        }
-                        flag = forEntity.getStatusCode().value() == 200;
+
+                    if (!c.getChannel().equals(a.getChannel())) {
+//                        randomFlag =
                     }
+
+                    if (randomFlag) {
+                        if (feedbackHandler != null) {
+                            flag = feedbackHandler.handler(a, ret);
+                        } else {
+                            ResponseEntity<String> forEntity = null;
+                            try {
+                                forEntity = restTemplate.getForEntity(c.getCallbackUrl(), String.class);
+                            } catch (RestClientException e) {
+                                executor.execute(() -> feedbackErrorsService.insert(new FeedbackErrors().setChannel(a.getChannel()).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setType(etprop.getChannel())
+                                        .setCreateTime(new Date()).setMsg(e.getMessage())));
+                            }
+                            flag = forEntity.getStatusCode().value() == 200;
+                        }
+                    } else flag = true;
+
                     if (flag) {
                         FeedbackLog feedbackLog = new FeedbackLog();
                         BeanUtils.copyProperties(c, feedbackLog);
                         feedbackLog.setImei(a.getImei()).setOaid(a.getOaid()).setAndroidId(a.getAndroidId());
                         feedbackLogs.add(feedbackLog.setCreateTime(new Date()).setMid(a.getMid()).setEventType(1).setActiveChannel(a.getChannel()).setActiveTime(a.getActiveTime())
-                                .setMatchField(key).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setPlot(a.getPlot()).setTs(c.getTs()));
+                                .setMatchField(key).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setPlot(a.getPlot()).setTs(c.getTs()).setStatus(randomFlag?0:1));
                         String value = ReflectionUtils.getFieldValue(a, key).toString();
                         if (key.equals("ipua")) {
                             ipuaNewUsers.add(new IpuaNewUser().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setIp(a.getIp()).setUa(a.getUa()).setIpua(value).setCreateTime(new Date()));

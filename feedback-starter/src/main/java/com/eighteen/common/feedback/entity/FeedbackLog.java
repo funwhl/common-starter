@@ -55,6 +55,7 @@ public class FeedbackLog {
     private String param2;
     private String param3;
     private String param4;
+    private Integer status;
     private Date createTime;
     private Date activeTime;
     private Date clickTime;

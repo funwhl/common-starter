@@ -2,6 +2,7 @@ package com.eighteen.common.feedback.dao;
 
 
 import com.eighteen.common.feedback.domain.ThirdRetentionLog;
+import com.eighteen.common.feedback.domain.ThrowChannelConfig;
 import com.eighteen.common.feedback.entity.ActiveLogger;
 import com.eighteen.common.feedback.entity.ClickLog;
 import com.eighteen.common.feedback.entity.DayHistory;
@@ -111,4 +112,7 @@ public interface FeedBackMapper {
 
     @Select("select count(1) from  t_day_history where wd = #{wd} and value = #{value} and coid = #{coid} and ncoid = #{ncoid}")
     Long count(@Param("wd") String wd, @Param("value") String value,@Param("coid") Integer coid, @Param("ncoid") Integer ncoid);
+
+    @Select("SELECT * FROM [DB2_33].[YYGJ].[dbo].[throw_channel_config] ")
+    List<ThrowChannelConfig> throwChannelConfigList();
 }
