@@ -1058,6 +1058,34 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         }
     }
 
+    
+    public void feedbackWeight(String channel) {
+    	 String redisKey = "ISNEEDFEEDBACK_" + channel;
+    	 Object o = redisTemplate.opsForValue().get(redisKey);
+         String value = o==null?null:o.toString();
+         if(value == null) {
+        	 return;
+         }
+         List<RedisData> redisDataList = JSON.parseObject(value, new TypeReference<ArrayList<RedisData>>() {
+         });
+         RedisData trueData = redisDataList.stream().filter(p->p.getIsFeedback() == true).findAny().get();
+          
+         int totalWeigth = 0;
+         for (RedisData item : redisDataList) {
+             totalWeigth += item.getEffectiveWeight();
+         }
+         
+         trueData.setCurrentWeight(trueData.getCurrentWeight() + totalWeigth);
+         
+         for (RedisData item : redisDataList) {
+             item.setCurrentWeight(item.getCurrentWeight() - item.getEffectiveWeight());
+         }
+         
+         redisTemplate.opsForValue().set(redisKey, JSONObject.toJSONString(redisDataList),Long.MAX_VALUE);
+    }
+    
+    
+    
     public Boolean isNeedFeedback(List<ThrowChannelConfig> list, String channel) {
         String redisKey = "ISNEEDFEEDBACK_" + channel;
         List<RedisData> redisDataList = new ArrayList<>();
@@ -1115,10 +1143,12 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             }
         }
 
+        //保存要返回的值
+        Boolean result = maxCurrentWeight.getIsFeedback();
+        
         maxCurrentWeight.setCurrentWeight(maxCurrentWeight.getCurrentWeight() - totalWeigth);
         redisTemplate.opsForValue().set(redisKey, JSONObject.toJSONString(redisDataList),Long.MAX_VALUE);
-        RedisData maxData = redisDataList.stream().sorted((a, b) -> b.getCurrentWeight() - a.getCurrentWeight())
-                .collect(Collectors.toList()).get(0);
-        return maxData.getIsFeedback();
+        
+        return result;
     }
 }
