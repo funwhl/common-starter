@@ -227,7 +227,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
             if (env.equals("pro")) handerResult(histories, feedbackLogs, ipuaNewUsers, examples);
             return success.get();
-        }, FEED_BACK, sc);
+        }, cold?FEED_BACK_COLD:FEED_BACK, sc);
     }
 
     private void doIndb(AtomicLong success, List<DayHistory> histories, List<FeedbackLog> feedbackLogs, List<IpuaNewUser> ipuaNewUsers, List<Example> examples, String key, List<ActiveLogger> list) {
