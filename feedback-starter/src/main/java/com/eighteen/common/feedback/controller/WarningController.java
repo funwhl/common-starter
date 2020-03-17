@@ -43,7 +43,7 @@ public class WarningController {
         Map ret = new HashMap();
 
         if (CollectionUtils.isEmpty(data) || data.size() < 3) ret.put("ret", 500);
-        ret.put("ret", 200);
+        else ret.put("ret", 200);
         ret.put("data", data);
         return ret;
     }
@@ -56,7 +56,7 @@ public class WarningController {
         Long count = statMapper.statMiniute(calendar.getTime());
         Map ret = new HashMap();
 
-        if (count < 0) ret.put("ret", 500);
+        if (count <= 0) ret.put("ret", 500);
         ret.put("ret", 200);
         ret.put(minute + "分钟内回传:", count);
         return ret;
