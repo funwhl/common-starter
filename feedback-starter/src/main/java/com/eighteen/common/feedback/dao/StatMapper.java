@@ -32,7 +32,7 @@ public interface StatMapper {
             " from t_click_log where click_time >= #{date} group by CAST( click_time as date) " +
             " ,convert(numeric(10),DATENAME(HOUR, click_time)) " +
 
-            " ) t1 where date = #{date} and hour = #{hour} ORDER BY  date describe,hour describe,type describe")
+            " ) t1 where date = #{date} and hour = #{hour} ORDER BY  date desc,hour desc,type desc")
     List<HourStat> statByHour(@Param("date") String date, @Param("hour") Integer hour);
 
     @Select(" select count(1) from t_feedback where event_type = 1 and create_time >= #{date} ")
