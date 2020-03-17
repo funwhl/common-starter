@@ -12,7 +12,7 @@ import java.util.List;
  */
 
 public interface FeedbackService {
-    void feedback(ShardingContext c);
+    void feedback(ShardingContext c,Boolean cold);
 
     void syncActive(ShardingContext c);
 

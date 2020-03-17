@@ -29,6 +29,7 @@ public class EighteenProperties {
     private String cleanClickCron = "0 10/30 * * * ?";
     private String cleanImeiCron = "0 0 0/1 * * ?";
     private String feedbackCron = "0 1/1 * * * ?";
+    private String feedbackColdCron;
     private String syncActiveCron = "0 0/1 * * * ?";
     private String cleanActiveCron = "0 15/30 * * * ?";
     private String cleanActiveHistoryCron = "0 7/10 * * * ?";

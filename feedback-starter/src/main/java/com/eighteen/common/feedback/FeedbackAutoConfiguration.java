@@ -141,9 +141,16 @@ public class FeedbackAutoConfiguration {
 
         if (StringUtils.isNotBlank(properties.getFeedbackCron())) {
             Job.JobBuilder builder = Job.builder().jobName(FEED_BACK.getKey()).cron(properties.getFeedbackCron())
-                    .job(c -> feedbackService().feedback(c)).shardingTotalCount(properties.getSc());
+                    .job(c -> feedbackService().feedback(c,false)).shardingTotalCount(properties.getSc());
             if (!properties.getScParam().equals("")) builder.shardingItemParameters(properties.getScParam());
             jobs.put(FEED_BACK.getKey(), builder.build());
+        }
+
+        if (StringUtils.isNotBlank(properties.getFeedbackColdCron())&&!properties.getColdData()) {
+            Job.JobBuilder builder = Job.builder().jobName(FEED_BACK_COLD.getKey()).cron(properties.getFeedbackColdCron())
+                    .job(c -> feedbackService().feedback(c,true)).shardingTotalCount(properties.getSc());
+            if (!properties.getScParam().equals("")) builder.shardingItemParameters(properties.getScParam());
+            jobs.put(FEED_BACK_COLD.getKey(), builder.build());
         }
 
 //        jobs.put(STAT_DAY.getKey(), Job.builder().jobName(STAT_DAY.getKey()).cron(properties.getDayStatCron()).failover(true)

@@ -179,7 +179,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
     @Override
     @Transactional(isolation = Isolation.READ_UNCOMMITTED)
-    public void feedback(ShardingContext sc) {
+    public void feedback(ShardingContext sc, Boolean cold) {
         tryWork(r -> {
             AtomicLong success = new AtomicLong(0);
             List<DayHistory> histories = Collections.synchronizedList(new ArrayList<>());
@@ -196,9 +196,9 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 Date left = new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset()));
                 Date leftClick = new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getClickMinuteOffset()));
                 BooleanExpression expression;
-                if (!etprop.getColdData())
+                if (etprop.getColdData() || cold) expression = activeLogger.status.eq(-1);
+                else
                     expression = activeLogger.activeTime.goe(left).and(clickLog.clickTime.goe(leftClick)).and(activeLogger.status.eq(0));
-                else expression = activeLogger.status.eq(-1);
 
                 if (!etprop.getAllAttributed()) expression = expression.and(activeLogger.channel.eq(clickLog.channel));
                 return dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.getValue())
