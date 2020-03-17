@@ -19,5 +19,5 @@ public class ThrowChannelConfig {
     private Integer channelType;
     private String platType;
     private String remark;
-    private String rate;
+    private Double rate;
 }

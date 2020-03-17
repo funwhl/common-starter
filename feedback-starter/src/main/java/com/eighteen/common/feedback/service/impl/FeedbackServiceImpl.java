@@ -1,13 +1,17 @@
 package com.eighteen.common.feedback.service.impl;
 
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.TypeReference;
 import com.dangdang.ddframe.job.api.ShardingContext;
 import com.eighteen.common.distribution.DistributedLock;
 import com.eighteen.common.distribution.ZooKeeperConnector;
 import com.eighteen.common.feedback.EighteenProperties;
 import com.eighteen.common.feedback.dao.*;
+import com.eighteen.common.feedback.domain.RedisData;
 import com.eighteen.common.feedback.domain.ThirdRetentionLog;
+import com.eighteen.common.feedback.domain.ThrowChannelConfig;
 import com.eighteen.common.feedback.entity.*;
 import com.eighteen.common.feedback.entity.dao2.ActiveLoggerDao;
 import com.eighteen.common.feedback.handler.ActiveHandler;
@@ -23,6 +27,7 @@ import com.google.common.collect.Lists;
 import com.querydsl.core.types.dsl.BooleanExpression;
 import com.querydsl.core.types.dsl.Expressions;
 import com.querydsl.jpa.impl.JPAQueryFactory;
+import io.lettuce.core.RedisClient;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.time.StopWatch;
@@ -325,7 +330,15 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     String ret = "";
 
                     if (!c.getChannel().equals(a.getChannel())) {
-//                        randomFlag =
+                        List<ThrowChannelConfig> list;
+                        Object o = redisTemplate.opsForValue().get("#channelconfigscache#");
+                        if (o == null) {
+                            list = feedBackMapper.throwChannelConfigList();
+                            redisTemplate.opsForValue().set("#channelconfigscache#",JSONObject.toJSONString(list),Long.MAX_VALUE);
+                        } else {
+                            list = JSONObject.parseArray(o.toString(), ThrowChannelConfig.class);
+                        }
+                        randomFlag = isNeedFeedback(list, c.getChannel());
                     }
 
                     if (randomFlag) {
@@ -1043,5 +1056,69 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         public Long getExpire() {
             return expire;
         }
+    }
+
+    public Boolean isNeedFeedback(List<ThrowChannelConfig> list, String channel) {
+        String redisKey = "ISNEEDFEEDBACK_" + channel;
+        List<RedisData> redisDataList = new ArrayList<>();
+
+        Object o = redisTemplate.opsForValue().get(redisKey);
+        String value = o==null?null:o.toString();
+        if (value == null) {
+            // 缓存里面没有 则初始化
+            List<ThrowChannelConfig> initList = list.stream().filter(p -> p.getChannel().equals(channel))
+                    .collect(Collectors.toList());
+            if (initList == null || initList.size() == 0) {
+                return true;
+            }
+
+            int w_true = (int) (initList.get(0).getRate() * 100);
+            int w_false = 100 - w_true;
+
+            // 添加true
+            redisDataList.add(new RedisData() {
+                {
+                    setIsFeedback(true);
+                    setCurrentWeight(0);
+                    setWeight(w_true);
+                    setEffectiveWeight(w_true);
+                }
+            });
+
+            // 添加false
+            redisDataList.add(new RedisData() {
+                {
+                    setIsFeedback(false);
+                    setCurrentWeight(0);
+                    setWeight(w_false);
+                    setEffectiveWeight(w_false);
+                }
+            });
+
+        } else {
+            redisDataList = JSON.parseObject(value, new TypeReference<ArrayList<RedisData>>() {
+            });
+        }
+
+        // 权重总和
+        int totalWeigth = 0;
+        RedisData maxCurrentWeight = null;
+        for (RedisData item : redisDataList) {
+            totalWeigth += item.getEffectiveWeight();
+            item.setCurrentWeight(item.getCurrentWeight() + item.getEffectiveWeight());
+
+            if (maxCurrentWeight == null) {
+                maxCurrentWeight = item;
+            } else {
+                maxCurrentWeight = item.getCurrentWeight() > maxCurrentWeight.getCurrentWeight() ? item
+                        : maxCurrentWeight;
+            }
+        }
+
+        maxCurrentWeight.setCurrentWeight(maxCurrentWeight.getCurrentWeight() - totalWeigth);
+        redisTemplate.opsForValue().set(redisKey, JSONObject.toJSONString(redisDataList),Long.MAX_VALUE);
+        RedisData maxData = redisDataList.stream().sorted((a, b) -> b.getCurrentWeight() - a.getCurrentWeight())
+                .collect(Collectors.toList()).get(0);
+        return maxData.getIsFeedback();
     }
 }
