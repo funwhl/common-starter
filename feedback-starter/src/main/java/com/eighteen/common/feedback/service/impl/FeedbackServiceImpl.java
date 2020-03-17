@@ -334,7 +334,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         Object o = redisTemplate.opsForValue().get("#channelconfigscache#");
                         if (o == null) {
                             list = feedBackMapper.throwChannelConfigList();
-                            redisTemplate.opsForValue().set("#channelconfigscache#",JSONObject.toJSONString(list),Long.MAX_VALUE);
+                            redisTemplate.opsForValue().set("#channelconfigscache#",JSONObject.toJSONString(list));
                         } else {
                             list = JSONObject.parseArray(o.toString(), ThrowChannelConfig.class);
                         }
@@ -1082,7 +1082,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
              item.setCurrentWeight(item.getCurrentWeight() - item.getEffectiveWeight());
          }
          
-         redisTemplate.opsForValue().set(redisKey, JSONObject.toJSONString(redisDataList),Long.MAX_VALUE);
+         redisTemplate.opsForValue().set(redisKey, JSONObject.toJSONString(redisDataList));
     }
     
     
@@ -1148,7 +1148,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         Boolean result = maxCurrentWeight.getIsFeedback();
         
         maxCurrentWeight.setCurrentWeight(maxCurrentWeight.getCurrentWeight() - totalWeigth);
-        redisTemplate.opsForValue().set(redisKey, JSONObject.toJSONString(redisDataList),Long.MAX_VALUE);
+        redisTemplate.opsForValue().set(redisKey, JSONObject.toJSONString(redisDataList));
         
         return result;
     }
