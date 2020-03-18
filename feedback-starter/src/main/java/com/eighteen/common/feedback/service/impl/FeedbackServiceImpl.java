@@ -365,7 +365,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         BeanUtils.copyProperties(c, feedbackLog);
                         feedbackLog.setImei(a.getImei()).setOaid(a.getOaid()).setAndroidId(a.getAndroidId());
                         feedbackLogs.add(feedbackLog.setCreateTime(new Date()).setMid(a.getMid()).setEventType(1).setActiveChannel(a.getChannel()).setActiveTime(a.getActiveTime())
-                                .setMatchField(key).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setPlot(a.getPlot()).setTs(c.getTs()).setStatus(randomFlag.get()?0:1));
+                                .setMatchField(key).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setPlot(a.getPlot()).setTs(c.getTs()).setStatus((randomFlag==null||randomFlag.get())?0:1));
                         String value = ReflectionUtils.getFieldValue(a, key).toString();
                         if (key.equals("ipua")) {
                             ipuaNewUsers.add(new IpuaNewUser().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setIp(a.getIp()).setUa(a.getUa()).setIpua(value).setCreateTime(new Date()));
