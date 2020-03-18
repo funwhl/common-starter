@@ -371,7 +371,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                             ipuaNewUsers.add(new IpuaNewUser().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setIp(a.getIp()).setUa(a.getUa()).setIpua(value).setCreateTime(new Date()));
                             if (StringUtils.isNotBlank(a.getImei()) && !filters.contains(a.getImei())) {
                                 logger.info("step sssss3");
-                                addDayCache(key, Collections.singletonList(new DayHistory().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setWd("imei").setValue(a.getImei())));
+                                addDayCache(key, Collections.singletonList(new DayHistory().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setWd("imei").setCreateTime(new Date()).setValue(a.getImei())));
                             }
                         }
                         DayHistory history = new DayHistory().setWd(key).setValue(value).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setCreateTime(new Date());
