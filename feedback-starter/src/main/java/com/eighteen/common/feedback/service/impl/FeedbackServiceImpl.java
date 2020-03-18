@@ -339,10 +339,11 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         } else {
                             list = JSONObject.parseArray(o.toString(), ThrowChannelConfig.class);
                         }
-
-                        lock.lock(appName+"random",appName+"random",() -> randomFlag.set(isNeedFeedback(list, c.getChannel())));
+                        randomFlag = new AtomicBoolean();
+                        AtomicBoolean finalRandomFlag = randomFlag;
+                        lock.lock(appName + "random", appName + "random", () -> finalRandomFlag.set(isNeedFeedback(list, c.getChannel())));
                     }
-
+                    logger.info("step randomchannel {}",randomFlag);
                     if (randomFlag==null||randomFlag.get()) {
                         if (feedbackHandler != null) {
                             flag = feedbackHandler.handler(a, ret);
