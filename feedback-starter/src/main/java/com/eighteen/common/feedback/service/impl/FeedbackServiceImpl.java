@@ -58,6 +58,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -326,7 +327,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 try {
                     ClickLog c = a.getClickLog();
                     Boolean flag;
-                    Boolean randomFlag = null;
+                    AtomicBoolean randomFlag = null;
                     String ret = "";
 
                     if (!c.getChannel().equals(a.getChannel())) {
@@ -338,10 +339,11 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         } else {
                             list = JSONObject.parseArray(o.toString(), ThrowChannelConfig.class);
                         }
-                        randomFlag = isNeedFeedback(list, c.getChannel());
+
+                        lock.lock(appName+"random",appName+"random",() -> randomFlag.set(isNeedFeedback(list, c.getChannel())));
                     }
 
-                    if (randomFlag==null||randomFlag) {
+                    if (randomFlag==null||randomFlag.get()) {
                         if (feedbackHandler != null) {
                             flag = feedbackHandler.handler(a, ret);
                         } else {
@@ -362,7 +364,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         BeanUtils.copyProperties(c, feedbackLog);
                         feedbackLog.setImei(a.getImei()).setOaid(a.getOaid()).setAndroidId(a.getAndroidId());
                         feedbackLogs.add(feedbackLog.setCreateTime(new Date()).setMid(a.getMid()).setEventType(1).setActiveChannel(a.getChannel()).setActiveTime(a.getActiveTime())
-                                .setMatchField(key).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setPlot(a.getPlot()).setTs(c.getTs()).setStatus(randomFlag?0:1));
+                                .setMatchField(key).setCoid(a.getCoid()).setNcoid(a.getNcoid()).setPlot(a.getPlot()).setTs(c.getTs()).setStatus(randomFlag.get()?0:1));
                         String value = ReflectionUtils.getFieldValue(a, key).toString();
                         if (key.equals("ipua")) {
                             ipuaNewUsers.add(new IpuaNewUser().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setIp(a.getIp()).setUa(a.getUa()).setIpua(value).setCreateTime(new Date()));
