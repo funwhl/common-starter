@@ -113,6 +113,6 @@ public interface FeedBackMapper {
     @Select("select count(1) from  t_day_history where wd = #{wd} and value = #{value} and coid = #{coid} and ncoid = #{ncoid}")
     Long count(@Param("wd") String wd, @Param("value") String value,@Param("coid") Integer coid, @Param("ncoid") Integer ncoid);
 
-    @Select("SELECT * FROM [DB2_33].[YYGJ].[dbo].[throw_channel_config] ")
+    @Select("SELECT   id,coid,ncoid,channel,agent,channel_type as channelType,plat_type as platType,remark,rate,ori_rate as oriRate  FROM [DB2_33].[YYGJ].[dbo].[throw_channel_config] ")
     List<ThrowChannelConfig> throwChannelConfigList();
 }

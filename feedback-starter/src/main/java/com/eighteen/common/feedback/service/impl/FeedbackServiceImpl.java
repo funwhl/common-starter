@@ -327,17 +327,20 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 try {
                     ClickLog c = a.getClickLog();
                     Boolean flag;
-                    AtomicBoolean randomFlag = null;
+                    AtomicBoolean randomFlag  = new AtomicBoolean();
+                    AtomicBoolean finalRandomFlag = randomFlag;
                     String ret = "";
 
+                    List<ThrowChannelConfig> list = getThrowChannelConfigs();
+                    //拦截
                     if (!c.getChannel().equals(a.getChannel())) {
-                        List<ThrowChannelConfig> list = getThrowChannelConfigs();
-                        randomFlag = new AtomicBoolean();
-                        AtomicBoolean finalRandomFlag = randomFlag;
-                        lock.lock(appName + "random", appName + "random", () -> finalRandomFlag.set(isNeedFeedback(list, c.getChannel())));
+                        lock.lock(appName + "random", appName + "random", () -> finalRandomFlag.set(isNeedFeedback(list, c.getChannel(),1)));
+                    } else {
+                    	//原始
+                    	lock.lock(appName + "random", appName + "random", () -> finalRandomFlag.set(isNeedFeedback(list, c.getChannel(),2)));
                     }
                     logger.info("step randomchannel {}",randomFlag);
-                    if (randomFlag==null||randomFlag.get()) {
+                    if (randomFlag.get()) {
                         if (feedbackHandler != null) {
                             flag = feedbackHandler.handler(a, ret);
                         } else {
@@ -350,7 +353,16 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                             }
                             flag = forEntity.getStatusCode().value() == 200;
                         }
-                        if (randomFlag!=null&&!flag) feedbackWeight(c.getChannel());
+                        if (!flag) {
+                        	 //拦截 回退
+                            if (!c.getChannel().equals(a.getChannel())) {
+                            	feedbackWeight(c.getChannel(),1);
+                            } else {
+                            	//原始 回退
+                            	feedbackWeight(c.getChannel(),2);
+                            }
+                        
+                        }
                     } else flag = true;
 
                     if (flag) {
@@ -1073,8 +1085,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     }
 
     
-    public void feedbackWeight(String channel) {
-    	 String redisKey = "ISNEEDFEEDBACK_" + channel;
+    public void feedbackWeight(String channel,int rateType) {
+    	 String redisKey = "ISNEEDFEEDBACK_" + rateType+"_"+channel;
     	 Object o = redisTemplate.opsForValue().get(redisKey);
          String value = o==null?null:o.toString();
          if(value == null) {
@@ -1099,9 +1111,16 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     }
     
     
-    
-    public Boolean isNeedFeedback(List<ThrowChannelConfig> list, String channel) {
-        String redisKey = "ISNEEDFEEDBACK_" + channel;
+    /**
+     * 
+     * @param list
+     * @param channel
+     * @param rateType  回传比例类型  1 拦截回传比列类型  2 原始回传比列类型
+     * @return
+     */
+    public Boolean isNeedFeedback(List<ThrowChannelConfig> list, String channel,int rateType) {
+    	
+        String redisKey = "ISNEEDFEEDBACK_" + rateType+"_"+channel;
         List<RedisData> redisDataList = new ArrayList<>();
 
         Object o = redisTemplate.opsForValue().get(redisKey);
@@ -1114,8 +1133,16 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 return true;
             }
 
-            int w_true = (int) (initList.get(0).getRate() * 100);
-            int w_false = 100 - w_true;
+            int w_true;
+            int w_false;
+            //拦截回传比列类型
+            if(rateType == 1) {
+            	w_true = (int) (initList.get(0).getRate() * 100);
+                w_false = 100 - w_true;
+            } else {
+            	w_true = (int) (initList.get(0).getOriRate() * 100);
+                w_false = 100 - w_true;
+            }
 
             // 添加true
             redisDataList.add(new RedisData() {
