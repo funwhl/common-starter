@@ -23,7 +23,7 @@ import java.util.List;
 public interface LinkedStasticMapper {
     @Select("<script>" +
             "select top ${count}  imei,iimei,channel, coid, ncoid, macAddress as wifimac,ip, createTime  as activeTime, ua, androidId, oaid,mid,ROW_NUMBER() OVER(ORDER BY createTime asc) AS r from LinkStatistics.dbo.active_feedback_match  with(nolock) " +
-            "where 1=1 and createTime >= #{date} and DATEPART(ss, createTime) &gt;= #{min} and DATEPART(ss, createTime) &lt;= #{max}  " +
+            "where 1=1 and coid =8 and ncoid =1 and createTime >= #{date} and DATEPART(ss, createTime) &gt;= #{min} and DATEPART(ss, createTime) &lt;= #{max}  " +
             "</script>"
     )
     @ResultType(ActiveLogger.class)
