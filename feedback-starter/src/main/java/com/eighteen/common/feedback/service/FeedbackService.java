@@ -1,6 +1,7 @@
 package com.eighteen.common.feedback.service;
 
 import com.dangdang.ddframe.job.api.ShardingContext;
+import com.eighteen.common.feedback.domain.ThrowChannelConfig;
 import com.eighteen.common.feedback.entity.DayHistory;
 import com.eighteen.common.feedback.service.impl.FeedbackServiceImpl.JobType;
 
@@ -13,6 +14,8 @@ import java.util.List;
 
 public interface FeedbackService {
     void feedback(ShardingContext c,Boolean cold);
+
+    List<ThrowChannelConfig> getThrowChannelConfigs();
 
     void syncActive(ShardingContext c);
 

@@ -3,6 +3,7 @@ package com.eighteen.common.feedback.controller;
 import com.alibaba.fastjson.JSONObject;
 import com.eighteen.common.feedback.dao.ClickLogMapper;
 import com.eighteen.common.feedback.dao.FeedBackMapper;
+import com.eighteen.common.feedback.domain.ThrowChannelConfig;
 import com.eighteen.common.feedback.entity.ClickLog;
 import com.eighteen.common.feedback.entity.dao2.ClickLogDao;
 import com.eighteen.common.feedback.handler.ClickLogHandler;
@@ -25,19 +26,18 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.retry.RetryCallback;
 import org.springframework.retry.backoff.FixedBackOffPolicy;
 import org.springframework.retry.support.RetryTemplate;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Collections;
-import java.util.Date;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -70,6 +70,8 @@ public class ClickMonitorController {
     Redis redis;
     @Value("${18.feedback.persistRedisClick:false}")
     Boolean persisi;
+    @Autowired
+    RedisTemplate redisTemplate;
     @Value("${18.feedback.channel}")
     private String channel;
     @Value("${18.feedback.clickQueue:}")
@@ -147,6 +149,11 @@ public class ClickMonitorController {
         try {
             template.execute((RetryCallback<Object, Exception>) context -> {
                 ClickLog clickLog = (ClickLog) msg.getPayload();
+                List<ThrowChannelConfig> channelConfigs = feedbackService.getThrowChannelConfigs();
+                if (!CollectionUtils.isEmpty(channelConfigs))channelConfigs.stream().filter(t -> t.getChannel().equals(clickLog.getChannel())).findAny().ifPresent(throwChannelConfig -> {
+                    clickLog.setCoid(throwChannelConfig.getCoid());
+                    clickLog.setNcoid(throwChannelConfig.getNcoid());
+                });
                 if (persisi) {
                     ClickLog log = clickLogDao.save(clickLog);
                     if (StringUtils.isNotBlank(clickLog.getImeiMd5()))
@@ -169,6 +176,16 @@ public class ClickMonitorController {
     @GetMapping(value = "clear")
     public void clearDayCache() {
         feedbackService.clearCache(null);
+    }
+
+    @GetMapping(value = "clearChannelConfig")
+    public ResponseEntity clearChannelConfig(@RequestParam(name = "key") String key) {
+        return ResponseEntity.ok(ImmutableMap.of("ret", redisTemplate.delete(key)));
+    }
+
+    @GetMapping(value = "getChannelConfig")
+    public ResponseEntity getChannelConfigs() {
+        return ResponseEntity.ok(ImmutableMap.of("channels", feedbackService.getThrowChannelConfigs()));
     }
 
     @GetMapping(value = "sync")

@@ -66,5 +66,7 @@ public class ClickLog implements Serializable {
     @Column(name = "ts", columnDefinition = "bigint")
     private Long ts;
     private Integer status;
+    private Integer coid;
+    private Integer ncoid;
 
 }

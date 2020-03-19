@@ -331,14 +331,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     String ret = "";
 
                     if (!c.getChannel().equals(a.getChannel())) {
-                        List<ThrowChannelConfig> list;
-                        Object o = redisTemplate.opsForValue().get("#channelconfigscache#");
-                        if (o == null) {
-                            list = feedBackMapper.throwChannelConfigList();
-                            redisTemplate.opsForValue().set("#channelconfigscache#",JSONObject.toJSONString(list));
-                        } else {
-                            list = JSONObject.parseArray(o.toString(), ThrowChannelConfig.class);
-                        }
+                        List<ThrowChannelConfig> list = getThrowChannelConfigs();
                         randomFlag = new AtomicBoolean();
                         AtomicBoolean finalRandomFlag = randomFlag;
                         lock.lock(appName + "random", appName + "random", () -> finalRandomFlag.set(isNeedFeedback(list, c.getChannel())));
@@ -415,6 +408,23 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             });
             logger.info("回传耗时:,{}", query.toString());
         }
+    }
+
+    @Override
+    public List<ThrowChannelConfig> getThrowChannelConfigs() {
+        List<ThrowChannelConfig> list = null;
+        try {
+            Object o = redisTemplate.opsForValue().get("#channelconfigscache#");
+            if (o == null) {
+                list = feedBackMapper.throwChannelConfigList();
+                redisTemplate.opsForValue().set("#channelconfigscache#",JSONObject.toJSONString(list));
+            } else {
+                list = JSONObject.parseArray(o.toString(), ThrowChannelConfig.class);
+            }
+        } catch (Exception e) {
+            logger.error("step get channelconfigscache error -> {}",e.getMessage());
+        }
+        return list;
     }
 
     private boolean countHistory(DayHistory s) {
