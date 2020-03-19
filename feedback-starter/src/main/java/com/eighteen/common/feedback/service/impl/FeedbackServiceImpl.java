@@ -656,11 +656,10 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 break;
             case CLEAN_ACTIVE:
                 tryWork(r -> {
-//                    Set<String> keys = redisTemplate.keys("active#imei#");
-//                    if (!CollectionUtils.isEmpty(keys)) {
-//                        Long min = dsl.select(activeLogger.id.min()).from(activeLogger).fetchOne();
-//                       if (min>0)keys.forEach(s -> redisTemplate.opsForZSet().removeRange(s,0,min));
-//                    }
+                    Set<String> keys = redisTemplate.keys(getDayCacheRedisKey("active#imei#")+"*");
+                    if (!CollectionUtils.isEmpty(keys)) {
+                        keys.forEach(s -> redisTemplate.opsForZSet().removeRange(s,0,System.currentTimeMillis()-TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset())));
+                    }
                     dsl.delete(activeLogger).where(activeLogger.activeTime.before(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(etprop.getActiveDataExpire())))).execute();
                     if (!etprop.getPersistActive()) {
                         Example example = new Example(ActiveLogger.class);
