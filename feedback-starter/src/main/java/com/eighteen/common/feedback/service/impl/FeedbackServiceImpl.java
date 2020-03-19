@@ -528,7 +528,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             Set<ActiveLogger> active = activeLoggerCache.getIfPresent(sdk);
             List<ActiveLogger> iimeiActive = new ArrayList<>();
 
-            data = data.stream().collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o -> o.getIimei() + o.getCoid() + o.getNcoid()))), ArrayList::new));
+            data = data.stream().collect(Collectors.collectingAndThen(Collectors.toCollection(() -> new TreeSet<>(Comparator.comparing(o -> String.format("%s%s%s%d%d", o.getImei(), o.getAndroidId(), o.getOaid(), o.getCoid(), o.getNcoid())))), ArrayList::new));
             data = data.parallelStream()
                     .filter(o -> {
                                 String value = DigestUtils.getMd5Str(o.getChannel()+"#"+o.getImei() + "#" + o.getAndroidId() + "#" + o.getOaid());
