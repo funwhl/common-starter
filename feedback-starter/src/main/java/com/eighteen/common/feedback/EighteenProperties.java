@@ -52,7 +52,7 @@ public class EighteenProperties {
     private Integer matchMinuteOffset = 0;
     private Integer activeMinuteOffset = 60;
     private Integer clickMinuteOffset = 300;
-    private Integer coldHourOffset = 8;
+    private Integer coldHourOffset = 2;
     private Boolean multipleImei = false;
     private Boolean doindb = true;
     private Boolean coldData = false;
