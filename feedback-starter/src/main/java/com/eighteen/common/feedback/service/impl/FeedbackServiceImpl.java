@@ -505,7 +505,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             log.info("{} 开始激活时间 : {}, sd: {}", item, maxActiveTime, sd);
 
             int count = etprop.getPreFetchActive();
-            if (etprop.getAllAttributed()) {
+            if (etprop.getAllAttributed()||etprop.getAllActive()) {
 //                if (!format.format(date).equals(format.format(new Date(current + offset)))) {
 //                    data = webLogMapper.getThirdActiveLogger("ActiveLogger", count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]);
 //                    data.addAll(webLogMapper.getThirdActiveLogger("ActiveLogger_B", count, maxActiveTime, etprop.getSc(), sd.split(",")[0], sd.split(",")[1]));

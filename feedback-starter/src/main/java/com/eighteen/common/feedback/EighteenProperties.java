@@ -47,8 +47,10 @@ public class EighteenProperties {
     private Boolean macAttributed  = false;
     private Boolean datetimeAttributed  = false;
     private Boolean allAttributed  = false;
+    private Boolean allActive  = false;
+//    private Boolean channelAttributed  = true;
     private Integer matchMinuteOffset = 0;
-    private Integer activeMinuteOffset = 200;
+    private Integer activeMinuteOffset = 60;
     private Integer clickMinuteOffset = 300;
     private Integer coldHourOffset = 8;
     private Boolean multipleImei = false;
