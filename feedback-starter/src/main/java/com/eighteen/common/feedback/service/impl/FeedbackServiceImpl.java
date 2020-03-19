@@ -1005,7 +1005,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         wd.forEach((s, e) -> {
             if (!s.equals("imei")) e = e.and(activeLogger.plot.eq(1));
             if (!CollectionUtils.isEmpty(range) && !(range.size() == 1 && StringUtils.isBlank(range.get(0))))
-                e = e.and(activeLogger.channel.in(range)).and(clickLog.channel.in(range));
+                e = e.and(clickLog.channel.in(range));
+//                e = e.and(activeLogger.channel.in(range)).and(clickLog.channel.in(range));
             if (!CollectionUtils.isEmpty(filterChannels) && !(filterChannels.size() == 1 && StringUtils.isBlank(filterChannels.get(0)))) {
                 e = e.and(activeLogger.channel.notIn(filterChannels)).and(clickLog.channel.notIn(filterChannels));
             }
