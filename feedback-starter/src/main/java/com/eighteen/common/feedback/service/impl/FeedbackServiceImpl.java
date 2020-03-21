@@ -212,8 +212,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 if (!etprop.getAllAttributed()&&etprop.getChannelAttributed()) expression = expression.and(activeLogger.channel.eq(clickLog.channel));
                 return dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.getValue())
                         .where(expression
-//                                .and(activeLogger.sd.eq(sc == null ? 0 : sc.getShardingItem()))
-//                                            .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).loe(sd[1])))
+//                                .and(activeL ogger.sd.eq(sc == null ? 0 : sc.getShardingItem()))
+                                            .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).loe(sd[1])))
                         ).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
             }));
             logger.info("{} 查询耗时:,{}", sd, query.toString());
@@ -238,7 +238,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     }
 
     private void doIndb(AtomicLong success, List<DayHistory> histories, List<FeedbackLog> feedbackLogs, List<IpuaNewUser> ipuaNewUsers, List<Example> examples, String key, List<ActiveLogger> list, Integer status) {
-        List<ActiveLogger> oldUsers = new ArrayList<>();
+        List<ActiveLogger> oldUsers = Collections.synchronizedList(new ArrayList<>());
         if (etprop.getDoindb()) {
             lock.lock(getDayCacheRedisKey(FEED_BACK.name()), appName + FEED_BACK.name(), () -> {
                 handlerFeedback(success, histories, feedbackLogs, ipuaNewUsers, key, oldUsers, list);
@@ -808,7 +808,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         Integer mode = etprop.getMode();
 //        String sync = getDayCacheRedisKey("sync##");
         try {
-            if (!Lists.newArrayList(SYNC_ACTIVE).contains(type)) {
+            if (!Lists.newArrayList(SYNC_ACTIVE,FEED_BACK).contains(type)) {
                 if (c.getShardingItem() != 0) {
                     return;
                 }
