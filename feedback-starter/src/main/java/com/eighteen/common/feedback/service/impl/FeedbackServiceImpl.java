@@ -184,7 +184,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     }
 
     @Override
-//    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
+    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
     public void feedback(ShardingContext sc, Boolean cold) {
         tryWork(r -> {
             AtomicLong success = new AtomicLong(0);
