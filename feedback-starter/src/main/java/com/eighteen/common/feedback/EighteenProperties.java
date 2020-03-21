@@ -13,14 +13,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class EighteenProperties {
     public static final String PREFIX = "18.feedback";
     public Integer syncOffset = 1;
-    public Integer cleanActiveOffset = 300;
+    public Integer cleanActiveOffset = 60;
     public boolean clearCache = false;
     // 渠道
     private String channel;
     private String types;
     private String filters;
     // 点击数据过期周期 天
-    private Integer clickDataExpire;
+    private Integer clickDataExpire=1;
     private Integer activeDataExpire =1;
     //接口回调每次预处理数
     private Integer preFetch = 1000;
@@ -47,11 +47,13 @@ public class EighteenProperties {
     private Boolean macAttributed  = false;
     private Boolean datetimeAttributed  = false;
     private Boolean allAttributed  = false;
+    private Boolean prodAttributed  = false;
+    private Boolean channelAttributed  = true;
     private Boolean allActive  = false;
 //    private Boolean channelAttributed  = true;
     private Integer matchMinuteOffset = 0;
     private Integer activeMinuteOffset = 60;
-    private Integer clickMinuteOffset = 300;
+    private Integer clickMinuteOffset = 120;
     private Integer coldHourOffset = 2;
     private Boolean multipleImei = false;
     private Boolean doindb = true;
