@@ -808,7 +808,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         Integer mode = etprop.getMode();
 //        String sync = getDayCacheRedisKey("sync##");
         try {
-            if (!Lists.newArrayList(SYNC_ACTIVE,FEED_BACK).contains(type)) {
+            if (!Lists.newArrayList(SYNC_ACTIVE,FEED_BACK,FEED_BACK_COLD).contains(type)) {
                 if (c.getShardingItem() != 0) {
                     return;
                 }
