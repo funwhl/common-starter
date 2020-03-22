@@ -184,7 +184,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     }
 
     @Override
-    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
     public void feedback(ShardingContext sc, Boolean cold) {
         tryWork(r -> {
             AtomicLong success = new AtomicLong(0);
@@ -210,11 +209,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 if (etprop.getProdAttributed())
                     expression.and(activeLogger.coid.eq(clickLog.coid)).and(activeLogger.ncoid.eq(clickLog.ncoid));
                 if (!etprop.getAllAttributed()&&etprop.getChannelAttributed()) expression = expression.and(activeLogger.channel.eq(clickLog.channel));
-                return dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.getValue())
-                        .where(expression
-//                                .and(activeL ogger.sd.eq(sc == null ? 0 : sc.getShardingItem()))
-                                            .and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", activeLogger.activeTime).loe(sd[1])))
-                        ).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
+                return getPrefetchList(sd, e, expression);
             }));
             logger.info("{} 查询耗时:,{}", sd, query.toString());
             map.forEach((key, e) -> {
@@ -235,6 +230,16 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             if (env.equals("pro")) handerResult(histories, feedbackLogs, ipuaNewUsers, examples);
             return success.get();
         }, cold?FEED_BACK_COLD:FEED_BACK, sc);
+    }
+
+    @Override
+    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
+    public List<ActiveLogger> getPrefetchList(String[] sd, Map.Entry<String, BooleanExpression> e, BooleanExpression expression) {
+        return dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.getValue())
+                .where(expression
+//                                .and(activeL ogger.sd.eq(sc == null ? 0 : sc.getShardingItem()))
+                                    .and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).loe(sd[1])))
+                ).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
     }
 
     private void doIndb(AtomicLong success, List<DayHistory> histories, List<FeedbackLog> feedbackLogs, List<IpuaNewUser> ipuaNewUsers, List<Example> examples, String key, List<ActiveLogger> list, Integer status) {

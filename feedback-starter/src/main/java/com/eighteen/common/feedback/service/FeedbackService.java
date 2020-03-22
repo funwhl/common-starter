@@ -2,10 +2,13 @@ package com.eighteen.common.feedback.service;
 
 import com.dangdang.ddframe.job.api.ShardingContext;
 import com.eighteen.common.feedback.domain.ThrowChannelConfig;
+import com.eighteen.common.feedback.entity.ActiveLogger;
 import com.eighteen.common.feedback.entity.DayHistory;
 import com.eighteen.common.feedback.service.impl.FeedbackServiceImpl.JobType;
+import com.querydsl.core.types.dsl.BooleanExpression;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * @author : eighteen
@@ -14,6 +17,8 @@ import java.util.List;
 
 public interface FeedbackService {
     void feedback(ShardingContext c,Boolean cold);
+
+    List<ActiveLogger> getPrefetchList(String[] sd, Map.Entry<String, BooleanExpression> e, BooleanExpression expression);
 
     List<ThrowChannelConfig> getThrowChannelConfigs();
 
