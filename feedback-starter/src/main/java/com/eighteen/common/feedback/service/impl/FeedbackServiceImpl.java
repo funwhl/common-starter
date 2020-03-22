@@ -40,6 +40,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.ResponseEntity;
+import org.springframework.retry.RetryCallback;
+import org.springframework.retry.backoff.FixedBackOffPolicy;
+import org.springframework.retry.support.RetryTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
@@ -233,18 +236,24 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     }
 
     @Override
-//    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
+    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
     public List<ActiveLogger> getPrefetchList(String[] sd, Map.Entry<String, BooleanExpression> e, BooleanExpression expression) {
-        try {
-            return dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.getValue())
-                    .where(expression
-    //                                .and(activeL ogger.sd.eq(sc == null ? 0 : sc.getShardingItem()))
-                                        .and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).loe(sd[1])))
-                    ).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
-        } catch (Exception e1) {
-            logger.error("step prefetch error: {},{},{},{}",e.getKey(),e.getValue().toString(),sd,e1.getMessage());
-        }
-        return null;
+        List<ActiveLogger> list = new ArrayList<>();
+            RetryTemplate template = new RetryTemplate();
+            FixedBackOffPolicy fixedBackOffPolicy = new FixedBackOffPolicy();
+            fixedBackOffPolicy.setBackOffPeriod(TimeUnit.SECONDS.toMillis(2));
+            template.setBackOffPolicy(fixedBackOffPolicy);
+            try {
+               list= template.execute((RetryCallback<List<ActiveLogger>, Exception>) context ->
+                       dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.getValue())
+                       .where(expression
+                               //.and(activeL ogger.sd.eq(sc == null ? 0 : sc.getShardingItem()))
+                               .and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).loe(sd[1])))
+                       ).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList()));
+            } catch (Exception e1) {
+                logger.error("step prefetch error: {},{},{},{}",e.getKey(),e.getValue().toString(),sd,e1.getMessage());
+            }
+        return list;
     }
 
     private void doIndb(AtomicLong success, List<DayHistory> histories, List<FeedbackLog> feedbackLogs, List<IpuaNewUser> ipuaNewUsers, List<Example> examples, String key, List<ActiveLogger> list, Integer status) {
@@ -657,7 +666,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             case CLEAN_IMEI:
                 Long current = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset + 1);
                 tryWork(r -> {
-//                            queryMap.keySet().forEach(s -> redisTemplate.opsForZSet().removeRange(getDayCacheRedisKey(s), 0, (System.currentTimeMillis() - TimeUnit.DAYS.toMillis(3))));
+                            queryMap.keySet().forEach(s -> redisTemplate.opsForZSet().removeRange(getDayCacheRedisKey(s), 0, (System.currentTimeMillis() - TimeUnit.DAYS.toMillis(5))));
 
                             Example example = new Example(DayHistory.class);
                             Example.Criteria criteria = example.createCriteria();
