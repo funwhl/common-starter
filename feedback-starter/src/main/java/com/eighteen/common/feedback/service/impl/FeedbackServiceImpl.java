@@ -196,7 +196,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             String[] sd = sds.get(index).split(",");
             Integer status = (etprop.getColdData() || cold) ? -1 : 0;
             Date date = Optional.ofNullable(dsl.select(activeLogger.activeTime.max()).from(activeLogger).fetchOne()).orElse(new Date());
-            logger.info("{} 开始查询 ", sd, query.toString());
+            logger.debug("{} 开始查询 ", sd, query.toString());
             Map<String, List<ActiveLogger>> map = queryMap.entrySet().parallelStream().collect(Collectors.toMap(Map.Entry::getKey, e ->
             {
                 Date left = new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset()));
@@ -211,7 +211,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 if (!etprop.getAllAttributed()&&etprop.getChannelAttributed()) expression = expression.and(activeLogger.channel.eq(clickLog.channel));
                 return getPrefetchList(sd, e, expression);
             }));
-            logger.info("{} 查询耗时:,{}", sd, query.toString());
+            logger.debug("{} 查询耗时:,{}", sd, query.toString());
             map.forEach((key, e) -> {
                 try {
                     if (CollectionUtils.isEmpty(e)) return;
@@ -233,7 +233,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     }
 
     @Override
-    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
+//    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
     public List<ActiveLogger> getPrefetchList(String[] sd, Map.Entry<String, BooleanExpression> e, BooleanExpression expression) {
         try {
             return dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.getValue())
@@ -288,7 +288,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     private void handlerFeedback(AtomicLong success, List<DayHistory> histories, List<FeedbackLog> feedbackLogs, List<IpuaNewUser> ipuaNewUsers, String key, List<ActiveLogger> oldUsers, List<ActiveLogger> filter) {
 //        List<DayHistory> dayHistoryList = getDayCache(key);
         StopWatch query = StopWatch.createStarted();
-        logger.info("开始去重:,{}", query.toString());
+        logger.debug("开始去重:,{}", query.toString());
 
         filter.parallelStream().forEach(activeLogger -> {
             Object fieldValue = ReflectionUtils.getFieldValue(activeLogger, key);
@@ -298,20 +298,20 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             if (countHistory(history)) {
                 oldUsers.add(activeLogger);
             } else if (check(key, activeLogger)) {
-                logger.info("other_field_matched : key:{},value:{}#{}#{} ,{}", key, value, activeLogger.getCoid(), activeLogger.getNcoid(), activeLogger.toString());
+                logger.debug("other_field_matched : key:{},value:{}#{}#{} ,{}", key, value, activeLogger.getCoid(), activeLogger.getNcoid(), activeLogger.toString());
                 addDayCache(key, Collections.singletonList(history));
                 histories.add(history);
                 oldUsers.add(activeLogger);
             }
         });
-        logger.info("去重耗时:,{}", query.toString());
+        logger.debug("去重耗时:,{}", query.toString());
 
         List<String> retErrors = errorCache.getIfPresent("errors");
         filter = filter.stream()
                 .filter(o -> !oldUsers.contains(o) && (retErrors == null || !retErrors.contains(o.getClickLog().getCallbackUrl())))
                 .collect(Collectors.toList());
 
-        logger.info("老用户去重:,{}", query.toString());
+        logger.debug("老用户去重:,{}", query.toString());
         List<String> values = filter.stream().map(o -> ReflectionUtils.getFieldValue(o, key).toString()).collect(Collectors.toList());
         if (!CollectionUtils.isEmpty(values)) {
             List<DayHistory> exist;
@@ -326,14 +326,14 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 DayHistory history = new DayHistory().setNcoid(o.getNcoid()).setCoid(o.getCoid()).setWd(key).setValue(value).setCreateTime(new Date());
                 boolean b = finalExist.contains(history);
                 if (b) {
-                    logger.info("step sssss4");
+                    logger.debug("step sssss4");
                     addDayCache(key, Collections.singletonList(history));
                     histories.add(history);
                     oldUsers.add(o);
                 }
                 return !b;
             }).collect(Collectors.toList());
-            logger.info("老用户去重耗时:,{}", query.toString());
+            logger.debug("老用户去重耗时:,{}", query.toString());
 
             newUsers.forEach(a -> {
                 try {
@@ -351,8 +351,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     	//原始
                     	lock.lock(appName + "random", appName + "random", () -> finalRandomFlag.set(isNeedFeedback(list, c.getChannel(),2)));
                     }
-                    logger.info("step randomchannel {}",randomFlag);
-                    if (randomFlag.get()) {
+                    logger.debug("step randomchannel {}",randomFlag);
+                    if (randomFlag.get()&&env.equals("pro")) {
                         if (feedbackHandler != null) {
                             flag = feedbackHandler.handler(a, ret);
                         } else {
@@ -387,7 +387,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                         if (key.equals("ipua")) {
                             ipuaNewUsers.add(new IpuaNewUser().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setIp(a.getIp()).setUa(a.getUa()).setIpua(value).setCreateTime(new Date()));
                             if (StringUtils.isNotBlank(a.getImei()) && !filters.contains(a.getImei())) {
-                                logger.info("step sssss3");
+                                logger.debug("step sssss3");
                                 addDayCache(key, Collections.singletonList(new DayHistory().setCoid(a.getCoid()).setNcoid(a.getNcoid()).setWd("imei").setCreateTime(new Date()).setValue(a.getImei())));
                             }
                         }
@@ -404,13 +404,13 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                                         imeiList.add(imeiHistory.setValue(v));
                                 }
                                 if (!CollectionUtils.isEmpty(imeiList)) {
-                                    logger.info("step sssss2");
+                                    logger.debug("step sssss2");
                                     addDayCache(key, imeiList);
                                     histories.addAll(imeiList);
                                 }
                             }
                         }
-                        logger.info("step sssss1");
+                        logger.debug("step sssss1");
                         addDayCache(key, Collections.singletonList(history));
                         success.incrementAndGet();
                         histories.add(history);
@@ -430,7 +430,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     logger.error(e1.getMessage());
                 }
             });
-            logger.info("回传耗时:,{}", query.toString());
+            logger.debug("回传耗时:,{}", query.toString());
         }
     }
 
@@ -456,7 +456,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         try {
             if (redis != null) {
                 Double score = redisTemplate.opsForZSet().score(getDayCacheRedisKey(key), String.format("%d##%d##%s", s.getCoid(), s.getNcoid(), s.getValue()));
-                log.info("step countCache : ret {},{}", score, s);
+                log.debug("step countCache : ret {},{}", score, s);
                 return score != null && score > 0;
             } else {
                 List<DayHistory> histories = dayCache.getIfPresent(key);
@@ -828,7 +828,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //                    return;
 //                }
 //            }
-            logger.info("start {}{} {}", k, c.getShardingItem());
+            logger.info("start {} {} {}", k, c.getShardingItem(),sds.get(c.getShardingItem()));
             Long start = System.currentTimeMillis();
             if (mode == 2 && redis.process(jedis -> jedis.setnx(k, "")).equals(0L)) {
                 throw new RuntimeException(type.getKey() + " failed because redis setnx return 0");
@@ -837,7 +837,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             Object r = consumer.apply(type);
             if (mode == 2) redis.expire(k, type.getExpire().intValue());
             long end = System.currentTimeMillis() - start;
-            logger.info("finished {}{} in {}ms,count:{}", k, c.getShardingItem(), end, r.toString());
+            logger.info("finished {} {} {} in {}ms,count:{}", k, c.getShardingItem(),sds.get(c.getShardingItem()), end, r.toString());
             if (end > 300000 && etprop.getWarning())
                 fsService.sendMsg(String.format("%s-%s finished in %d at %s , {}", appName, k, end, new Date()), r.toString());
         } catch (Exception e) {
@@ -869,7 +869,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
                 dayHistories.forEach(dayHistory -> {
                     Boolean count = redisTemplate.opsForZSet().add(redisKey, String.format("%d##%d##%s", dayHistory.getCoid(), dayHistory.getNcoid(), dayHistory.getValue()), (double) dayHistory.getCreateTime().getTime());
-                    log.info("step addcache : ret {},{},{}", count, dayHistory.toString(), dayHistory.getCreateTime().getTime());
+                    log.debug("step addcache : ret {},{},{}", count, dayHistory.toString(), dayHistory.getCreateTime().getTime());
                 });
 
             } else {
