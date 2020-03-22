@@ -235,11 +235,16 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     @Override
     @Transactional(isolation = Isolation.READ_UNCOMMITTED)
     public List<ActiveLogger> getPrefetchList(String[] sd, Map.Entry<String, BooleanExpression> e, BooleanExpression expression) {
-        return dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.getValue())
-                .where(expression
-//                                .and(activeL ogger.sd.eq(sc == null ? 0 : sc.getShardingItem()))
-                                    .and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).loe(sd[1])))
-                ).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
+        try {
+            return dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.getValue())
+                    .where(expression
+    //                                .and(activeL ogger.sd.eq(sc == null ? 0 : sc.getShardingItem()))
+                                        .and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).loe(sd[1])))
+                    ).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList());
+        } catch (Exception e1) {
+            logger.error("step prefetch error: {},{},{},{}",e.getKey(),e.getValue().toString(),sd,e1.getMessage());
+        }
+        return null;
     }
 
     private void doIndb(AtomicLong success, List<DayHistory> histories, List<FeedbackLog> feedbackLogs, List<IpuaNewUser> ipuaNewUsers, List<Example> examples, String key, List<ActiveLogger> list, Integer status) {
