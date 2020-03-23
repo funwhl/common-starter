@@ -154,10 +154,10 @@ public class ClickMonitorController {
                     clickLog.setCoid(throwChannelConfig.getCoid());
                     clickLog.setNcoid(throwChannelConfig.getNcoid());
                 });
+                if (clickLog.getClickTime() != null && clickLog.getClickTime().compareTo(new Date()) > 0) {
+                    clickLog.setClickTime(new Date());
+                }
                 if (persisi) {
-                    if (clickLog.getClickTime() != null && clickLog.getClickTime().compareTo(new Date()) > 0) {
-                        clickLog.setClickTime(new Date());
-                    }
                     ClickLog log = clickLogDao.save(clickLog);
                     if (StringUtils.isNotBlank(clickLog.getImeiMd5()))
                         redis.zadd(feedbackService.getDayCacheRedisKey("click#imei"), log.getId().doubleValue(), clickLog.getImeiMd5());
