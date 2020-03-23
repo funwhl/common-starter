@@ -155,6 +155,9 @@ public class ClickMonitorController {
                     clickLog.setNcoid(throwChannelConfig.getNcoid());
                 });
                 if (persisi) {
+                    if (clickLog.getClickTime() != null && clickLog.getClickTime().compareTo(new Date()) > 0) {
+                        clickLog.setClickTime(new Date());
+                    }
                     ClickLog log = clickLogDao.save(clickLog);
                     if (StringUtils.isNotBlank(clickLog.getImeiMd5()))
                         redis.zadd(feedbackService.getDayCacheRedisKey("click#imei"), log.getId().doubleValue(), clickLog.getImeiMd5());
@@ -186,6 +189,11 @@ public class ClickMonitorController {
     @GetMapping(value = "getChannelConfig")
     public ResponseEntity getChannelConfigs() {
         return ResponseEntity.ok(ImmutableMap.of("channels", feedbackService.getThrowChannelConfigs()));
+    }
+
+    @GetMapping(value = "status")
+    public ResponseEntity status(@RequestParam(name = "key")String key) {
+        return ResponseEntity.ok(ImmutableMap.of(key, redisTemplate.opsForZSet().size(feedbackService.getDayCacheRedisKey(key))));
     }
 
     @GetMapping(value = "sync")
