@@ -690,7 +690,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     }
                     DateUtils.foreachRange(dsl.select(activeLogger.activeTime.min()).from(activeLogger).fetchOne()
                             ,new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(etprop.getActiveDataExpire())),date ->
-                                    executor.execute(() ->success.addAndGet(dsl.delete(activeLogger).where(activeLogger.activeTime.after(date).and(activeLogger.activeTime.before(new Date(date.getTime() + TimeUnit.MINUTES.toMillis(1))))).execute()) ));
+                                    success.addAndGet(dsl.delete(activeLogger).where(activeLogger.activeTime.before(new Date(date.getTime() + TimeUnit.MINUTES.toMillis(1)))).execute()));
 
                     return success.get();
 
@@ -732,7 +732,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                                 AtomicLong success = new AtomicLong(0);
                                 DateUtils.foreachRange(dsl.select(clickLog.clickTime.min()).from(clickLog).fetchOne()
                                         ,new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(etprop.getClickDataExpire())),date ->
-                                                executor.execute(() ->success.addAndGet(dsl.delete(clickLog).where(clickLog.clickTime.after(date).and(clickLog.clickTime.before(new Date(date.getTime() + TimeUnit.MINUTES.toMillis(1))))).execute())));
+                                                success.addAndGet(dsl.delete(clickLog).where(clickLog.clickTime.before(new Date(date.getTime() + TimeUnit.MINUTES.toMillis(1)))).execute()));
 
                                 return success.get();
 
