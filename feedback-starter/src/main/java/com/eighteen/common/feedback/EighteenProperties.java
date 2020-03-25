@@ -55,6 +55,7 @@ public class EighteenProperties {
     private Integer activeMinuteOffset = 60;
     private Integer clickMinuteOffset = 120;
     private Integer coldHourOffset = 2;
+    private String coldChannels = "";
     private Boolean multipleImei = false;
     private Boolean doindb = true;
     private Boolean coldData = false;

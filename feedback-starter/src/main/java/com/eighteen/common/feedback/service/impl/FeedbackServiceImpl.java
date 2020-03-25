@@ -197,7 +197,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             StopWatch query = StopWatch.createStarted();
             int index = sc.getShardingItem();
             String[] sd = sds.get(index).split(",");
-            Integer status = (etprop.getColdData() || cold) ? -1 : 0;
+//            Integer status = (etprop.getColdData() || cold) ? -1 : 0;
+            Integer status = 0;
             Date date = Optional.ofNullable(dsl.select(activeLogger.activeTime.max()).from(activeLogger).fetchOne()).orElse(new Date());
             logger.debug("{} 开始查询 ", sd, query.toString());
             Map<String, List<ActiveLogger>> map = queryMap.entrySet().parallelStream().collect(Collectors.toMap(Map.Entry::getKey, e ->
@@ -205,7 +206,12 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 Date left = new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset()));
                 Date leftClick = new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getClickMinuteOffset()));
                 BooleanExpression expression = activeLogger.status.eq(status);
-                if (etprop.getColdData() || cold) expression = expression.and(activeLogger.activeTime.goe(new Date(System.currentTimeMillis()-TimeUnit.HOURS.toMillis(etprop.getColdHourOffset()))));
+                if (etprop.getColdData() || cold){
+                    expression = expression.and(activeLogger.activeTime.goe(new Date(System.currentTimeMillis() - TimeUnit.HOURS.toMillis(etprop.getColdHourOffset()))));
+                    if (StringUtils.isNotBlank(etprop.getColdChannels())) {
+                        expression = expression.and(activeLogger.channel.in(etprop.getColdChannels().split(",")));
+                    }
+                }
                 else
                     expression = expression.and(activeLogger.activeTime.goe(left)).and(clickLog.clickTime.goe(leftClick));
 
@@ -677,23 +683,30 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 break;
             case CLEAN_ACTIVE:
                 tryWork(r -> {
+                    AtomicLong success = new AtomicLong(0);
                     Set<String> keys = redisTemplate.keys(getDayCacheRedisKey("active#imei#")+"*");
                     if (!CollectionUtils.isEmpty(keys)) {
                         keys.forEach(s -> redisTemplate.opsForZSet().removeRange(s,0,System.currentTimeMillis()-TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset())));
                     }
-                    dsl.delete(activeLogger).where(activeLogger.activeTime.before(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(etprop.getActiveDataExpire())))).execute();
-                    if (!etprop.getPersistActive()) {
-                        Example example = new Example(ActiveLogger.class);
-                        Example.Criteria criteria = example.createCriteria();
-                        criteria.andEqualTo("status",0).andLessThan("activeTime", new Date(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(etprop.getCleanActiveOffset())));
-//                        activeLoggerMapper.deleteByExample(example);
-                        return activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(-1), example);
-                    }
-                    List<ActiveLogger> activeLoggers = dsl.selectFrom(activeLogger).setLockMode(LockModeType.NONE)
-                            .where(activeLogger.activeTime.before(new Date(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(etprop.getCleanActiveOffset())))).limit(10000).fetch();
-                    if (CollectionUtils.isEmpty(activeLoggers)) return 0L;
-                    cleanActiveLogger(activeLoggers, etprop.getPersistActive());
-                    return (long) activeLoggers.size();
+                    DateUtils.foreachRange(dsl.select(activeLogger.activeTime.min()).from(activeLogger).fetchOne()
+                            ,new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(etprop.getActiveDataExpire())),date ->
+                                    executor.execute(() ->success.addAndGet(dsl.delete(activeLogger).where(activeLogger.activeTime.after(date).and(activeLogger.activeTime.before(new Date(date.getTime() + TimeUnit.MINUTES.toMillis(1))))).execute()) ));
+
+                    return success.get();
+
+//                    dsl.delete(activeLogger).where(activeLogger.activeTime.before(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(etprop.getActiveDataExpire())))).execute();
+//                    if (!etprop.getPersistActive()) {
+//                        Example example = new Example(ActiveLogger.class);
+//                        Example.Criteria criteria = example.createCriteria();
+//                        criteria.andEqualTo("status",0).andLessThan("activeTime", new Date(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(etprop.getCleanActiveOffset())));
+////                        activeLoggerMapper.deleteByExample(example);
+//                        return activeLoggerMapper.updateByExampleSelective(new ActiveLogger().setStatus(-1), example);
+//                    }
+//                    List<ActiveLogger> activeLoggers = dsl.selectFrom(activeLogger).setLockMode(LockModeType.NONE)
+//                            .where(activeLogger.activeTime.before(new Date(System.currentTimeMillis() - TimeUnit.MINUTES.toMillis(etprop.getCleanActiveOffset())))).limit(10000).fetch();
+//                    if (CollectionUtils.isEmpty(activeLoggers)) return 0L;
+//                    cleanActiveLogger(activeLoggers, etprop.getPersistActive());
+//                    return (long) activeLoggers.size();
                 }, CLEAN_ACTIVE, c);
                 break;
             case CLEAN_ACTIVE_HISTORY:
@@ -711,11 +724,18 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             case CLEAN_CLICK:
                 tryWork(r -> {
                             if (!etprop.getPersistClick()) {
-                                Example example = new Example(ClickLog.class);
-                                Example.Criteria criteria = example.createCriteria();
-                                criteria.andLessThan("clickTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(etprop.getClickDataExpire())));
-                                return clickLogMapper.deleteByExample(example);
-//                                return clickLogMapper.updateByExampleSelective(new ClickLog().setStatus(1), example);
+//                                Example example = new Example(ClickLog.class);
+//                                Example.Criteria criteria = example.createCriteria();
+//                                criteria.andLessThan("clickTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(etprop.getClickDataExpire())));
+//                                return clickLogMapper.deleteByExample(example);
+
+                                AtomicLong success = new AtomicLong(0);
+                                DateUtils.foreachRange(dsl.select(clickLog.clickTime.min()).from(clickLog).fetchOne()
+                                        ,new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(etprop.getClickDataExpire())),date ->
+                                                executor.execute(() ->success.addAndGet(dsl.delete(clickLog).where(clickLog.clickTime.after(date).and(clickLog.clickTime.before(new Date(date.getTime() + TimeUnit.MINUTES.toMillis(1))))).execute())));
+
+                                return success.get();
+
                             }
                             List<ClickLog> clickLogs = dsl.selectFrom(clickLog).setLockMode(LockModeType.NONE)
                                     .where(clickLog.createTime.before(new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(Optional.ofNullable(etprop.getClickDataExpire()).orElse(offset))))).fetch();
