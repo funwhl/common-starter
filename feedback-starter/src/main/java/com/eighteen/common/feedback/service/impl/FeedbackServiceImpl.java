@@ -17,6 +17,7 @@ import com.eighteen.common.feedback.entity.dao2.ActiveLoggerDao;
 import com.eighteen.common.feedback.handler.ActiveHandler;
 import com.eighteen.common.feedback.handler.FeedbackHandler;
 import com.eighteen.common.feedback.handler.NewUserHandler;
+import com.eighteen.common.feedback.handler.PrefetchSqlHandler;
 import com.eighteen.common.feedback.service.FeedbackErrorsService;
 import com.eighteen.common.feedback.service.FeedbackService;
 import com.eighteen.common.spring.boot.autoconfigure.cache.redis.Redis;
@@ -105,6 +106,8 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     FeedbackHandler feedbackHandler;
     @Autowired(required = false)
     ActiveHandler activeHandler;
+    @Autowired(required = false)
+    PrefetchSqlHandler prefetchSqlHandler;
     @Autowired
     IpuaNewUserMapper ipuaNewUserMapper;
     @Autowired
@@ -217,7 +220,12 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
                 if (etprop.getProdAttributed())
                     expression.and(activeLogger.coid.eq(clickLog.coid)).and(activeLogger.ncoid.eq(clickLog.ncoid));
-                if (!etprop.getAllAttributed()&&etprop.getChannelAttributed()) expression = expression.and(activeLogger.channel.eq(clickLog.channel));
+                if (prefetchSqlHandler != null) {
+                   expression = prefetchSqlHandler.handler(etprop, expression, sc);
+                } else {
+                    if (!etprop.getAllAttributed()&&etprop.getChannelAttributed()) expression = expression.and(activeLogger.channel.eq(clickLog.channel));
+                    expression = expression.and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).loe(sd[1])));
+                }
                 return getPrefetchList(sd, e, expression);
             }));
             logger.debug("{} 查询耗时:,{}", sd, query.toString());
@@ -254,7 +262,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                        dsl.select(activeLogger, clickLog).from(activeLogger).setLockMode(LockModeType.NONE).innerJoin(clickLog).on(e.getValue())
                        .where(expression
                                //.and(activeL ogger.sd.eq(sc == null ? 0 : sc.getShardingItem()))
-                               .and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).loe(sd[1])))
                        ).limit(Long.valueOf(etprop.getPreFetch())).fetch().stream().map(tuple -> tuple.get(activeLogger).setClickLog(tuple.get(clickLog))).collect(Collectors.toList()));
             } catch (Exception e1) {
                 logger.error("step prefetch error: {},{},{},{}",e.getKey(),e.getValue().toString(),sd,e1.getMessage());
