@@ -162,33 +162,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         this.etprop = properties;
     }
 
-    public static void main(String[] args) {
-        List<Integer> taskList = new ArrayList<>();
-        for (int i = 0; i < 60; i++) {
-            taskList.add(i);
-        }
-        int total = taskList.size();
-        int threadNum = 5;
-        int remaider = total % threadNum; // 计算出余数
-        int number = total / threadNum; // 计算出商
-        int offset = 0;// 偏移量
-        for (int i = 0; i < threadNum; i++) {
-            if (remaider > 0) {
-                List<Integer> subList = taskList.subList(i * number + offset, (i + 1) * number + offset + 1);
-                remaider--;
-                offset++;
-                System.out.println(subList.get(0) + "--" + subList.get(subList.size() - 1));
-            } else {
-                List<Integer> subList = taskList.subList(i * number + offset, (i + 1) * number + offset);
-                System.out.println(subList.get(0) + "--" + subList.get(subList.size() - 1));
-            }
-        }
-    }
-
-    public static String[] prodKeys() {
-        return null;
-    }
-
     @Override
     public void feedback(ShardingContext sc, Boolean cold) {
         tryWork(r -> {
@@ -250,7 +223,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     }
 
     @Override
-    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
     public List<ActiveLogger> getPrefetchList(String[] sd, Map.Entry<String, BooleanExpression> e, BooleanExpression expression) {
         List<ActiveLogger> list = new ArrayList<>();
             RetryTemplate template = new RetryTemplate();
@@ -591,7 +563,6 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                                 if (newUserHandler != null) {
                                     value = newUserHandler.check(item, o);
                                 }
-//                        etprop.getPersistRedisActive()
                                 Double score = null;
                                 if (etprop.getPersistRedisActive()) {
                                     score = redisTemplate.opsForZSet().score(getDayCacheRedisKey(String.format("active#imei#%d#%d", o.getCoid(), o.getNcoid())),
@@ -672,14 +643,13 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     }
 
     @Override
-    @Transactional(isolation = Isolation.READ_UNCOMMITTED)
     public void clean(JobType type, ShardingContext c) {
         Integer offset = etprop.getOffset();
         switch (type) {
             case CLEAN_IMEI:
                 Long current = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(offset + 1);
                 tryWork(r -> {
-                            queryMap.keySet().forEach(s -> redisTemplate.opsForZSet().removeRange(getDayCacheRedisKey(s), 0, (System.currentTimeMillis() - TimeUnit.DAYS.toMillis(5))));
+                            queryMap.keySet().forEach(s -> redisTemplate.opsForZSet().removeRangeByScore(getDayCacheRedisKey(s), 0, (System.currentTimeMillis() - TimeUnit.DAYS.toMillis(5))));
 
                             Example example = new Example(DayHistory.class);
                             Example.Criteria criteria = example.createCriteria();
@@ -693,11 +663,17 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     AtomicLong success = new AtomicLong(0);
                     Set<String> keys = redisTemplate.keys(getDayCacheRedisKey("active#imei#")+"*");
                     if (!CollectionUtils.isEmpty(keys)) {
-                        keys.forEach(s -> redisTemplate.opsForZSet().removeRange(s,0,System.currentTimeMillis()-TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset())));
+                        keys.forEach(s -> redisTemplate.opsForZSet().removeRangeByScore(s,0,System.currentTimeMillis()-TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset())));
                     }
                     DateUtils.foreachRange(dsl.select(activeLogger.activeTime.min()).from(activeLogger).fetchOne()
-                            ,new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(etprop.getActiveDataExpire())),date ->
-                                    success.addAndGet(dsl.delete(activeLogger).where(activeLogger.activeTime.before(new Date(date.getTime() + TimeUnit.MINUTES.toMillis(1)))).execute()));
+                            ,new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(etprop.getActiveDataExpire())),date ->{
+                                Example example = new Example(ActiveLogger.class);
+                        Example.Criteria criteria = example.createCriteria();
+                        criteria.andLessThan("activeTime", new Date(date.getTime() + TimeUnit.MINUTES.toMillis(1)));
+                        success.addAndGet(activeLoggerMapper.deleteByExample(example));
+//                                success.addAndGet(dsl.delete(activeLogger).where(activeLogger.activeTime.before(new Date(date.getTime() + TimeUnit.MINUTES.toMillis(1)))).execute());
+                            }
+                                    );
 
                     return success.get();
 
@@ -731,15 +707,17 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             case CLEAN_CLICK:
                 tryWork(r -> {
                             if (!etprop.getPersistClick()) {
-//                                Example example = new Example(ClickLog.class);
-//                                Example.Criteria criteria = example.createCriteria();
-//                                criteria.andLessThan("clickTime", new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(etprop.getClickDataExpire())));
-//                                return clickLogMapper.deleteByExample(example);
 
                                 AtomicLong success = new AtomicLong(0);
                                 DateUtils.foreachRange(dsl.select(clickLog.clickTime.min()).from(clickLog).fetchOne()
                                         ,new Date(System.currentTimeMillis() - TimeUnit.DAYS.toMillis(etprop.getClickDataExpire())),date ->
-                                                success.addAndGet(dsl.delete(clickLog).where(clickLog.clickTime.before(new Date(date.getTime() + TimeUnit.MINUTES.toMillis(1)))).execute()));
+                                        {
+                                 Example example = new Example(ClickLog.class);
+                                Example.Criteria criteria = example.createCriteria();
+                                criteria.andLessThan("clickTime", new Date(date.getTime() + TimeUnit.MINUTES.toMillis(1)));
+                                 success.addAndGet(clickLogMapper.deleteByExample(example));
+//                                            success.addAndGet(dsl.delete(clickLog).where(clickLog.clickTime.before(new Date(date.getTime() + TimeUnit.MINUTES.toMillis(1)))).execute());
+                                        });
 
                                 return success.get();
 
