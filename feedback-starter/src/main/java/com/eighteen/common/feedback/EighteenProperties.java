@@ -70,4 +70,6 @@ public class EighteenProperties {
 
     private String appid;
     private String appSecret;
+
+    private Integer prefetchClickHour;
 }
