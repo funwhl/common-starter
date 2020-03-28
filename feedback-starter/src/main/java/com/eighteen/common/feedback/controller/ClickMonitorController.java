@@ -1,6 +1,7 @@
 package com.eighteen.common.feedback.controller;
 
 import com.alibaba.fastjson.JSONObject;
+import com.eighteen.common.feedback.FeedbackAutoConfiguration;
 import com.eighteen.common.feedback.dao.ClickLogMapper;
 import com.eighteen.common.feedback.dao.FeedBackMapper;
 import com.eighteen.common.feedback.domain.ThrowChannelConfig;
