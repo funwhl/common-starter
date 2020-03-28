@@ -11,7 +11,7 @@ public class JpaInterceptor implements StatementInspector {
     @Override
     public String inspect(String sql) {
         if (sql.contains("inner join t_click_log"))
-            sql = sql.replace("t_active_logger activelogg0_ inner join t_click_log clicklog1_", "t_active_logger activelogg0_ with(nolock,index(activeTime)) inner join t_click_log clicklog1_ with(nolock,index(imei_md5))");
+            sql = sql.replace("t_active_logger activelogg0_ inner join t_click_log clicklog1_", "t_active_logger activelogg0_ with(nolock,index(activeTime)) inner join t_click_log clicklog1_ with(nolock,index(clickTime))");
         return sql;
     }
 }
