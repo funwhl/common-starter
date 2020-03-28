@@ -197,7 +197,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                    expression = prefetchSqlHandler.handler(etprop, expression, sc);
                 } else {
                     if (!etprop.getAllAttributed()&&etprop.getChannelAttributed()) expression = expression.and(activeLogger.channel.eq(clickLog.channel));
-                    expression = expression.and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).loe(sd[1])));
+                   if(etprop.getSc()>1) expression = expression.and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).goe(sd[0]).and(Expressions.stringTemplate("DATEPART(ss,{0})", clickLog.clickTime).loe(sd[1])));
                 }
                 return getPrefetchList(sd, e, expression);
             }));
