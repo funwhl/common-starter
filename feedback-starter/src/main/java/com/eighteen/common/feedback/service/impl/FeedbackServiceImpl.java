@@ -309,10 +309,12 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
         List<String> values = filter.stream().map(o -> {
             if (key.equals("imei")) {
                 String iimei = ReflectionUtils.getFieldValue(o, "iimei").toString();
+                if (StringUtils.isBlank(iimei)) return o.getImei();
                 return iimei.split(",")[0];
             }
             return ReflectionUtils.getFieldValue(o, key).toString();
-        }).collect(Collectors.toList());
+        }).filter(StringUtils::isNotBlank).collect(Collectors.toList());
+        logger.debug("老用户去重 2:,{} {} {} {}", query.toString(),Thread.currentThread().getName(),key,values);
         if (!CollectionUtils.isEmpty(values)) {
             List<DayHistory> exist;
             if (key.equals("ipua")) {
