@@ -176,7 +176,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //            Integer status = (etprop.getColdData() || cold) ? -1 : 0;
             Integer status = 0;
             Date date = Optional.ofNullable(dsl.select(activeLogger.activeTime.max()).from(activeLogger).fetchOne()).orElse(new Date());
-            logger.debug("{} 开始查询 ", sd, query.toString());
+            logger.debug("{} 开始查询 {}", sd, query.toString(),Thread.currentThread().getName());
             Map<String, List<ActiveLogger>> map = queryMap.entrySet().parallelStream().collect(Collectors.toMap(Map.Entry::getKey, e ->
             {
                 Date left = new Date(date.getTime() - TimeUnit.MINUTES.toMillis(etprop.getActiveMinuteOffset()));
@@ -201,7 +201,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 }
                 return getPrefetchList(sd, e, expression);
             }));
-            logger.debug("{} 查询耗时:,{}", sd, query.toString());
+            logger.debug("{} 查询耗时:,{} {}", sd, query.toString(),Thread.currentThread().getName());
             map.forEach((key, e) -> {
                 try {
                     if (CollectionUtils.isEmpty(e)) return;
@@ -282,7 +282,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
     private void handlerFeedback(AtomicLong success, List<DayHistory> histories, List<FeedbackLog> feedbackLogs, List<IpuaNewUser> ipuaNewUsers, String key, List<ActiveLogger> oldUsers, List<ActiveLogger> filter) {
 //        List<DayHistory> dayHistoryList = getDayCache(key);
         StopWatch query = StopWatch.createStarted();
-        logger.debug("开始去重:,{}", query.toString());
+        logger.debug("开始去重:,{} {}", query.toString(),Thread.currentThread().getName());
 
         filter.parallelStream().forEach(activeLogger -> {
             Object fieldValue = ReflectionUtils.getFieldValue(activeLogger, key);
@@ -292,20 +292,20 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             if (countHistory(history)) {
                 oldUsers.add(activeLogger);
             } else if (check(key, activeLogger)) {
-                logger.debug("other_field_matched : key:{},value:{}#{}#{} ,{}", key, value, activeLogger.getCoid(), activeLogger.getNcoid(), activeLogger.toString());
+                logger.debug("other_field_matched : key:{},value:{}#{}#{} ,{} {}", key, value, activeLogger.getCoid(), activeLogger.getNcoid(), activeLogger.toString(),Thread.currentThread().getName());
                 addDayCache(key, Collections.singletonList(history));
                 histories.add(history);
                 oldUsers.add(activeLogger);
             }
         });
-        logger.debug("去重耗时:,{}", query.toString());
+        logger.debug("去重耗时:,{} {}", query.toString(),Thread.currentThread().getName());
 
         List<String> retErrors = errorCache.getIfPresent("errors");
         filter = filter.stream()
                 .filter(o -> !oldUsers.contains(o) && (retErrors == null || !retErrors.contains(o.getClickLog().getCallbackUrl())))
                 .collect(Collectors.toList());
 
-        logger.debug("老用户去重:,{}", query.toString());
+        logger.debug("老用户去重:,{} {}", query.toString(),Thread.currentThread().getName());
         List<String> values = filter.stream().map(o -> {
             if (key.equals("imei")) {
                 String iimei = ReflectionUtils.getFieldValue(o, "iimei").toString();
@@ -326,14 +326,13 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                 DayHistory history = new DayHistory().setNcoid(o.getNcoid()).setCoid(o.getCoid()).setWd(key).setValue(value).setCreateTime(new Date());
                 boolean b = finalExist.contains(history);
                 if (b) {
-                    logger.debug("step sssss4");
                     addDayCache(key, Collections.singletonList(history));
                     histories.add(history);
                     oldUsers.add(o);
                 }
                 return !b;
             }).collect(Collectors.toList());
-            logger.debug("老用户去重耗时:,{}", query.toString());
+            logger.debug("老用户去重耗时:,{} {}", query.toString(),Thread.currentThread().getName());
 
             newUsers.forEach(a -> {
                 try {
@@ -430,7 +429,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
                     logger.error(e1.getMessage());
                 }
             });
-            logger.debug("回传耗时:,{}", query.toString());
+            logger.debug("回传耗时:,{} {}", query.toString(),Thread.currentThread().getName());
         }
     }
 
@@ -848,7 +847,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 //                    return;
 //                }
 //            }
-            logger.info("start {} {} {}", k, c.getShardingItem(),sds.get(c.getShardingItem()));
+            logger.info("start {} {} {} {}", k, c.getShardingItem(),sds.get(c.getShardingItem()),Thread.currentThread().getName());
             Long start = System.currentTimeMillis();
             if (mode == 2 && redis.process(jedis -> jedis.setnx(k, "")).equals(0L)) {
                 throw new RuntimeException(type.getKey() + " failed because redis setnx return 0");
@@ -857,7 +856,7 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
             Object r = consumer.apply(type);
             if (mode == 2) redis.expire(k, type.getExpire().intValue());
             long end = System.currentTimeMillis() - start;
-            logger.info("finished {} {} {} in {}ms,count:{}", k, c.getShardingItem(),sds.get(c.getShardingItem()), end, r.toString());
+            logger.info("finished {} {} {} in {}ms,count:{} {}", k, c.getShardingItem(),sds.get(c.getShardingItem()), end, r.toString(),Thread.currentThread().getName());
             if (end > 300000 && etprop.getWarning())
                 fsService.sendMsg(String.format("%s-%s finished in %d at %s , {}", appName, k, end, new Date()), r.toString());
         } catch (Exception e) {
