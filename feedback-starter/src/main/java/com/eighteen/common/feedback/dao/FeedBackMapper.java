@@ -55,7 +55,7 @@ public interface FeedBackMapper {
 
 
     @Select("<script>" +
-            "select top 1000  imei,iimei,channel, versionname versionName, coid, ncoid, wifimac,ip, activetime activeTime, type, ua, androidId, oaid,mid ,ROW_NUMBER() OVER(ORDER BY activetime asc) AS r from ThirdActive.dbo.${tableName}  with(nolock) " +
+            "select top ${count}  imei,iimei,channel, versionname versionName, coid, ncoid, wifimac,ip, activetime activeTime, type, ua, androidId, oaid,mid ,ROW_NUMBER() OVER(ORDER BY activetime asc) AS r from ThirdActive.dbo.${tableName}  with(nolock) " +
             "where 1=1 " +
             "<if test='channel != null'> "+
             " and type in"+
@@ -66,7 +66,7 @@ public interface FeedBackMapper {
             "</script>"
     )
     @ResultType(ActiveLogger.class)
-    List<ActiveLogger> getThirdActiveLogger(@Param("channel") List<String> channel, @Param("tableName") String tableName, @Param("date") Date date, @Param("min") String min, @Param("max") String max);
+    List<ActiveLogger> getThirdActiveLogger(@Param("count") Integer count, @Param("channel") List<String> channel, @Param("tableName") String tableName, @Param("date") Date date, @Param("min") String min, @Param("max") String max);
 
     @Insert("<script>" +
             "insert  into ClickLog" +
