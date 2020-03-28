@@ -17,9 +17,8 @@ public class JpaInterceptor implements StatementInspector {
                 sql = sql.replace("t_active_logger activelogg0_ inner join t_click_log clicklog1_", "t_active_logger activelogg0_ with(nolock,index(activeTime)) inner join t_click_log clicklog1_ with(nolock,index(android_id_md5))");
             } else if (sql.contains("activelogg0_.oaid_md5=clicklog1_.oaid_md5")) {
                 sql = sql.replace("t_active_logger activelogg0_ inner join t_click_log clicklog1_", "t_active_logger activelogg0_ with(nolock,index(activeTime)) inner join t_click_log clicklog1_ with(nolock,index(oaid_md5))");
-            } else if (sql.contains("activelogg0_.ipua=clicklog1_.ipua")) {
-                sql = sql.replace("t_active_logger activelogg0_ inner join t_click_log clicklog1_", "t_active_logger activelogg0_ with(nolock,index(activeTime)) inner join t_click_log clicklog1_ with(nolock,index(ipua))");
-            }
+            } else sql = sql.replace("t_active_logger activelogg0_ inner join t_click_log clicklog1_", "t_active_logger activelogg0_ with(nolock,index(activeTime)) inner join t_click_log clicklog1_ with(nolock)");
+
         }
         return sql;
     }
