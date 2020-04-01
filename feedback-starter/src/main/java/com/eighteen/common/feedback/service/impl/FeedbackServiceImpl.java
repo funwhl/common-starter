@@ -307,11 +307,11 @@ public class FeedbackServiceImpl implements FeedbackService, InitializingBean {
 
         logger.debug("老用户去重:,{} {}", query.toString(),Thread.currentThread().getName());
         List<String> values = filter.stream().map(o -> {
-//            if (key.equals("imei")) {
-//                String iimei = ReflectionUtils.getFieldValue(o, "iimei").toString();
-//                if (StringUtils.isBlank(iimei)) return o.getImei();
-//                return iimei.split(",")[0];
-//            }
+            if (key.equals("imei")) {
+                String iimei = ReflectionUtils.getFieldValue(o, "iimei").toString();
+                if (StringUtils.isBlank(iimei)) return o.getImei();
+                return iimei.split(",")[0];
+            }
             return ReflectionUtils.getFieldValue(o, key).toString();
         }).filter(StringUtils::isNotBlank).collect(Collectors.toList());
         logger.debug("老用户去重 2:,{} {} {} {}", query.toString(),Thread.currentThread().getName(),key,values);
