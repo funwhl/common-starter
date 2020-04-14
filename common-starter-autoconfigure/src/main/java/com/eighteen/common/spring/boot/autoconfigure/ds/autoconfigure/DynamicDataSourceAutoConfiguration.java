@@ -22,10 +22,7 @@ import com.eighteen.common.spring.boot.autoconfigure.ds.DynamicRoutingDataSource
 import com.eighteen.common.spring.boot.autoconfigure.ds.aop.DynamicDataSourceAdvisor;
 import com.eighteen.common.spring.boot.autoconfigure.ds.aop.DynamicDataSourceAnnotationAdvisor;
 import com.eighteen.common.spring.boot.autoconfigure.ds.autoconfigure.druid.DruidDynamicDataSourceConfiguration;
-import com.eighteen.common.spring.boot.autoconfigure.ds.processor.DsHeaderProcessor;
-import com.eighteen.common.spring.boot.autoconfigure.ds.processor.DsProcessor;
-import com.eighteen.common.spring.boot.autoconfigure.ds.processor.DsSessionProcessor;
-import com.eighteen.common.spring.boot.autoconfigure.ds.processor.DsSpelExpressionProcessor;
+import com.eighteen.common.spring.boot.autoconfigure.ds.processor.*;
 import com.eighteen.common.spring.boot.autoconfigure.ds.provider.DynamicDataSourceProvider;
 import com.eighteen.common.spring.boot.autoconfigure.ds.provider.YmlDynamicDataSourceProvider;
 import lombok.extern.slf4j.Slf4j;
@@ -101,9 +98,11 @@ public class DynamicDataSourceAutoConfiguration {
     public DsProcessor dsProcessor() {
         DsHeaderProcessor headerProcessor = new DsHeaderProcessor();
         DsSessionProcessor sessionProcessor = new DsSessionProcessor();
+        DsThreadProcessor threadProcessor = new DsThreadProcessor();
         DsSpelExpressionProcessor spelExpressionProcessor = new DsSpelExpressionProcessor();
         headerProcessor.setNextProcessor(sessionProcessor);
-        sessionProcessor.setNextProcessor(spelExpressionProcessor);
+        sessionProcessor.setNextProcessor(threadProcessor);
+        threadProcessor.setNextProcessor(spelExpressionProcessor);
         return headerProcessor;
     }
 
