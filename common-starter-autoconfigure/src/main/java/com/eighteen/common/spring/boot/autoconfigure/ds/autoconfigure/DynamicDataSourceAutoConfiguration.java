@@ -100,10 +100,12 @@ public class DynamicDataSourceAutoConfiguration {
         DsHeaderProcessor headerProcessor = new DsHeaderProcessor();
         DsSessionProcessor sessionProcessor = new DsSessionProcessor();
         DsSpelExpressionProcessor spelExpressionProcessor = new DsSpelExpressionProcessor();
+        DsThreadProcessor threadProcessor = new DsThreadProcessor();
         DsDynamicProcessor dsDynamicProcessor = new DsDynamicProcessor();
         headerProcessor.setNextProcessor(sessionProcessor);
-        //将动态数据源处理器添加到spel处理器前
-        sessionProcessor.setNextProcessor(dsDynamicProcessor);
+        //将 thread处理器 和 动态数据源处理器 添加到spel处理器前
+        sessionProcessor.setNextProcessor(threadProcessor);
+        threadProcessor.setNextProcessor(dsDynamicProcessor);
         dsDynamicProcessor.setNextProcessor(spelExpressionProcessor);
 
         return headerProcessor;
