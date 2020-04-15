@@ -5,7 +5,7 @@
     <parent>
         <groupId>com.eighteen</groupId>
         <artifactId>common-spring-boot</artifactId>
-        <version>0.0.3-SNAPSHOT</version>
+        <version>0.0.4-SNAPSHOT</version>
     </parent>
     <modelVersion>4.0.0</modelVersion>
 
@@ -75,7 +75,6 @@
         <dependency>
             <groupId>com.eighteen</groupId>
             <artifactId>common-base</artifactId>
-            <version>0.0.3-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.eighteen</groupId>

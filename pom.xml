@@ -13,7 +13,7 @@
     <groupId>com.eighteen</groupId>
     <artifactId>common-spring-boot</artifactId>
     <packaging>pom</packaging>
-    <version>0.0.3-SNAPSHOT</version>
+    <version>0.0.4-SNAPSHOT</version>
 
     <modules>
         <module>common-starter-autoconfigure</module>
@@ -38,7 +38,7 @@
         <hikari.version>2.4.13</hikari.version>
         <p6spy.version>3.8.0</p6spy.version>
         <druid.version>1.1.10</druid.version>
-        <com.eighteen.common.starter.version>0.0.3-SNAPSHOT</com.eighteen.common.starter.version>
+        <com.eighteen.common.starter.version>0.0.4-SNAPSHOT</com.eighteen.common.starter.version>
         <poi.version>3.17</poi.version>
         <tk.version>4.1.5</tk.version>
         <spring.cloud.version>Finchley.RELEASE</spring.cloud.version>
@@ -126,6 +126,12 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
+                <groupId>com.eighteen</groupId>
+                <artifactId>common-base</artifactId>
+                <version>${com.eighteen.common.starter.version}</version>
+            </dependency>
+
+            <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
                 <version>${spring-boot.version}</version>
@@ -157,12 +163,12 @@
             <dependency>
                 <groupId>com.eighteen</groupId>
                 <artifactId>common-spring-boot-starter</artifactId>
-                <version>${project.version}</version>
+                <version>${com.eighteen.common.starter.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.eighteen</groupId>
                 <artifactId>feedback-starter</artifactId>
-                <version>${project.version}</version>
+                <version>${com.eighteen.common.starter.version}</version>
             </dependency>
             <dependency>
                 <groupId>com.google.guava</groupId>
