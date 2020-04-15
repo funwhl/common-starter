@@ -9,7 +9,7 @@ import org.aopalliance.intercept.MethodInvocation;
  */
 public class DsDynamicProcessor extends DsProcessor {
     /**
-     * session开头
+     * #dynamic
      */
     private static final String DYNAMIC_KEY = "#dynamic";
 
