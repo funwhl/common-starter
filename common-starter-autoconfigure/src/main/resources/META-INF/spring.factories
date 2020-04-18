@@ -8,4 +8,5 @@ com.eighteen.common.spring.boot.autoconfigure.cache.redis.RedisAutoConfiguration
 com.eighteen.common.spring.boot.autoconfigure.rabbitmq.RabbitMqAutoConfiguration,\
 com.eighteen.common.spring.boot.autoconfigure.swagger.SwaggerAutoConfiguration,\
 com.eighteen.common.spring.boot.autoconfigure.ds.autoconfigure.DynamicDataSourceAutoConfiguration,\
-com.eighteen.common.spring.boot.autoconfigure.pika.PikaAutoConfiguration
+com.eighteen.common.spring.boot.autoconfigure.pika.PikaAutoConfiguration,\
+com.eighteen.common.spring.boot.autoconfigure.redis.RedisTemplateAutoConfiguration

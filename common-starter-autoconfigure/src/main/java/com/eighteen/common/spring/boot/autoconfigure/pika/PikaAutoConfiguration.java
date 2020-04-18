@@ -1,6 +1,8 @@
 package com.eighteen.common.spring.boot.autoconfigure.pika;
 
+import com.alibaba.fastjson.support.config.FastJsonConfig;
 import com.alibaba.fastjson.support.spring.FastJsonRedisSerializer;
+import com.eighteen.common.spring.boot.autoconfigure.redis.RedisTemplateHelper;
 import io.lettuce.core.RedisClient;
 import io.lettuce.core.resource.ClientResources;
 import io.lettuce.core.resource.DefaultClientResources;
@@ -70,13 +72,7 @@ public class PikaAutoConfiguration extends PikaConnectionConfiguration {
     @ConditionalOnMissingBean
     public PikaTemplate pikaTemplate() {
         PikaTemplate pikaTemplate = new PikaTemplate();
-        //使用fastjson序列化
-        FastJsonRedisSerializer fastJsonRedisSerializer = new FastJsonRedisSerializer(Object.class);
-        pikaTemplate.setValueSerializer(fastJsonRedisSerializer);
-        pikaTemplate.setHashValueSerializer(fastJsonRedisSerializer);
-        // key的序列化采用StringRedisSerializer
-        pikaTemplate.setKeySerializer(new StringRedisSerializer());
-        pikaTemplate.setHashKeySerializer(new StringRedisSerializer());
+        RedisTemplateHelper.setSerializer(pikaTemplate);
         pikaTemplate.setConnectionFactory(redisConnectionFactory(pikaClientResources()));
         return pikaTemplate;
     }
