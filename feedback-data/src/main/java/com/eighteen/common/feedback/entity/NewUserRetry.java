@@ -558,7 +558,7 @@ public class NewUserRetry implements Serializable, HasDynamicDataSource {
 
     private transient String dataSource;
 
-    private void setDataSource(String dataSource) {
+    public void setDataSource(String dataSource) {
         this.dataSource = dataSource;
     }
 
