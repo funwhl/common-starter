@@ -24,6 +24,12 @@ public interface FeedbackRedisManager {
     void saveNewUserRetry(NewUserRetry newUserRetry);
 
     /**
+     * 从redis中删除newuserretry相关数据
+     * @param newUserRetry
+     */
+    void deleteNewUserRetry(NewUserRetry newUserRetry);
+
+    /**
      * 匹配激活重试数据Id
      * @param clickLog
      * @param channelType

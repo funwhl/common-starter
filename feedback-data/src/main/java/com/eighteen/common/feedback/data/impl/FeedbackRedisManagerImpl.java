@@ -220,7 +220,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
         for (String key : keys) {
             String redisKey = RedisKeyManager.getMatchedRedisKey(key);
-            storeTemplate.opsForValue().set(redisKey, 1);
+            storeTemplate.opsForValue().set(redisKey, 1, 30, TimeUnit.DAYS);
         }
     }
 
@@ -250,6 +250,20 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         String uniqueUserRetryId = RedisKeyManager.getUniqueUserRetryId(newUserRetry.getDataSource(), newUserRetry.getId());
         redisKeys.forEach(redisKey -> {
             doSaveNewUserRetryId(redisKey, uniqueUserRetryId);
+        });
+    }
+
+    @Override
+    public void deleteNewUserRetry(NewUserRetry newUserRetry) {
+        Assert.notNull(newUserRetry, "newUserRetry cannot be null");
+
+        boolean isAllMatch = getIsAllMatch(newUserRetry.getChannel());
+        List<String> keys = getActiveMatchKeys(newUserRetry.getIimei(), newUserRetry.getImei(),
+                newUserRetry.getOaid(), newUserRetry.getAndroidid());
+        List<String> redisKeys = getNewUserRetryIdRedisKeys(keys, newUserRetry.getCoid(), newUserRetry.getNcoid(),
+                newUserRetry.getChannel(), isAllMatch);
+        redisKeys.forEach(redisKey -> {
+            doDeleteNewUserRetryId(redisKey);
         });
     }
 
@@ -321,7 +335,13 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     private void doSaveNewUserRetryId(String redisKey, String id) {
         //启用了pika则保存在pika中
         RedisTemplate template = pikaTemplate != null ? pikaTemplate : redisTemplate;
-        template.opsForValue().set(redisKey, id);
+        template.opsForValue().set(redisKey, id, 1, TimeUnit.DAYS);
+    }
+
+    private void doDeleteNewUserRetryId(String redisKey) {
+        //启用了pika则保存在pika中
+        RedisTemplate template = pikaTemplate != null ? pikaTemplate : redisTemplate;
+        template.delete(redisKey);
     }
 
 }
