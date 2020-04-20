@@ -1,7 +1,9 @@
 package com.eighteen.common.feedback.entity;
 
+import com.eighteen.common.spring.boot.autoconfigure.ds.dynamic.HasDynamicDataSource;
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.apache.commons.lang3.StringUtils;
 
 import javax.persistence.*;
 import java.io.Serializable;
@@ -25,7 +27,7 @@ import java.util.Date;
         })
 @Accessors(chain = true)
 @Data
-public class ClickLog implements Serializable {
+public class ClickLog implements Serializable, HasDynamicDataSource {
     private static final long serialVersionUID = -1L;
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -69,4 +71,16 @@ public class ClickLog implements Serializable {
     private Integer coid;
     private Integer ncoid;
 
+    private transient String channelType;
+
+    @Override
+    public String getDataSource() {
+        if(StringUtils.isNotBlank(channelType)){
+            switch (channelType){
+                case "":
+                    return ""; //todo
+            }
+        }
+        return "";
+    }
 }

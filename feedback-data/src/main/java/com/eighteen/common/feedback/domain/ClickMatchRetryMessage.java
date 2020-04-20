@@ -12,7 +12,9 @@ public class ClickMatchRetryMessage implements Serializable {
     private ClickLog clickLog;
 
     /**
-     * newuserretry唯一标识（datasource_id)
+     * 数据源
      */
-    private String uniqueNewUserRetryId;
+    private String dataSource;
+
+    private Long newUserRetryId;
 }

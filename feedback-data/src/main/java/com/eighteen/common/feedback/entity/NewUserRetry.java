@@ -556,8 +556,14 @@ public class NewUserRetry implements Serializable, HasDynamicDataSource {
         this.createtime = createtime;
     }
 
+    private transient String dataSource;
+
+    private void setDataSource(String dataSource) {
+        this.dataSource = dataSource;
+    }
+
     @Override
     public String getDataSource() {
-        return null;
+        return dataSource;
     }
 }

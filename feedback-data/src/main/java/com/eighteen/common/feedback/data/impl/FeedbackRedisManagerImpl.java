@@ -2,6 +2,8 @@ package com.eighteen.common.feedback.data.impl;
 
 import com.eighteen.common.feedback.data.FeedbackRedisManager;
 import com.eighteen.common.feedback.data.RedisKeyManager;
+import com.eighteen.common.feedback.domain.MatchClickLogResult;
+import com.eighteen.common.feedback.domain.MatchNewUserRetryResult;
 import com.eighteen.common.feedback.domain.ThrowChannelConfig;
 import com.eighteen.common.feedback.entity.ActiveFeedbackMatch;
 import com.eighteen.common.feedback.entity.ClickLog;
@@ -51,11 +53,11 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         List<String> keys = getClickLogKeys(clickLog, channelType);
         List<String> redisKeys = getClickLogIdRedisKeys(keys, clickLog.getCoid(), clickLog.getNcoid(),
                 clickLog.getChannel(), null);
-        String uniqueClickLogId = String.format("%s_%d", channelType, clickLog.getId());
+        String uniqueClickLogId = RedisKeyManager.getUniqueClickLogId(channelType, clickLog.getId());
         redisKeys.forEach(redisKey -> {
             doSaveClickLogId(redisKey, uniqueClickLogId);
         });
-        doSaveClickLog(uniqueClickLogId, clickLog);
+        doSaveClickLog(channelType, clickLog);
     }
 
     private List<String> getClickLogKeys(ClickLog clickLog, String channelType) {
@@ -79,19 +81,25 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     private List<String> getClickLogIdRedisKeys(List<String> keys, Integer coid, Integer ncoid, String channel, Boolean isAllMatch) {
         List<String> redisKeys = Lists.newArrayList();
         keys.forEach(key -> {
-            if (StringUtils.isNotBlank(key)) {
-                String coidKey = RedisKeyManager.getClickLogIdKey(key, coid, ncoid);
-                String channelKey = RedisKeyManager.getClickLogIdKey(key, channel);
-                if (isAllMatch == null) {
-                    redisKeys.add(coidKey);
-                    redisKeys.add(channelKey);
-                } else if (isAllMatch) {
-                    redisKeys.add(coidKey);
-                } else {
-                    redisKeys.add(channelKey);
-                }
-            }
+            redisKeys.addAll(getClickLogIdRedisKey(key, coid, ncoid, channel, isAllMatch));
         });
+        return redisKeys;
+    }
+
+    private List<String> getClickLogIdRedisKey(String key, Integer coid, Integer ncoid, String channel, Boolean isAllMatch) {
+        List<String> redisKeys = Lists.newArrayList();
+        if (StringUtils.isNotBlank(key)) {
+            String coidKey = RedisKeyManager.getClickLogIdKey(key, coid, ncoid);
+            String channelKey = RedisKeyManager.getClickLogIdKey(key, channel);
+            if (isAllMatch == null) {
+                redisKeys.add(coidKey);
+                redisKeys.add(channelKey);
+            } else if (isAllMatch) {
+                redisKeys.add(coidKey);
+            } else {
+                redisKeys.add(channelKey);
+            }
+        }
         return redisKeys;
     }
 
@@ -114,28 +122,32 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     /**
      * 保存点击日志
      *
-     * @param id
+     * @param channelType
      * @param clickLog
      */
-    private void doSaveClickLog(String id, ClickLog clickLog) {
-        String redisKey = RedisKeyManager.getClickLogDataKey(id);
+    private void doSaveClickLog(String channelType, ClickLog clickLog) {
+        String redisKey = RedisKeyManager.getClickLogDataKey(channelType, clickLog.getId());
         redisTemplate.opsForValue().set(redisKey, clickLog, 3, TimeUnit.HOURS);
     }
 
     @Override
-    public String matchUniqueNewUserRetryId(ClickLog clickLog, String channelType) {
+    public MatchNewUserRetryResult matchUniqueNewUserRetryId(ClickLog clickLog, String channelType) {
         Assert.notNull(clickLog, "clickLog不能为空");
 
         List<String> keys = getClickLogKeys(clickLog, channelType);
         List<String> redisKeys = getNewUserRetryIdRedisKeys(keys, clickLog.getCoid(), clickLog.getNcoid(), clickLog.getChannel(),
                 null);
         for (String redisKey : redisKeys) {
-            String retryId = getUniqueNewUserRetryId(redisKey);
-            if (StringUtils.isNotBlank(retryId)) {
-                return retryId;
+            String uniqueNewUserRetryId = getUniqueNewUserRetryId(redisKey);
+            if (StringUtils.isNotBlank(uniqueNewUserRetryId)) {
+                String[] newUserRetryInfoArray = uniqueNewUserRetryId.split("_");
+                MatchNewUserRetryResult retryResult = new MatchNewUserRetryResult();
+                retryResult.setDataSource(newUserRetryInfoArray[0]);
+                retryResult.setNewUserRetryId(Long.valueOf(newUserRetryInfoArray[1]));
+                return retryResult;
             }
         }
-        return "";
+        return null;
     }
 
     private String getUniqueNewUserRetryId(String redisKey) {
@@ -145,26 +157,76 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     @Override
-    public String matchUniqueClickLogId(ActiveFeedbackMatch activeFeedbackMatch) {
+    public MatchClickLogResult matchUniqueClickLogId(ActiveFeedbackMatch activeFeedbackMatch) {
         Assert.notNull(activeFeedbackMatch, "activeFeedbackMatch不能为空");
+        MatchClickLogResult clickLogResult = null;
 
-        boolean isAllMatch = getIsAllMatch(activeFeedbackMatch.getChannel());
         List<String> keys = getActiveMatchKeys(activeFeedbackMatch.getIimei(), activeFeedbackMatch.getImei(),
                 activeFeedbackMatch.getOaid(), activeFeedbackMatch.getAndroidid());
-        List<String> redisKeys = getClickLogIdRedisKeys(keys, activeFeedbackMatch.getCoid(), activeFeedbackMatch.getNcoid(),
-                activeFeedbackMatch.getChannel(), isAllMatch);
-        for (String redisKey : redisKeys) {
-            String clickLogId = getUniqueClickLogId(redisKey);
-            if (StringUtils.isNotBlank(clickLogId)) {
-                return clickLogId;
+        boolean matchedBefore = checkClickLogMatchedBefore(keys);//检查是否回传过
+        if (matchedBefore) {
+            clickLogResult = new MatchClickLogResult();
+            clickLogResult.setMatchedBefore(true);
+        } else {
+            boolean isAllMatch = getIsAllMatch(activeFeedbackMatch.getChannel());
+            for (String key : keys) {
+                List<String> redisKeys = getClickLogIdRedisKey(key, activeFeedbackMatch.getCoid(), activeFeedbackMatch.getNcoid(),
+                        activeFeedbackMatch.getChannel(), isAllMatch);
+                if (CollectionUtils.isEmpty(redisKeys)) {
+                    continue;
+                }
+                for (String redisKey : redisKeys) {
+                    String uniqueClickLogId = getUniqueClickLogId(redisKey);
+                    if (StringUtils.isNotBlank(uniqueClickLogId)) {
+                        String[] clickLogInfoArray = uniqueClickLogId.split("_");
+                        clickLogResult = new MatchClickLogResult();
+                        clickLogResult.setChannelType(clickLogInfoArray[0]);
+                        clickLogResult.setClickLogId(Long.valueOf(clickLogInfoArray[1]));
+                        clickLogResult.setMatchKey(key);
+                        return clickLogResult;
+                    }
+                }
             }
         }
-        return "";
+        return clickLogResult;
+    }
+
+    /**
+     * 检查之前是否匹配回传过
+     *
+     * @param keys
+     * @return
+     */
+    private boolean checkClickLogMatchedBefore(List<String> keys) {
+        RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
+        for (String key : keys) {
+            String redisKey = RedisKeyManager.getMatchedRedisKey(key);
+            if (storeTemplate.hasKey(redisKey)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @Override
-    public ClickLog getClickLog(String id) {
-        Object obj = redisTemplate.opsForValue().get(RedisKeyManager.getClickLogDataKey(id));
+    public void saveMatchedFeedbackRecord(ActiveFeedbackMatch activeFeedbackMatch) {
+        Assert.notNull(activeFeedbackMatch, "activeFeedbackMatch不能为空");
+        List<String> keys = getActiveMatchKeys(activeFeedbackMatch.getIimei(), activeFeedbackMatch.getImei(),
+                activeFeedbackMatch.getOaid(), activeFeedbackMatch.getAndroidid());
+        doSaveMatchedFeedbackRecord(keys);
+    }
+
+    private void doSaveMatchedFeedbackRecord(List<String> keys) {
+        RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
+        for (String key : keys) {
+            String redisKey = RedisKeyManager.getMatchedRedisKey(key);
+            storeTemplate.opsForValue().set(redisKey, 1);
+        }
+    }
+
+    @Override
+    public ClickLog getClickLog(String channelType, Long clickLogId) {
+        Object obj = redisTemplate.opsForValue().get(RedisKeyManager.getClickLogDataKey(channelType, clickLogId));
         return obj == null ? null : (ClickLog) obj;
     }
 
@@ -176,8 +238,8 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
 
     @Override
     public void saveNewUserRetry(NewUserRetry newUserRetry) {
-        if (newUserRetry == null && newUserRetry.getId() > 0) {
-            return;
+        if (newUserRetry == null || newUserRetry.getId() == 0) {
+            throw new IllegalArgumentException("newUserRetry必须持久化有id");
         }
 
         boolean isAllMatch = getIsAllMatch(newUserRetry.getChannel());
@@ -185,7 +247,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
                 newUserRetry.getOaid(), newUserRetry.getAndroidid());
         List<String> redisKeys = getNewUserRetryIdRedisKeys(keys, newUserRetry.getCoid(), newUserRetry.getNcoid(),
                 newUserRetry.getChannel(), isAllMatch);
-        String uniqueUserRetryId=String.format("%s_%d",newUserRetry.getDataSource(),newUserRetry.getId());
+        String uniqueUserRetryId = RedisKeyManager.getUniqueUserRetryId(newUserRetry.getDataSource(), newUserRetry.getId());
         redisKeys.forEach(redisKey -> {
             doSaveNewUserRetryId(redisKey, uniqueUserRetryId);
         });

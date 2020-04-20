@@ -1,5 +1,7 @@
 package com.eighteen.common.feedback.data;
 
+import com.eighteen.common.feedback.domain.MatchClickLogResult;
+import com.eighteen.common.feedback.domain.MatchNewUserRetryResult;
 import com.eighteen.common.feedback.entity.ActiveFeedbackMatch;
 import com.eighteen.common.feedback.entity.ClickLog;
 import com.eighteen.common.feedback.entity.NewUserRetry;
@@ -22,25 +24,31 @@ public interface FeedbackRedisManager {
     void saveNewUserRetry(NewUserRetry newUserRetry);
 
     /**
-     * 匹配激活重试数据Id(datasource_id)
+     * 匹配激活重试数据Id
      * @param clickLog
      * @param channelType
      * @return
      */
-    String matchUniqueNewUserRetryId(ClickLog clickLog,String channelType);
+    MatchNewUserRetryResult matchUniqueNewUserRetryId(ClickLog clickLog, String channelType);
 
     /**
-     * 匹配点击Id(channelType_id)
+     * 匹配点击Id
      * @param activeFeedbackMatch
      * @return
      */
-    String matchUniqueClickLogId(ActiveFeedbackMatch activeFeedbackMatch);
+    MatchClickLogResult matchUniqueClickLogId(ActiveFeedbackMatch activeFeedbackMatch);
+
+    /**
+     * 保存匹配回传记录
+     * @param activeFeedbackMatch
+     */
+    void saveMatchedFeedbackRecord(ActiveFeedbackMatch activeFeedbackMatch);
 
     /**
      * 从redis中获取点击日志
      * @param
      * @return
      */
-    ClickLog getClickLog(String uniqueClickLogId);
+    ClickLog getClickLog(String channelType,Long clickLogId);
 
 }
