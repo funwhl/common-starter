@@ -2,6 +2,7 @@ package com.eighteen.common.feedback.data.impl;
 
 import com.eighteen.common.feedback.data.FeedbackRedisManager;
 import com.eighteen.common.feedback.data.RedisKeyManager;
+import com.eighteen.common.feedback.domain.ActiveMatchKeyField;
 import com.eighteen.common.feedback.domain.MatchClickLogResult;
 import com.eighteen.common.feedback.domain.MatchNewUserRetryResult;
 import com.eighteen.common.feedback.domain.ThrowChannelConfig;
@@ -13,6 +14,7 @@ import com.eighteen.common.spring.boot.autoconfigure.pika.PikaTemplate;
 import com.eighteen.common.utils.DigestUtils;
 import com.google.common.collect.Lists;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Component;
@@ -161,16 +163,16 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         Assert.notNull(activeFeedbackMatch, "activeFeedbackMatch不能为空");
         MatchClickLogResult clickLogResult = null;
 
-        List<String> keys = getActiveMatchKeys(activeFeedbackMatch.getIimei(), activeFeedbackMatch.getImei(),
-                activeFeedbackMatch.getOaid(), activeFeedbackMatch.getAndroidid());
+        List<ActiveMatchKeyField> keyFields = getActiveMatchKeyFields(activeFeedbackMatch);
+        List<String> keys = keyFields.stream().map(kf -> kf.getMatchKey()).collect(Collectors.toList());
         boolean matchedBefore = checkClickLogMatchedBefore(keys);//检查是否回传过
         if (matchedBefore) {
             clickLogResult = new MatchClickLogResult();
             clickLogResult.setMatchedBefore(true);
         } else {
             boolean isAllMatch = getIsAllMatch(activeFeedbackMatch.getChannel());
-            for (String key : keys) {
-                List<String> redisKeys = getClickLogIdRedisKey(key, activeFeedbackMatch.getCoid(), activeFeedbackMatch.getNcoid(),
+            for (ActiveMatchKeyField keyField : keyFields) {
+                List<String> redisKeys = getClickLogIdRedisKey(keyField.getMatchKey(), activeFeedbackMatch.getCoid(), activeFeedbackMatch.getNcoid(),
                         activeFeedbackMatch.getChannel(), isAllMatch);
                 if (CollectionUtils.isEmpty(redisKeys)) {
                     continue;
@@ -182,13 +184,52 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
                         clickLogResult = new MatchClickLogResult();
                         clickLogResult.setChannelType(clickLogInfoArray[0]);
                         clickLogResult.setClickLogId(Long.valueOf(clickLogInfoArray[1]));
-                        clickLogResult.setMatchKey(key);
+                        clickLogResult.setMatchKey(keyField.getMatchKey());
+                        clickLogResult.setMatchField(keyField.getMatchField());
                         return clickLogResult;
                     }
                 }
             }
         }
         return clickLogResult;
+    }
+
+    private List<ActiveMatchKeyField> getActiveMatchKeyFields(ActiveFeedbackMatch feedbackMatch) {
+        String iimei = feedbackMatch.getIimei();
+        String imei = feedbackMatch.getImei();
+        String oaid = feedbackMatch.getOaid();
+        String androidid = feedbackMatch.getAndroidid();
+        List<ActiveMatchKeyField> keys = Lists.newArrayList(
+                new ActiveMatchKeyField("oaid", oaid),
+                new ActiveMatchKeyField("androidId", androidid)
+        );
+        //todo check ipua 完善判断
+        if (feedbackMatch.getChannel() == "baiduChannelStaf") {
+            keys.add(new ActiveMatchKeyField("ipua", feedbackMatch.getIp() + "#" + feedbackMatch.getUa()));
+        }
+        if (StringUtils.isNotBlank(iimei)) {
+            for (String mei : iimei.split(",")) {
+                keys.add(new ActiveMatchKeyField("imei", mei));
+            }
+        } else {
+            keys.add(new ActiveMatchKeyField("imei", imei));
+        }
+
+        keys = keys.stream().filter(k -> StringUtils.isNotBlank(k.getMatchKey()))
+                .filter(k -> !excludeKeys.contains(k.getMatchKey()))
+                .collect(Collectors.toList());
+        keys.forEach(k -> k.setMatchKey(DigestUtils.getMd5Str(k.getMatchKey())));
+        return keys;
+    }
+
+    /**
+     * 获取激活数据的key
+     *
+     * @return
+     */
+    private List<String> getActiveMatchKeys(ActiveFeedbackMatch feedbackMatch) {
+        List<ActiveMatchKeyField> keyFields = getActiveMatchKeyFields(feedbackMatch);
+        return keyFields.stream().map(kf -> kf.getMatchKey()).collect(Collectors.toList());
     }
 
     /**
@@ -209,18 +250,17 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     @Override
-    public void saveMatchedFeedbackRecord(ActiveFeedbackMatch activeFeedbackMatch) {
+    public void saveMatchedFeedbackRecord(ActiveFeedbackMatch activeFeedbackMatch, String clickChannel) {
         Assert.notNull(activeFeedbackMatch, "activeFeedbackMatch不能为空");
-        List<String> keys = getActiveMatchKeys(activeFeedbackMatch.getIimei(), activeFeedbackMatch.getImei(),
-                activeFeedbackMatch.getOaid(), activeFeedbackMatch.getAndroidid());
-        doSaveMatchedFeedbackRecord(keys);
+        List<String> keys = getActiveMatchKeys(activeFeedbackMatch);
+        doSaveMatchedFeedbackRecord(keys, clickChannel);
     }
 
-    private void doSaveMatchedFeedbackRecord(List<String> keys) {
+    private void doSaveMatchedFeedbackRecord(List<String> keys, String channel) {
         RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
         for (String key : keys) {
             String redisKey = RedisKeyManager.getMatchedRedisKey(key);
-            storeTemplate.opsForValue().set(redisKey, 1, 30, TimeUnit.DAYS);
+            storeTemplate.opsForValue().set(redisKey, channel);
         }
     }
 
@@ -243,8 +283,9 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         }
 
         boolean isAllMatch = getIsAllMatch(newUserRetry.getChannel());
-        List<String> keys = getActiveMatchKeys(newUserRetry.getIimei(), newUserRetry.getImei(),
-                newUserRetry.getOaid(), newUserRetry.getAndroidid());
+        ActiveFeedbackMatch feedbackMatch = new ActiveFeedbackMatch();
+        BeanUtils.copyProperties(newUserRetry, feedbackMatch);
+        List<String> keys = getActiveMatchKeys(feedbackMatch);
         List<String> redisKeys = getNewUserRetryIdRedisKeys(keys, newUserRetry.getCoid(), newUserRetry.getNcoid(),
                 newUserRetry.getChannel(), isAllMatch);
         String uniqueUserRetryId = RedisKeyManager.getUniqueUserRetryId(newUserRetry.getDataSource(), newUserRetry.getId());
@@ -258,8 +299,9 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         Assert.notNull(newUserRetry, "newUserRetry cannot be null");
 
         boolean isAllMatch = getIsAllMatch(newUserRetry.getChannel());
-        List<String> keys = getActiveMatchKeys(newUserRetry.getIimei(), newUserRetry.getImei(),
-                newUserRetry.getOaid(), newUserRetry.getAndroidid());
+        ActiveFeedbackMatch feedbackMatch = new ActiveFeedbackMatch();
+        BeanUtils.copyProperties(newUserRetry, feedbackMatch);
+        List<String> keys = getActiveMatchKeys(feedbackMatch);
         List<String> redisKeys = getNewUserRetryIdRedisKeys(keys, newUserRetry.getCoid(), newUserRetry.getNcoid(),
                 newUserRetry.getChannel(), isAllMatch);
         redisKeys.forEach(redisKey -> {
@@ -279,29 +321,6 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     private static List<String> excludeKeys = Lists.newArrayList(null, "null", "Unknown", "Null", "NULL", "{{IMEI}}", "{{ANDDROID_ID}}", "{{OAID}}", "", "__IMEI__", "__OAID__");
-
-    /**
-     * 获取激活数据的key
-     *
-     * @param iimei
-     * @param imei
-     * @param oaid
-     * @param androidid
-     * @return
-     */
-    private List<String> getActiveMatchKeys(String iimei, String imei, String oaid, String androidid) {
-        List<String> keys = Lists.newArrayList(oaid, androidid);
-        //todo check ipua 如何加入key中
-        if (StringUtils.isNotBlank(iimei)) {
-            keys.addAll(Lists.newArrayList(iimei.split(",")));
-        } else {
-            keys.add(imei);
-        }
-        keys.removeAll(excludeKeys);
-        keys = keys.stream().filter(k -> StringUtils.isNotBlank(k)).map(k -> DigestUtils.getMd5Str(k))
-                .collect(Collectors.toList());
-        return keys;
-    }
 
     /**
      * 获取激活重试Id相关的key

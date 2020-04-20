@@ -47,8 +47,9 @@ public interface FeedbackRedisManager {
     /**
      * 保存匹配回传记录
      * @param activeFeedbackMatch
+     * @param clickChannel 匹配到的点击记录中的渠道
      */
-    void saveMatchedFeedbackRecord(ActiveFeedbackMatch activeFeedbackMatch);
+    void saveMatchedFeedbackRecord(ActiveFeedbackMatch activeFeedbackMatch,String clickChannel);
 
     /**
      * 从redis中获取点击日志
