@@ -20,7 +20,6 @@
         <module>common-starter</module>
         <module>common-base</module>
         <module>feedback-data</module>
-        <module>feedback-starter</module>
     </modules>
 
     <properties>
