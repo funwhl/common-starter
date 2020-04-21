@@ -1,5 +1,6 @@
 package com.eighteen.common.feedback.entity;
 
+import com.eighteen.common.feedback.constants.DsConstants;
 import com.eighteen.common.spring.boot.autoconfigure.ds.dynamic.HasDynamicDataSource;
 import lombok.Data;
 import lombok.experimental.Accessors;
@@ -71,16 +72,9 @@ public class ClickLog implements Serializable, HasDynamicDataSource {
     private Integer coid;
     private Integer ncoid;
 
-    private transient String channelType;
+    /**
+     * 渠道类型
+     */
+    private transient String dataSource;
 
-    @Override
-    public String getDataSource() {
-        if(StringUtils.isNotBlank(channelType)){
-            switch (channelType){
-                case "":
-                    return ""; //todo
-            }
-        }
-        return "";
-    }
 }

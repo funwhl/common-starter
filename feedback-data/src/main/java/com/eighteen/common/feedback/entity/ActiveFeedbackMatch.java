@@ -112,6 +112,9 @@ public class ActiveFeedbackMatch implements Serializable {
     @Transient
     private String uuid;
 
+    @Column(name="`type`")
+    private String type;
+
     private static final long serialVersionUID = 1L;
 
 }

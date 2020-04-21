@@ -32,17 +32,17 @@ public interface FeedbackRedisManager {
     /**
      * 匹配激活重试数据Id
      * @param clickLog
-     * @param channelType
+     * @param clickType
      * @return
      */
-    MatchNewUserRetryResult matchUniqueNewUserRetryId(ClickLog clickLog, String channelType);
+    MatchNewUserRetryResult matchNewUserRetry(ClickLog clickLog, String clickType);
 
     /**
      * 匹配点击Id
      * @param activeFeedbackMatch
      * @return
      */
-    MatchClickLogResult matchUniqueClickLogId(ActiveFeedbackMatch activeFeedbackMatch);
+    MatchClickLogResult matchClickLog(ActiveFeedbackMatch activeFeedbackMatch);
 
     /**
      * 保存匹配回传记录
@@ -56,6 +56,6 @@ public interface FeedbackRedisManager {
      * @param
      * @return
      */
-    ClickLog getClickLog(String channelType,Long clickLogId);
+    ClickLog getClickLog(String clickType,Long clickLogId);
 
 }

@@ -34,7 +34,7 @@ import java.util.stream.Collectors;
 @Component
 public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
 
-    private interface ChannelType {
+    private interface ClickType {
         String BAIDU_CHANNEL = "baiduChannel";
     }
 
@@ -48,23 +48,23 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     ChannelConfigService channelConfigService;
 
     @Override
-    public void saveClickLog(ClickLog clickLog, String channelType) {
+    public void saveClickLog(ClickLog clickLog, String clickType) {
         Assert.notNull(clickLog, "clickLog不能为空");
-        Assert.notNull(channelType, "channelType不能为空");
+        Assert.notNull(clickType, "clickType不能为空");
 
-        List<String> keys = getClickLogKeys(clickLog, channelType);
+        List<String> keys = getClickLogKeys(clickLog, clickType);
         List<String> redisKeys = getClickLogIdRedisKeys(keys, clickLog.getCoid(), clickLog.getNcoid(),
                 clickLog.getChannel(), null);
-        String uniqueClickLogId = RedisKeyManager.getUniqueClickLogId(channelType, clickLog.getId());
+        String uniqueClickLogId = RedisKeyManager.getUniqueClickLogId(clickType, clickLog.getId());
         redisKeys.forEach(redisKey -> {
             doSaveClickLogId(redisKey, uniqueClickLogId);
         });
-        doSaveClickLog(channelType, clickLog);
+        doSaveClickLog(clickType, clickLog);
     }
 
-    private List<String> getClickLogKeys(ClickLog clickLog, String channelType) {
+    private List<String> getClickLogKeys(ClickLog clickLog, String clickType) {
         List<String> keys = Lists.newArrayList(clickLog.getImei(), clickLog.getOaid(), clickLog.getAndroidId());
-        if (ChannelType.BAIDU_CHANNEL.equals(channelType)) {
+        if (ClickType.BAIDU_CHANNEL.equals(clickType)) {
             keys.add(clickLog.getIpua());
         }
         return keys;
@@ -124,19 +124,19 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     /**
      * 保存点击日志
      *
-     * @param channelType
+     * @param clickType
      * @param clickLog
      */
-    private void doSaveClickLog(String channelType, ClickLog clickLog) {
-        String redisKey = RedisKeyManager.getClickLogDataKey(channelType, clickLog.getId());
+    private void doSaveClickLog(String clickType, ClickLog clickLog) {
+        String redisKey = RedisKeyManager.getClickLogDataKey(clickType, clickLog.getId());
         redisTemplate.opsForValue().set(redisKey, clickLog, 3, TimeUnit.HOURS);
     }
 
     @Override
-    public MatchNewUserRetryResult matchUniqueNewUserRetryId(ClickLog clickLog, String channelType) {
+    public MatchNewUserRetryResult matchNewUserRetry(ClickLog clickLog, String clickType) {
         Assert.notNull(clickLog, "clickLog不能为空");
 
-        List<String> keys = getClickLogKeys(clickLog, channelType);
+        List<String> keys = getClickLogKeys(clickLog, clickType);
         List<String> redisKeys = getNewUserRetryIdRedisKeys(keys, clickLog.getCoid(), clickLog.getNcoid(), clickLog.getChannel(),
                 null);
         for (String redisKey : redisKeys) {
@@ -159,7 +159,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     @Override
-    public MatchClickLogResult matchUniqueClickLogId(ActiveFeedbackMatch activeFeedbackMatch) {
+    public MatchClickLogResult matchClickLog(ActiveFeedbackMatch activeFeedbackMatch) {
         Assert.notNull(activeFeedbackMatch, "activeFeedbackMatch不能为空");
         MatchClickLogResult clickLogResult = null;
 
@@ -182,7 +182,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
                     if (StringUtils.isNotBlank(uniqueClickLogId)) {
                         String[] clickLogInfoArray = uniqueClickLogId.split("_");
                         clickLogResult = new MatchClickLogResult();
-                        clickLogResult.setChannelType(clickLogInfoArray[0]);
+                        clickLogResult.setClickType(clickLogInfoArray[0]);
                         clickLogResult.setClickLogId(Long.valueOf(clickLogInfoArray[1]));
                         clickLogResult.setMatchKey(keyField.getMatchKey());
                         clickLogResult.setMatchField(keyField.getMatchField());
@@ -265,8 +265,8 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     @Override
-    public ClickLog getClickLog(String channelType, Long clickLogId) {
-        Object obj = redisTemplate.opsForValue().get(RedisKeyManager.getClickLogDataKey(channelType, clickLogId));
+    public ClickLog getClickLog(String clickType, Long clickLogId) {
+        Object obj = redisTemplate.opsForValue().get(RedisKeyManager.getClickLogDataKey(clickType, clickLogId));
         return obj == null ? null : (ClickLog) obj;
     }
 

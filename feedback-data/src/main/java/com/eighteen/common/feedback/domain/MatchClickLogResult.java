@@ -7,7 +7,7 @@ import lombok.Data;
  */
 @Data
 public class MatchClickLogResult {
-    private String channelType;
+    private String clickType;
 
     private Long clickLogId;
 

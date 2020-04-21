@@ -28,8 +28,8 @@ public class RedisKeyManager {
         return String.format("%s%s_%s", CLICK_LOG_KEY_CHANNEL_PREFIX, key, channel);
     }
 
-    public static String getUniqueClickLogId(String channelType, Long clickLogId) {
-        String uniqueClickLogId = String.format("%s_%d", channelType, clickLogId);
+    public static String getUniqueClickLogId(String clickType, Long clickLogId) {
+        String uniqueClickLogId = String.format("%s_%d", clickType, clickLogId);
         return uniqueClickLogId;
     }
 
@@ -38,8 +38,8 @@ public class RedisKeyManager {
         return uniqueUserRetryId;
     }
 
-    public static String getClickLogDataKey(String channelType, Long clickLogId) {
-        String uniqueClickLogId = getUniqueClickLogId(channelType, clickLogId);
+    public static String getClickLogDataKey(String clickType, Long clickLogId) {
+        String uniqueClickLogId = getUniqueClickLogId(clickType, clickLogId);
         return String.format("%s%s", CLICK_LOG_ID_PREFIX, uniqueClickLogId);
     }
 
