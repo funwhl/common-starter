@@ -69,7 +69,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         if (ClickType.BAIDU_CHANNEL.equals(clickType)) {
             keys.add(clickLog.getIpua());
         }
-        return keys;
+        return keys.stream().filter(k -> !excludeKeys.contains(k)).collect(Collectors.toList());
     }
 
     /**
