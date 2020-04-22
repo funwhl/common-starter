@@ -1,5 +1,6 @@
 package com.eighteen.common.feedback.data.impl;
 
+import com.alibaba.fastjson.JSONObject;
 import com.eighteen.common.feedback.data.FeedbackRedisManager;
 import com.eighteen.common.feedback.data.RedisKeyManager;
 import com.eighteen.common.feedback.domain.ActiveMatchKeyField;
@@ -267,7 +268,14 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     @Override
     public ClickLog getClickLog(String clickType, Long clickLogId) {
         Object obj = redisTemplate.opsForValue().get(RedisKeyManager.getClickLogDataKey(clickType, clickLogId));
-        return obj == null ? null : (ClickLog) obj;
+        if (obj != null) {
+            if (obj instanceof ClickLog) {
+                return (ClickLog) obj;
+            } else if (obj instanceof JSONObject) {
+                return ((JSONObject) obj).toJavaObject(ClickLog.class);
+            }
+        }
+        return null;
     }
 
     private String getUniqueClickLogId(String redisKey) {
