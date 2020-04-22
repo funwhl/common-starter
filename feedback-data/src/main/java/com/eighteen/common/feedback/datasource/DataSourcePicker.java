@@ -14,8 +14,8 @@ public class DataSourcePicker {
             switch (clickType) {
                 case "wxChannel":
                     return DsConstants.WEIXIN;
-//                case "sigmobChannel":
-//                    return "sigmob";
+                case "sigmobChannel":
+                    return DsConstants.SIGMOB;
                 case "kuaishouChannel":
                     return DsConstants.KUAISHOU;
                 case "toutiao":
@@ -32,7 +32,7 @@ public class DataSourcePicker {
     }
 
     public static String getDataSourceByActiveType(String activeType) {
-        if (Lists.newArrayList(DsConstants.WEIXIN, DsConstants.KUAISHOU, DsConstants.TOUTIAO, DsConstants.BAIDU,
+        if (Lists.newArrayList(DsConstants.WEIXIN,DsConstants.SIGMOB, DsConstants.KUAISHOU, DsConstants.TOUTIAO, DsConstants.BAIDU,
                 DsConstants.GDT).contains(activeType)) {
             return activeType;
         }

@@ -63,7 +63,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     private List<String> getClickLogKeys(ClickLog clickLog, String clickType) {
-        List<String> keys = Lists.newArrayList(clickLog.getImei(), clickLog.getOaid(), clickLog.getAndroidId());
+        List<String> keys = Lists.newArrayList(clickLog.getImeiMd5(), clickLog.getOaidMd5(), clickLog.getAndroidIdMd5());
         if (ClickType.BAIDU_CHANNEL.equals(clickType)) {
             keys.add(clickLog.getIpua());
         }
