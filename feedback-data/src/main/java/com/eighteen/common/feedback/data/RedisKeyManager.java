@@ -21,11 +21,11 @@ public class RedisKeyManager {
     private static final String MATCHED_KEY_PREFIX = "ma_";
 
     public static String getClickLogIdKey(String key, Integer coid, Integer ncoid) {
-        return String.format("%s%s_%d_%d", CLICK_LOG_KEY_COID_PREFIX, key, coid, ncoid);
+        return String.format("%s%d_%d_%s", CLICK_LOG_KEY_COID_PREFIX, coid, ncoid, key);
     }
 
     public static String getClickLogIdKey(String key, String channel) {
-        return String.format("%s%s_%s", CLICK_LOG_KEY_CHANNEL_PREFIX, key, channel);
+        return String.format("%s%s_%s", CLICK_LOG_KEY_CHANNEL_PREFIX, channel, key);
     }
 
     public static String getUniqueClickLogId(String clickType, Long clickLogId) {
@@ -44,11 +44,11 @@ public class RedisKeyManager {
     }
 
     public static String getNewUserRetryIdKey(String key, Integer coid, Integer ncoid) {
-        return String.format("%s%s_%d_%d", NEW_USR_RETRY_KEY_COID_PREFIX, key, coid, ncoid);
+        return String.format("%s%d_%d_%s", NEW_USR_RETRY_KEY_COID_PREFIX, coid, ncoid, key);
     }
 
     public static String getNewUserRetryIdKey(String key, String channel) {
-        return String.format("%s%s_%s", NEW_USER_RETRY_KEY_CHANNEL_PREFIX, key, channel);
+        return String.format("%s%s_%s", NEW_USER_RETRY_KEY_CHANNEL_PREFIX, channel, key);
     }
 
     public static String getMatchedRedisKey(String key) {
