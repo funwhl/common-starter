@@ -318,14 +318,8 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     private boolean getIsAllMatch(String channel) {
-        List<ThrowChannelConfig> channelConfigs = channelConfigService.getThrowChannelConfigs();
-        AtomicBoolean isAllMatch = new AtomicBoolean(false);
-        if (!CollectionUtils.isEmpty(channelConfigs)) {
-            channelConfigs.stream().filter(config -> config.getChannel().equals(channel)).findAny().ifPresent(
-                    config -> isAllMatch.set(config.getChannelType() == 0)
-            );
-        }
-        return isAllMatch.get();
+        ThrowChannelConfig channelConfig = channelConfigService.getByChannel(channel);
+        return channelConfig != null && channelConfig.getChannelType() == 0;
     }
 
     private static List<String> excludeKeys = Lists.newArrayList(null, "null", "Unknown", "Null", "NULL", "{{IMEI}}", "{{ANDDROID_ID}}", "{{OAID}}", "", "__IMEI__", "__OAID__");
