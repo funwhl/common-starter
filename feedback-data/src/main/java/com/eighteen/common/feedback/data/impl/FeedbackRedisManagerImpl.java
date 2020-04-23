@@ -1,6 +1,7 @@
 package com.eighteen.common.feedback.data.impl;
 
 import com.alibaba.fastjson.JSONObject;
+import com.eighteen.common.feedback.constants.DsConstants;
 import com.eighteen.common.feedback.data.FeedbackRedisManager;
 import com.eighteen.common.feedback.data.RedisKeyManager;
 import com.eighteen.common.feedback.domain.ActiveMatchKeyField;
@@ -68,7 +69,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         if (ClickType.BAIDU_CHANNEL.equals(clickType)) {
             keys.add(clickLog.getIpua());
         }
-        return keys;
+        return keys.stream().filter(k -> !excludeKeys.contains(k)).collect(Collectors.toList());
     }
 
     /**
@@ -204,8 +205,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
                 new ActiveMatchKeyField("oaid", oaid),
                 new ActiveMatchKeyField("androidId", androidid)
         );
-        //todo check ipua 完善判断
-        if (feedbackMatch.getChannel() == "baiduChannelStaf") {
+        if (DsConstants.BAIDU.equals(feedbackMatch.getType())) {
             keys.add(new ActiveMatchKeyField("ipua", feedbackMatch.getIp() + "#" + feedbackMatch.getUa()));
         }
         if (StringUtils.isNotBlank(iimei)) {
