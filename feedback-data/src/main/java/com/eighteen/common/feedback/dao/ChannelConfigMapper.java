@@ -3,6 +3,7 @@ package com.eighteen.common.feedback.dao;
 
 import com.eighteen.common.feedback.domain.ThrowChannelConfig;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import java.util.List;
@@ -14,6 +15,9 @@ import java.util.List;
 
 @Mapper
 public interface ChannelConfigMapper {
-    @Select("SELECT id,coid,ncoid,channel,agent,channel_type as channelType,plat_type as platType,remark,rate,ori_rate as oriRate  FROM [DB2_33].[YYGJ].[dbo].[throw_channel_config] ")
+    @Select("SELECT id,coid,ncoid,channel,agent,channel_type as channelType,plat_type as platType,remark,rate,ori_rate as oriRate  FROM [DB2_33].[YYGJ].[dbo].[throw_channel_config] with(nolock) ")
     List<ThrowChannelConfig> throwChannelConfigList();
+
+    @Select("SELECT id,coid,ncoid,channel,agent,channel_type as channelType,plat_type as platType,remark,rate,ori_rate as oriRate  FROM [DB2_33].[YYGJ].[dbo].[throw_channel_config] with(nolock) where channel = #{channel} ")
+    ThrowChannelConfig getOne(@Param("channel")String channel);
 }

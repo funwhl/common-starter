@@ -11,4 +11,6 @@ import java.util.List;
 
 public interface ChannelConfigService {
     List<ThrowChannelConfig> getThrowChannelConfigs();
+
+    ThrowChannelConfig getByChannel(String channel);
 }

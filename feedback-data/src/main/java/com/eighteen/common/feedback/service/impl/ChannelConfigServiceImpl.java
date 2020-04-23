@@ -10,6 +10,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * @author lcomplete
@@ -21,6 +22,7 @@ public class ChannelConfigServiceImpl implements ChannelConfigService {
     ChannelConfigMapper channelConfigMapper;
     @Autowired
     private RedisTemplate redisTemplate;
+    private static String key = "#channelMap#";
 
     @Override
     public List<ThrowChannelConfig> getThrowChannelConfigs() {
@@ -37,5 +39,15 @@ public class ChannelConfigServiceImpl implements ChannelConfigService {
             log.error("step get channelconfigscache error -> {}", e.getMessage());
         }
         return list;
+    }
+
+    @Override
+    public ThrowChannelConfig getByChannel(String channel) {
+        ThrowChannelConfig obj = (ThrowChannelConfig) redisTemplate.opsForHash().get(key, channel);
+        if (obj == null) {
+            obj = channelConfigMapper.getOne(channel);
+            Optional.ofNullable(obj).ifPresent(throwChannelConfig -> redisTemplate.opsForHash().put(key, channel, throwChannelConfig));
+        }
+        return obj;
     }
 }
