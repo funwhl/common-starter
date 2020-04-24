@@ -167,7 +167,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
 
         List<ActiveMatchKeyField> keyFields = getActiveMatchKeyFields(activeFeedbackMatch);
         List<String> keys = keyFields.stream().map(kf -> kf.getMatchKey()).collect(Collectors.toList());
-        boolean matchedBefore = checkClickLogMatchedBefore(keys);//检查是否回传过
+        boolean matchedBefore = checkClickLogMatchedBefore(keys, activeFeedbackMatch);//检查是否回传过
         if (matchedBefore) {
             clickLogResult = new MatchClickLogResult();
             clickLogResult.setMatchedBefore(true);
@@ -239,10 +239,10 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
      * @param keys
      * @return
      */
-    private boolean checkClickLogMatchedBefore(List<String> keys) {
+    private boolean checkClickLogMatchedBefore(List<String> keys, ActiveFeedbackMatch feedbackMatch) {
         RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
         for (String key : keys) {
-            String redisKey = RedisKeyManager.getMatchedRedisKey(key);
+            String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
             if (storeTemplate.hasKey(redisKey)) {
                 return true;
             }
@@ -254,14 +254,15 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     public void saveMatchedFeedbackRecord(ActiveFeedbackMatch activeFeedbackMatch, String clickChannel) {
         Assert.notNull(activeFeedbackMatch, "activeFeedbackMatch不能为空");
         List<String> keys = getActiveMatchKeys(activeFeedbackMatch);
-        doSaveMatchedFeedbackRecord(keys, clickChannel);
+        doSaveMatchedFeedbackRecord(keys, clickChannel, activeFeedbackMatch);
     }
 
-    private void doSaveMatchedFeedbackRecord(List<String> keys, String channel) {
+    private void doSaveMatchedFeedbackRecord(List<String> keys, String clickChannel, ActiveFeedbackMatch feedbackMatch) {
         RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
         for (String key : keys) {
-            String redisKey = RedisKeyManager.getMatchedRedisKey(key);
-            storeTemplate.opsForValue().set(redisKey, channel);
+            String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
+            storeTemplate.opsForValue().set(redisKey, 1, 3, TimeUnit.DAYS);
+            //todo clickChannel 持久化存储
         }
     }
 

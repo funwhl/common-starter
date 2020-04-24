@@ -51,7 +51,7 @@ public class RedisKeyManager {
         return String.format("%s%s_%s", NEW_USER_RETRY_KEY_CHANNEL_PREFIX, channel, key);
     }
 
-    public static String getMatchedRedisKey(String key) {
-        return String.format("%s%s", MATCHED_KEY_PREFIX, key);
+    public static String getMatchedRedisKey(String key, Integer coid, Integer ncoid) {
+        return String.format("%s%d_%d_%s", MATCHED_KEY_PREFIX, coid, ncoid, key);
     }
 }
