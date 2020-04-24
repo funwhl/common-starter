@@ -69,7 +69,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         if (ClickType.BAIDU_CHANNEL.equals(clickType)) {
             keys.add(clickLog.getIpua());
         }
-        return keys.stream().filter(k -> !excludeKeys.contains(k)).collect(Collectors.toList());
+        return keys.stream().filter(k -> !excludeKeys.contains(k) && !k.startsWith("FAKE")).collect(Collectors.toList());
     }
 
     /**
@@ -216,9 +216,8 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
             keys.add(new ActiveMatchKeyField("imei", imei));
         }
 
-        //todo 过滤fake imei
         keys = keys.stream().filter(k -> StringUtils.isNotBlank(k.getMatchKey()))
-                .filter(k -> !excludeKeys.contains(k.getMatchKey()))
+                .filter(k -> !excludeKeys.contains(k.getMatchKey()) && !k.getMatchKey().startsWith("FAKE"))
                 .collect(Collectors.toList());
         keys.forEach(k -> k.setMatchKey(DigestUtils.getMd5Str(k.getMatchKey())));
         return keys;
