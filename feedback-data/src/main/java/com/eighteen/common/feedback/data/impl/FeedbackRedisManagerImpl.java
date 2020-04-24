@@ -82,7 +82,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     private List<HashKeyFields> getAllClickLogIdRedisKeyFields(List<String> keys, Integer coid, Integer ncoid, String channel, Boolean isAllMatch) {
         List<HashKeyFields> keyFieldsList = Lists.newArrayList();
         keys.forEach(key -> {
-            keyFieldsList.addAll(getClickLogIdRedisKeyFields(key, coid, ncoid, channel, isAllMatch));
+            keyFieldsList.add(getClickLogIdRedisKeyFields(key, coid, ncoid, channel, isAllMatch));
         });
         return keyFieldsList;
     }
@@ -90,8 +90,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     /**
      * 获取点击日志Id的Redis相关的Key和HashField
      */
-    private List<HashKeyFields> getClickLogIdRedisKeyFields(String key, Integer coid, Integer ncoid, String channel, Boolean isAllMatch) {
-        List<HashKeyFields> keyFieldsList = Lists.newArrayList();
+    private HashKeyFields getClickLogIdRedisKeyFields(String key, Integer coid, Integer ncoid, String channel, Boolean isAllMatch) {
         String redisKey = RedisKeyManager.getClickLogIdKey(key);
         Set<String> hashField = Sets.newHashSet();
         String coidField = String.format("%d_%d", coid, ncoid);
@@ -101,11 +100,10 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
             hashField.add(channelField);
         } else if (isAllMatch) {
             hashField.add(coidField);
-        } else {
+        } else if (channelField != null) {
             hashField.add(channelField);
         }
-        keyFieldsList.add(new HashKeyFields().setRedisKey(redisKey).setHashFields(hashField));
-        return keyFieldsList;
+        return new HashKeyFields().setRedisKey(redisKey).setHashFields(hashField);
     }
 
     /**
@@ -164,36 +162,41 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         MatchClickLogResult clickLogResult = null;
 
         List<ActiveMatchKeyField> matchKeyFields = getActiveMatchKeyFields(activeFeedbackMatch);
+        //检查是否回传过
         List<String> keys = matchKeyFields.stream().map(kf -> kf.getMatchKey()).collect(Collectors.toList());
-        boolean matchedBefore = checkClickLogMatchedBefore(keys, activeFeedbackMatch);//检查是否回传过
+        boolean matchedBefore = checkClickLogMatchedBefore(keys, activeFeedbackMatch);
+
         if (matchedBefore) {
             clickLogResult = new MatchClickLogResult();
             clickLogResult.setMatchedBefore(true);
         } else {
             boolean isAllMatch = getIsAllMatch(activeFeedbackMatch.getChannel());
             for (ActiveMatchKeyField keyField : matchKeyFields) {
-                List<HashKeyFields> hashKeyFieldsList = getClickLogIdRedisKeyFields(keyField.getMatchKey(), activeFeedbackMatch.getCoid(), activeFeedbackMatch.getNcoid(),
+                //根据激活数据key生成点击id的redisKey，查找点击id
+                HashKeyFields hashKeyFields = getClickLogIdRedisKeyFields(keyField.getMatchKey(), activeFeedbackMatch.getCoid(), activeFeedbackMatch.getNcoid(),
                         activeFeedbackMatch.getChannel(), isAllMatch);
-                if (CollectionUtils.isEmpty(hashKeyFieldsList)) {
-                    continue;
-                }
-                for (HashKeyFields hashKeyFields : hashKeyFieldsList) {
-                    String uniqueClickLogId = searchUniqueClickLogId(hashKeyFields);
-                    if (StringUtils.isNotBlank(uniqueClickLogId)) {
-                        UniqueClickLog uniqueClickLog = UniqueClickLog.FromUniqueId(uniqueClickLogId);
-                        clickLogResult = new MatchClickLogResult();
-                        clickLogResult.setClickType(uniqueClickLog.getClickType());
-                        clickLogResult.setClickLogId(uniqueClickLog.getClickLogId());
-                        clickLogResult.setMatchKey(keyField.getMatchKey());
-                        clickLogResult.setMatchField(keyField.getMatchField());
-                        return clickLogResult;
-                    }
+                String uniqueClickLogId = searchUniqueClickLogId(hashKeyFields);
+
+                if (StringUtils.isNotBlank(uniqueClickLogId)) {
+                    UniqueClickLog uniqueClickLog = UniqueClickLog.FromUniqueId(uniqueClickLogId);
+                    clickLogResult = new MatchClickLogResult();
+                    clickLogResult.setClickType(uniqueClickLog.getClickType());
+                    clickLogResult.setClickLogId(uniqueClickLog.getClickLogId());
+                    clickLogResult.setMatchKey(keyField.getMatchKey());
+                    clickLogResult.setMatchField(keyField.getMatchField());
+                    return clickLogResult;
                 }
             }
         }
         return clickLogResult;
     }
 
+    /**
+     * 获取回传所需要匹配的字段
+     *
+     * @param feedbackMatch
+     * @return
+     */
     private List<ActiveMatchKeyField> getActiveMatchKeyFields(ActiveFeedbackMatch feedbackMatch) {
         String iimei = feedbackMatch.getIimei();
         String imei = feedbackMatch.getImei();
