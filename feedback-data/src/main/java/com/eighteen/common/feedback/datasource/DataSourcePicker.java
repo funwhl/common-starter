@@ -31,11 +31,16 @@ public class DataSourcePicker {
         throw new IllegalArgumentException("无法通过clickType找到数据源：" + clickType);
     }
 
+    /**
+     * 获取激活类型对应的数据源
+     * @param activeType
+     * @return 无对应的数据源时返回null
+     */
     public static String getDataSourceByActiveType(String activeType) {
         if (Lists.newArrayList(DsConstants.WEIXIN,DsConstants.SIGMOB, DsConstants.KUAISHOU, DsConstants.TOUTIAO, DsConstants.BAIDU,
                 DsConstants.GDT).contains(activeType)) {
             return activeType;
         }
-        throw new IllegalArgumentException("无activeType对应的数据源：" + activeType);
+        return null;
     }
 }
