@@ -216,6 +216,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
             keys.add(new ActiveMatchKeyField("imei", imei));
         }
 
+        //todo 过滤fake imei
         keys = keys.stream().filter(k -> StringUtils.isNotBlank(k.getMatchKey()))
                 .filter(k -> !excludeKeys.contains(k.getMatchKey()))
                 .collect(Collectors.toList());
