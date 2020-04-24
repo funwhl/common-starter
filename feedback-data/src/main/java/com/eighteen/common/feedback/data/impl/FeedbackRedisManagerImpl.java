@@ -3,11 +3,9 @@ package com.eighteen.common.feedback.data.impl;
 import com.alibaba.fastjson.JSONObject;
 import com.eighteen.common.feedback.constants.DsConstants;
 import com.eighteen.common.feedback.data.FeedbackRedisManager;
+import com.eighteen.common.feedback.data.HashKeyFields;
 import com.eighteen.common.feedback.data.RedisKeyManager;
-import com.eighteen.common.feedback.domain.ActiveMatchKeyField;
-import com.eighteen.common.feedback.domain.MatchClickLogResult;
-import com.eighteen.common.feedback.domain.MatchNewUserRetryResult;
-import com.eighteen.common.feedback.domain.ThrowChannelConfig;
+import com.eighteen.common.feedback.domain.*;
 import com.eighteen.common.feedback.entity.ActiveFeedbackMatch;
 import com.eighteen.common.feedback.entity.ClickLog;
 import com.eighteen.common.feedback.entity.NewUserRetry;
@@ -15,6 +13,7 @@ import com.eighteen.common.feedback.service.ChannelConfigService;
 import com.eighteen.common.spring.boot.autoconfigure.pika.PikaTemplate;
 import com.eighteen.common.utils.DigestUtils;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,8 +23,9 @@ import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
@@ -35,10 +35,7 @@ import java.util.stream.Collectors;
  */
 @Component
 public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
-
-    private interface ClickType {
-        String BAIDU_CHANNEL = "baiduChannel";
-    }
+    private static List<String> excludeKeys = Lists.newArrayList(null, "null", "Unknown", "Null", "NULL", "{{IMEI}}", "{{ANDDROID_ID}}", "{{OAID}}", "", "__IMEI__", "__OAID__");
 
     @Autowired
     RedisTemplate redisTemplate;
@@ -55,25 +52,25 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         Assert.notNull(clickType, "clickType不能为空");
 
         List<String> keys = getClickLogKeys(clickLog, clickType);
-        List<String> redisKeys = getClickLogIdRedisKeys(keys, clickLog.getCoid(), clickLog.getNcoid(),
+        List<HashKeyFields> keyFieldsList = getAllClickLogIdRedisKeyFields(keys, clickLog.getCoid(), clickLog.getNcoid(),
                 clickLog.getChannel(), null);
-        String uniqueClickLogId = RedisKeyManager.getUniqueClickLogId(clickType, clickLog.getId());
-        redisKeys.forEach(redisKey -> {
-            doSaveClickLogId(redisKey, uniqueClickLogId);
+        String uniqueClickLogId = new UniqueClickLog(clickType, clickLog.getId()).ToUniqueId();
+        keyFieldsList.forEach(keyFields -> {
+            doSaveClickLogId(keyFields, uniqueClickLogId);
         });
         doSaveClickLog(clickType, clickLog);
     }
 
     private List<String> getClickLogKeys(ClickLog clickLog, String clickType) {
         List<String> keys = Lists.newArrayList(clickLog.getImeiMd5(), clickLog.getOaidMd5(), clickLog.getAndroidIdMd5());
-        if (ClickType.BAIDU_CHANNEL.equals(clickType)) {
+        if (ClickType.BAIDU.getType().equals(clickType)) {
             keys.add(clickLog.getIpua());
         }
         return keys.stream().filter(k -> !excludeKeys.contains(k) && !k.startsWith("FAKE")).collect(Collectors.toList());
     }
 
     /**
-     * 获取点击日志Id的Redis相关的Key
+     * 获取点击日志Id 所有的Redis相关的Key和HashField
      *
      * @param keys
      * @param coid
@@ -82,45 +79,46 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
      * @param isAllMatch 为true时返回coid、ncoid的key，false时返回channel的key，null时都返回
      * @return
      */
-    private List<String> getClickLogIdRedisKeys(List<String> keys, Integer coid, Integer ncoid, String channel, Boolean isAllMatch) {
-        List<String> redisKeys = Lists.newArrayList();
+    private List<HashKeyFields> getAllClickLogIdRedisKeyFields(List<String> keys, Integer coid, Integer ncoid, String channel, Boolean isAllMatch) {
+        List<HashKeyFields> keyFieldsList = Lists.newArrayList();
         keys.forEach(key -> {
-            redisKeys.addAll(getClickLogIdRedisKey(key, coid, ncoid, channel, isAllMatch));
+            keyFieldsList.addAll(getClickLogIdRedisKeyFields(key, coid, ncoid, channel, isAllMatch));
         });
-        return redisKeys;
+        return keyFieldsList;
     }
 
-    private List<String> getClickLogIdRedisKey(String key, Integer coid, Integer ncoid, String channel, Boolean isAllMatch) {
-        List<String> redisKeys = Lists.newArrayList();
-        if (StringUtils.isNotBlank(key)) {
-            String coidKey = RedisKeyManager.getClickLogIdKey(key, coid, ncoid);
-            String channelKey = RedisKeyManager.getClickLogIdKey(key, channel);
-            if (isAllMatch == null) {
-                redisKeys.add(coidKey);
-                redisKeys.add(channelKey);
-            } else if (isAllMatch) {
-                redisKeys.add(coidKey);
-            } else {
-                redisKeys.add(channelKey);
-            }
+    /**
+     * 获取点击日志Id的Redis相关的Key和HashField
+     */
+    private List<HashKeyFields> getClickLogIdRedisKeyFields(String key, Integer coid, Integer ncoid, String channel, Boolean isAllMatch) {
+        List<HashKeyFields> keyFieldsList = Lists.newArrayList();
+        String redisKey = RedisKeyManager.getClickLogIdKey(key);
+        Set<String> hashField = Sets.newHashSet();
+        String coidField = String.format("%d_%d", coid, ncoid);
+        String channelField = channel;
+        if (isAllMatch == null) {
+            hashField.add(coidField);
+            hashField.add(channelField);
+        } else if (isAllMatch) {
+            hashField.add(coidField);
+        } else {
+            hashField.add(channelField);
         }
-        return redisKeys;
+        keyFieldsList.add(new HashKeyFields().setRedisKey(redisKey).setHashFields(hashField));
+        return keyFieldsList;
     }
 
     /**
      * 保存点击日志Id
      *
-     * @param redisKey
-     * @param id
+     * @param keyFields
+     * @param uniqueId
      */
-    private void doSaveClickLogId(String redisKey, String id) {
-        //如果使用pika，则redis中只保存最近3个小时的id
-        if (pikaTemplate != null) {
-            pikaTemplate.opsForValue().set(redisKey, id, 7, TimeUnit.DAYS);
-            redisTemplate.opsForValue().set(redisKey, id, 3, TimeUnit.HOURS);
-        } else {
-            redisTemplate.opsForValue().set(redisKey, id, 7, TimeUnit.DAYS);
-        }
+    private void doSaveClickLogId(HashKeyFields keyFields, String uniqueId) {
+        RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
+        Map<String, String> map = keyFields.getHashFields().stream().collect(Collectors.toMap(f -> f, f -> uniqueId));
+        storeTemplate.opsForHash().putAll(keyFields.getRedisKey(), map);
+        storeTemplate.expire(keyFields.getRedisKey(), 5, TimeUnit.DAYS);
     }
 
     /**
@@ -165,27 +163,27 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         Assert.notNull(activeFeedbackMatch, "activeFeedbackMatch不能为空");
         MatchClickLogResult clickLogResult = null;
 
-        List<ActiveMatchKeyField> keyFields = getActiveMatchKeyFields(activeFeedbackMatch);
-        List<String> keys = keyFields.stream().map(kf -> kf.getMatchKey()).collect(Collectors.toList());
+        List<ActiveMatchKeyField> matchKeyFields = getActiveMatchKeyFields(activeFeedbackMatch);
+        List<String> keys = matchKeyFields.stream().map(kf -> kf.getMatchKey()).collect(Collectors.toList());
         boolean matchedBefore = checkClickLogMatchedBefore(keys, activeFeedbackMatch);//检查是否回传过
         if (matchedBefore) {
             clickLogResult = new MatchClickLogResult();
             clickLogResult.setMatchedBefore(true);
         } else {
             boolean isAllMatch = getIsAllMatch(activeFeedbackMatch.getChannel());
-            for (ActiveMatchKeyField keyField : keyFields) {
-                List<String> redisKeys = getClickLogIdRedisKey(keyField.getMatchKey(), activeFeedbackMatch.getCoid(), activeFeedbackMatch.getNcoid(),
+            for (ActiveMatchKeyField keyField : matchKeyFields) {
+                List<HashKeyFields> hashKeyFieldsList = getClickLogIdRedisKeyFields(keyField.getMatchKey(), activeFeedbackMatch.getCoid(), activeFeedbackMatch.getNcoid(),
                         activeFeedbackMatch.getChannel(), isAllMatch);
-                if (CollectionUtils.isEmpty(redisKeys)) {
+                if (CollectionUtils.isEmpty(hashKeyFieldsList)) {
                     continue;
                 }
-                for (String redisKey : redisKeys) {
-                    String uniqueClickLogId = getUniqueClickLogId(redisKey);
+                for (HashKeyFields hashKeyFields : hashKeyFieldsList) {
+                    String uniqueClickLogId = searchUniqueClickLogId(hashKeyFields);
                     if (StringUtils.isNotBlank(uniqueClickLogId)) {
-                        String[] clickLogInfoArray = uniqueClickLogId.split("_");
+                        UniqueClickLog uniqueClickLog = UniqueClickLog.FromUniqueId(uniqueClickLogId);
                         clickLogResult = new MatchClickLogResult();
-                        clickLogResult.setClickType(clickLogInfoArray[0]);
-                        clickLogResult.setClickLogId(Long.valueOf(clickLogInfoArray[1]));
+                        clickLogResult.setClickType(uniqueClickLog.getClickType());
+                        clickLogResult.setClickLogId(uniqueClickLog.getClickLogId());
                         clickLogResult.setMatchKey(keyField.getMatchKey());
                         clickLogResult.setMatchField(keyField.getMatchField());
                         return clickLogResult;
@@ -279,10 +277,10 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         return null;
     }
 
-    private String getUniqueClickLogId(String redisKey) {
+    private String searchUniqueClickLogId(HashKeyFields keyFields) {
         RedisTemplate template = pikaTemplate != null ? pikaTemplate : redisTemplate;
-        Object obj = template.opsForValue().get(redisKey);
-        return obj == null ? "" : obj.toString();
+        List<String> uniqueIds = template.opsForHash().multiGet(keyFields.getRedisKey(), keyFields.getHashFields());
+        return CollectionUtils.isEmpty(uniqueIds) ? "" : uniqueIds.get(0);
     }
 
     @Override
@@ -323,7 +321,6 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         return channelConfig != null && channelConfig.getChannelType() == 0;
     }
 
-    private static List<String> excludeKeys = Lists.newArrayList(null, "null", "Unknown", "Null", "NULL", "{{IMEI}}", "{{ANDDROID_ID}}", "{{OAID}}", "", "__IMEI__", "__OAID__");
 
     /**
      * 获取激活重试Id相关的key
