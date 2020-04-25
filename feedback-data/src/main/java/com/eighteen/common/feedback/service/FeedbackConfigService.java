@@ -7,10 +7,23 @@ import java.util.List;
  * @date : 2020/4/25 13:31
  */
 public interface FeedbackConfigService {
-    List<String> getWds(String channel);
+    /**
+     * 获取渠道用于匹配回传的字段（imei、oaid...）
+     * @param channel
+     * @return
+     */
+    List<String> getMatchFields(String channel);
 
+    /**
+     * 获取排除回传的渠道
+     * @return
+     */
     List<String> getExcludeChannels();
 
+    /**
+     * 获取启动回传的渠道
+     * @return
+     */
     List<String> getIncludeChannels();
 
     void refreshCache(String key);

@@ -8,7 +8,7 @@ import java.util.stream.Stream;
  * Time: 13:44
  */
 public interface Constants {
-    interface keys {
+    interface RedisKeys {
         String FEED_BACK_CACHE = "feedback_";
         String FEED_BACK_CONFIG_WDS = "feedback_config_wds";
         String FEED_BACK_CONFIG_EXCLUDE_CHANNELS = "feedback_config_exclude_channels";
@@ -27,7 +27,7 @@ public interface Constants {
         String FEEDBACK_LOG = "feedbacklog";
     }
 
-    interface FEEDBACK_CONFIG_TYPE {
+    interface FeedbackConfigType {
         int CHANNEL_EXCLUDE = 0;
         int CHANNEL_INCLUDE = 1;
         int CHANNEL_WD = 2;

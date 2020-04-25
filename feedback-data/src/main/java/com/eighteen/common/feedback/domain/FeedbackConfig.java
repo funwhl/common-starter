@@ -26,28 +26,17 @@ public class FeedbackConfig {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    // 0:channel exclude , 1:channel include , 2:channel 字段配置
+    /**
+     * 0:channel exclude , 1:channel include , 2:channel 字段配置 3：支持的媒体类型
+     */
     private Integer type;
+
+    /**
+     * 类型为2时 value为json格式
+     */
     private String value;
     private String description;
     private Date createTime;
     private Date updateTime;
-
-    public List<String> getMatchWdByChannel(String channel) {
-        if (Constants.FEEDBACK_CONFIG_TYPE.CHANNEL_WD != this.type || StringUtils.isBlank(channel)) return null;
-        JSONObject parse = (JSONObject) JSON.parse(this.value);
-
-        return null;
-    }
-
-    public static void main(String[] args) {
-        Map<String, String> wds = new HashMap<>();
-        wds.put("111", "0,1,2,3");
-        wds.put("222", "0,1,2,3");
-        String s = JSONObject.toJSONString(wds);
-        Map<String,String> parse = (Map) JSON.parse(s);
-
-        System.out.println(s);
-    }
 
 }

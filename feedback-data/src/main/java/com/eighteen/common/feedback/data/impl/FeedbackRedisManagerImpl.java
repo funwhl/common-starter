@@ -15,6 +15,7 @@ import com.eighteen.common.spring.boot.autoconfigure.pika.PikaTemplate;
 import com.eighteen.common.utils.DigestUtils;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,6 +36,7 @@ import java.util.stream.Collectors;
  * @author lcomplete
  */
 @Component
+@Slf4j
 public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     private static List<String> excludeKeys = Lists.newArrayList(null, "null", "Unknown", "Null", "NULL", "{{IMEI}}", "{{ANDDROID_ID}}", "{{OAID}}", "", "__IMEI__", "__OAID__");
 
@@ -58,11 +60,17 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         List<String> keys = getClickLogKeys(clickLog, clickType);
         List<HashKeyFields> keyFieldsList = getAllClickLogIdRedisKeyFields(keys, clickLog.getCoid(), clickLog.getNcoid(),
                 clickLog.getChannel(), null);
-        String uniqueClickLogId = new UniqueClickLog(clickType, clickLog.getId()).ToUniqueId();
-        keyFieldsList.forEach(keyFields -> {
-            doSaveClickLogId(keyFields, uniqueClickLogId);
-        });
-        doSaveClickLog(clickType, clickLog);
+
+        //coid ncoid channel 为null时，存储数据无意义，不保存
+        if (!CollectionUtils.isEmpty(keyFieldsList)) {
+            String uniqueClickLogId = new UniqueClickLog(clickType, clickLog.getId()).ToUniqueId();
+            keyFieldsList.forEach(keyFields -> {
+                doSaveClickLogId(keyFields, uniqueClickLogId);
+            });
+            doSaveClickLog(clickType, clickLog);
+        } else {
+            log.warn("clicklog无法生成有效的hashKey，type:{},id:{}", clickType, clickLog.getId());
+        }
     }
 
     private List<String> getClickLogKeys(ClickLog clickLog, String clickType) {
@@ -86,7 +94,10 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     private List<HashKeyFields> getAllClickLogIdRedisKeyFields(List<String> keys, Integer coid, Integer ncoid, String channel, Boolean isAllMatch) {
         List<HashKeyFields> keyFieldsList = Lists.newArrayList();
         keys.forEach(key -> {
-            keyFieldsList.add(getClickLogIdRedisKeyFields(key, coid, ncoid, channel, isAllMatch));
+            HashKeyFields keyFields = getClickLogIdRedisKeyFields(key, coid, ncoid, channel, isAllMatch);
+            if (!CollectionUtils.isEmpty(keyFields.getHashFields())) {
+                keyFieldsList.add(keyFields);
+            }
         });
         return keyFieldsList;
     }
@@ -97,13 +108,22 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     private HashKeyFields getClickLogIdRedisKeyFields(String key, Integer coid, Integer ncoid, String channel, Boolean isAllMatch) {
         String redisKey = RedisKeyManager.getClickLogIdKey(key);
         Set<String> hashField = Sets.newHashSet();
-        String coidField = String.format("%d_%d", coid, ncoid);
+        String coidField = null;
+        if (coid != null && ncoid != null) {
+            String.format("%d_%d", coid, ncoid);
+        }
         String channelField = channel;
         if (isAllMatch == null) {
-            hashField.add(coidField);
-            hashField.add(channelField);
+            if (coidField != null) {
+                hashField.add(coidField);
+            }
+            if (channelField != null) {
+                hashField.add(channelField);
+            }
         } else if (isAllMatch) {
-            hashField.add(coidField);
+            if (coidField != null) {
+                hashField.add(coidField);
+            }
         } else if (channelField != null) {
             hashField.add(channelField);
         }
@@ -117,10 +137,12 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
      * @param uniqueId
      */
     private void doSaveClickLogId(HashKeyFields keyFields, String uniqueId) {
-        RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
-        Map<String, String> map = keyFields.getHashFields().stream().collect(Collectors.toMap(f -> f, f -> uniqueId));
-        storeTemplate.opsForHash().putAll(keyFields.getRedisKey(), map);
-        storeTemplate.expire(keyFields.getRedisKey(), 5, TimeUnit.DAYS);
+        if (!CollectionUtils.isEmpty(keyFields.getHashFields())) {
+            RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
+            Map<String, String> map = keyFields.getHashFields().stream().collect(Collectors.toMap(f -> f, f -> uniqueId));
+            storeTemplate.opsForHash().putAll(keyFields.getRedisKey(), map);
+            storeTemplate.expire(keyFields.getRedisKey(), 5, TimeUnit.DAYS);
+        }
     }
 
     /**
@@ -163,9 +185,24 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     @Override
     public MatchClickLogResult matchClickLog(ActiveFeedbackMatch activeFeedbackMatch) {
         Assert.notNull(activeFeedbackMatch, "activeFeedbackMatch不能为空");
-        MatchClickLogResult clickLogResult = null;
 
+        //如果渠道被排除 则直接不匹配
+        List<String> excludeChannels = feedbackConfigService.getExcludeChannels();
+        if (excludeChannels.contains(activeFeedbackMatch.getChannel())) {
+            return null;
+        }
+
+        MatchClickLogResult clickLogResult = null;
         List<ActiveMatchKeyField> matchKeyFields = getActiveMatchKeyFields(activeFeedbackMatch);
+        //若渠道有设置需要匹配的关键字 则按顺序使用这些关键字
+        List<String> matchFields = feedbackConfigService.getMatchFields(activeFeedbackMatch.getChannel());
+        if (!CollectionUtils.isEmpty(matchFields)) {
+            List<ActiveMatchKeyField> tempKeyFields = Lists.newArrayList();
+            for (String matchField : matchFields) {
+                tempKeyFields.addAll(matchKeyFields.stream().filter(mk -> matchField.equals(mk.getMatchField())).collect(Collectors.toList()));
+            }
+            matchKeyFields = tempKeyFields;
+        }
         boolean isAllMatch = getIsAllMatch(activeFeedbackMatch.getChannel());
 
         for (ActiveMatchKeyField keyField : matchKeyFields) {
@@ -209,47 +246,18 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         String androidid = feedbackMatch.getAndroidid();
         List<ActiveMatchKeyField> keys = Lists.newArrayList();
 
-        List<String> excludeChannels = feedbackConfigService.getExcludeChannels();
-        if (excludeChannels.contains(feedbackMatch.getChannel())) return keys;
-        List<String> wds = feedbackConfigService.getWds(feedbackMatch.getChannel());
-        if (!CollectionUtils.isEmpty(wds)) {
-            for (String s : wds) {
-                switch (s) {
-                    case "imei":
-                        if (StringUtils.isNotBlank(iimei)) {
-                            for (String mei : iimei.split(",")) {
-                                keys.add(new ActiveMatchKeyField("imei", mei));
-                            }
-                        } else {
-                            keys.add(new ActiveMatchKeyField("imei", imei));
-                        }
-                        break;
-                    case "oaid":
-                        keys.add(new ActiveMatchKeyField("oaid", oaid));
-                        break;
-                    case "androidId":
-                        keys.add(new ActiveMatchKeyField("androidId", androidid));
-                        break;
-                    case "ipua":
-                        keys.add(new ActiveMatchKeyField("ipua", androidid));
-                        break;
-                }
+        //imei放在前面 优先匹配imei
+        if (StringUtils.isNotBlank(iimei)) {
+            for (String mei : iimei.split(",")) {
+                keys.add(new ActiveMatchKeyField("imei", mei));
             }
-
         } else {
-            //imei放在前面 优先匹配imei
-            if (StringUtils.isNotBlank(iimei)) {
-                for (String mei : iimei.split(",")) {
-                    keys.add(new ActiveMatchKeyField("imei", mei));
-                }
-            } else {
-                keys.add(new ActiveMatchKeyField("imei", imei));
-            }
-            keys.add(new ActiveMatchKeyField("oaid", oaid));
-            keys.add(new ActiveMatchKeyField("androidId", androidid));
-            if (DsConstants.BAIDU.equals(feedbackMatch.getType())) {
-                keys.add(new ActiveMatchKeyField("ipua", feedbackMatch.getIp() + "#" + feedbackMatch.getUa()));
-            }
+            keys.add(new ActiveMatchKeyField("imei", imei));
+        }
+        keys.add(new ActiveMatchKeyField("oaid", oaid));
+        keys.add(new ActiveMatchKeyField("androidId", androidid));
+        if (DsConstants.BAIDU.equals(feedbackMatch.getType())) {
+            keys.add(new ActiveMatchKeyField("ipua", feedbackMatch.getIp() + "#" + feedbackMatch.getUa()));
         }
 
         keys = keys.stream().filter(k -> StringUtils.isNotBlank(k.getMatchKey()))
@@ -316,6 +324,9 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     private String searchUniqueClickLogId(HashKeyFields keyFields) {
+        if (keyFields == null || CollectionUtils.isEmpty(keyFields.getHashFields())) {
+            return "";
+        }
         RedisTemplate template = pikaTemplate != null ? pikaTemplate : redisTemplate;
         List<String> uniqueIds = template.opsForHash().multiGet(keyFields.getRedisKey(), keyFields.getHashFields());
         return CollectionUtils.isEmpty(uniqueIds) ? "" : uniqueIds.get(0);

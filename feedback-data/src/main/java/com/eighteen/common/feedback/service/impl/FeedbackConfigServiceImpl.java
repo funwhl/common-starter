@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import static com.eighteen.common.feedback.constants.Constants.keys.*;
+import static com.eighteen.common.feedback.constants.Constants.RedisKeys.*;
 
 /**
  * @author : wangwei
@@ -32,14 +32,14 @@ public class FeedbackConfigServiceImpl implements FeedbackConfigService {
     @Autowired
     RedisTemplate redisTemplate;
     private Cache<String, Map<String, String>> configWdsCache = CacheBuilder.newBuilder()
-            .expireAfterWrite(1, TimeUnit.DAYS)
+            .expireAfterWrite(3, TimeUnit.MINUTES)
             .build();
     private Cache<String, List<String>> configChannelsCache = CacheBuilder.newBuilder()
-            .expireAfterWrite(1, TimeUnit.DAYS)
+            .expireAfterWrite(3, TimeUnit.MINUTES)
             .build();
 
     @Override
-    public List<String> getWds(String channel) {
+    public List<String> getMatchFields(String channel) {
         Map<String, String> map = Optional.ofNullable(configWdsCache.getIfPresent(FEED_BACK_CONFIG_WDS)).orElse(new HashMap<>());
         String value = Optional.ofNullable(map.get(channel)).orElseGet(() -> {
             String wds = (String) redisTemplate.opsForHash().get(FEED_BACK_CONFIG_WDS, channel);
@@ -50,7 +50,9 @@ public class FeedbackConfigServiceImpl implements FeedbackConfigService {
             }
             return null;
         });
-        if (value == null) return null;
+        if (value == null) {
+            return null;
+        }
         return Stream.of(value.split(",")).map(s -> Constants.FeedbackWd.getDesc(Integer.valueOf(s))).collect(Collectors.toList());
     }
 
@@ -79,18 +81,19 @@ public class FeedbackConfigServiceImpl implements FeedbackConfigService {
         switch (key) {
             case FEED_BACK_CONFIG_WDS:
                 configWdsCache.invalidateAll();
-                feedbackConfig = feedbackConfigMapper.selectOne(new FeedbackConfig().setType(Constants.FEEDBACK_CONFIG_TYPE.CHANNEL_WD));
+                feedbackConfig = feedbackConfigMapper.selectOne(new FeedbackConfig().setType(Constants.FeedbackConfigType.CHANNEL_WD));
                 Map<String, String> data = (Map) JSON.parse(feedbackConfig.getValue());
-                if (!CollectionUtils.isEmpty(data))
-                    redisTemplate.opsForHash().putAll(Constants.keys.FEED_BACK_CONFIG_WDS, data);
+                if (!CollectionUtils.isEmpty(data)) {
+                    redisTemplate.opsForHash().putAll(Constants.RedisKeys.FEED_BACK_CONFIG_WDS, data);
+                }
                 break;
             case FEED_BACK_CONFIG_EXCLUDE_CHANNELS:
             case FEED_BACK_CONFIG_INCLUDE_CHANNELS:
                 configChannelsCache.invalidate(key);
-                Integer type = key.equals(FEED_BACK_CONFIG_INCLUDE_CHANNELS) ? Constants.FEEDBACK_CONFIG_TYPE.CHANNEL_INCLUDE : Constants.FEEDBACK_CONFIG_TYPE.CHANNEL_EXCLUDE;
+                Integer type = key.equals(FEED_BACK_CONFIG_INCLUDE_CHANNELS) ? Constants.FeedbackConfigType.CHANNEL_INCLUDE : Constants.FeedbackConfigType.CHANNEL_EXCLUDE;
                 feedbackConfig = feedbackConfigMapper.selectOne(new FeedbackConfig().setType(type));
                 if (feedbackConfig != null && StringUtils.isNotBlank(feedbackConfig.getValue())) {
-                    redisTemplate.opsForValue().set(Constants.keys.FEED_BACK_CONFIG_INCLUDE_CHANNELS, feedbackConfig.getValue());
+                    redisTemplate.opsForValue().set(key, feedbackConfig.getValue());
                 }
                 break;
         }
