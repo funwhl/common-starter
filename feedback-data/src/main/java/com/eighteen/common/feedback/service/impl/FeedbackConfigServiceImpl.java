@@ -53,7 +53,7 @@ public class FeedbackConfigServiceImpl implements FeedbackConfigService {
         if (value == null) {
             return null;
         }
-        return Stream.of(value.split(",")).map(s -> Constants.FeedbackWd.getDesc(Integer.valueOf(s))).collect(Collectors.toList());
+        return Stream.of(value.split(",")).map(s -> Constants.FeedbackMatchFields.getDesc(Integer.valueOf(s))).collect(Collectors.toList());
     }
 
     @Override

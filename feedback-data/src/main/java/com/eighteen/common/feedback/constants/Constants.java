@@ -15,7 +15,7 @@ public interface Constants {
         String FEED_BACK_CONFIG_INCLUDE_CHANNELS = "feedback_config_include_channels";
     }
 
-    interface urls {
+    interface Urls {
         String GDT_FEEDBACK_URL = "https://api.e.qq.com/v1.0/user_actions/add?access_token=<token>&timestamp=<timestamp>&nonce=<nonce>";
     }
 
@@ -33,7 +33,7 @@ public interface Constants {
         int CHANNEL_WD = 2;
     }
 
-    enum FeedbackWd {
+    enum FeedbackMatchFields {
         IMEI(1, "imei"),
         OAID(2, "oaid"),
         ANDROID_ID(3, "androidId"),
@@ -42,13 +42,13 @@ public interface Constants {
         Integer type;
         String desc;
 
-        FeedbackWd(int type, String desc) {
+        FeedbackMatchFields(int type, String desc) {
             this.type = type;
             this.desc = desc;
         }
 
         public static String getDesc(Integer type) {
-            return Stream.of(FeedbackWd.values()).filter(feedbackWd -> feedbackWd.type.equals(type)).findFirst().get().desc;
+            return Stream.of(FeedbackMatchFields.values()).filter(feedbackWd -> feedbackWd.type.equals(type)).findFirst().get().desc;
         }
     }
 
