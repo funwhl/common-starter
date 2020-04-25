@@ -10,6 +10,7 @@ import com.eighteen.common.feedback.entity.ActiveFeedbackMatch;
 import com.eighteen.common.feedback.entity.ClickLog;
 import com.eighteen.common.feedback.entity.NewUserRetry;
 import com.eighteen.common.feedback.service.ChannelConfigService;
+import com.eighteen.common.feedback.service.FeedbackConfigService;
 import com.eighteen.common.spring.boot.autoconfigure.pika.PikaTemplate;
 import com.eighteen.common.utils.DigestUtils;
 import com.google.common.collect.Lists;
@@ -45,6 +46,9 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
 
     @Autowired
     ChannelConfigService channelConfigService;
+
+    @Autowired
+    FeedbackConfigService feedbackConfigService;
 
     @Override
     public void saveClickLog(ClickLog clickLog, String clickType) {
@@ -205,18 +209,47 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         String androidid = feedbackMatch.getAndroidid();
         List<ActiveMatchKeyField> keys = Lists.newArrayList();
 
-        //imei放在前面 优先匹配imei
-        if (StringUtils.isNotBlank(iimei)) {
-            for (String mei : iimei.split(",")) {
-                keys.add(new ActiveMatchKeyField("imei", mei));
+        List<String> excludeChannels = feedbackConfigService.getExcludeChannels();
+        if (excludeChannels.contains(feedbackMatch.getChannel())) return keys;
+        List<String> wds = feedbackConfigService.getWds(feedbackMatch.getChannel());
+        if (!CollectionUtils.isEmpty(wds)) {
+            for (String s : wds) {
+                switch (s) {
+                    case "imei":
+                        if (StringUtils.isNotBlank(iimei)) {
+                            for (String mei : iimei.split(",")) {
+                                keys.add(new ActiveMatchKeyField("imei", mei));
+                            }
+                        } else {
+                            keys.add(new ActiveMatchKeyField("imei", imei));
+                        }
+                        break;
+                    case "oaid":
+                        keys.add(new ActiveMatchKeyField("oaid", oaid));
+                        break;
+                    case "androidId":
+                        keys.add(new ActiveMatchKeyField("androidId", androidid));
+                        break;
+                    case "ipua":
+                        keys.add(new ActiveMatchKeyField("ipua", androidid));
+                        break;
+                }
             }
+
         } else {
-            keys.add(new ActiveMatchKeyField("imei", imei));
-        }
-        keys.add(new ActiveMatchKeyField("oaid", oaid));
-        keys.add(new ActiveMatchKeyField("androidId", androidid));
-        if (DsConstants.BAIDU.equals(feedbackMatch.getType())) {
-            keys.add(new ActiveMatchKeyField("ipua", feedbackMatch.getIp() + "#" + feedbackMatch.getUa()));
+            //imei放在前面 优先匹配imei
+            if (StringUtils.isNotBlank(iimei)) {
+                for (String mei : iimei.split(",")) {
+                    keys.add(new ActiveMatchKeyField("imei", mei));
+                }
+            } else {
+                keys.add(new ActiveMatchKeyField("imei", imei));
+            }
+            keys.add(new ActiveMatchKeyField("oaid", oaid));
+            keys.add(new ActiveMatchKeyField("androidId", androidid));
+            if (DsConstants.BAIDU.equals(feedbackMatch.getType())) {
+                keys.add(new ActiveMatchKeyField("ipua", feedbackMatch.getIp() + "#" + feedbackMatch.getUa()));
+            }
         }
 
         keys = keys.stream().filter(k -> StringUtils.isNotBlank(k.getMatchKey()))
