@@ -45,6 +45,13 @@ public interface FeedbackRedisManager {
     MatchClickLogResult matchClickLog(ActiveFeedbackMatch activeFeedbackMatch);
 
     /**
+     * 检查激活数据是否匹回传
+     * @param activeFeedbackMatch
+     * @return
+     */
+    boolean checkMatchedBefore(ActiveFeedbackMatch activeFeedbackMatch);
+
+    /**
      * 保存匹配回传记录
      * @param activeFeedbackMatch
      * @param clickChannel 匹配到的点击记录中的渠道

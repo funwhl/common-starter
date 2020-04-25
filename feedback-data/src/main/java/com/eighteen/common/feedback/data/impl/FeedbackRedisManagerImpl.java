@@ -66,7 +66,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         if (ClickType.BAIDU.getType().equals(clickType)) {
             keys.add(clickLog.getIpua());
         }
-        return keys.stream().filter(k -> !excludeKeys.contains(k) && !k.startsWith("FAKE")).collect(Collectors.toList());
+        return keys.stream().filter(k -> !excludeKeys.contains(k) && !k.startsWith("FAKE") && !k.startsWith("{{")).collect(Collectors.toList());
     }
 
     /**
@@ -162,33 +162,34 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         MatchClickLogResult clickLogResult = null;
 
         List<ActiveMatchKeyField> matchKeyFields = getActiveMatchKeyFields(activeFeedbackMatch);
-        //检查是否回传过
-        List<String> keys = matchKeyFields.stream().map(kf -> kf.getMatchKey()).collect(Collectors.toList());
-        boolean matchedBefore = checkClickLogMatchedBefore(keys, activeFeedbackMatch);
+        boolean isAllMatch = getIsAllMatch(activeFeedbackMatch.getChannel());
 
-        if (matchedBefore) {
-            clickLogResult = new MatchClickLogResult();
-            clickLogResult.setMatchedBefore(true);
-        } else {
-            boolean isAllMatch = getIsAllMatch(activeFeedbackMatch.getChannel());
-            for (ActiveMatchKeyField keyField : matchKeyFields) {
-                //根据激活数据key生成点击id的redisKey，查找点击id
-                HashKeyFields hashKeyFields = getClickLogIdRedisKeyFields(keyField.getMatchKey(), activeFeedbackMatch.getCoid(), activeFeedbackMatch.getNcoid(),
-                        activeFeedbackMatch.getChannel(), isAllMatch);
-                String uniqueClickLogId = searchUniqueClickLogId(hashKeyFields);
+        for (ActiveMatchKeyField keyField : matchKeyFields) {
+            //根据激活数据key生成点击id的redisKey，查找点击id
+            HashKeyFields hashKeyFields = getClickLogIdRedisKeyFields(keyField.getMatchKey(), activeFeedbackMatch.getCoid(), activeFeedbackMatch.getNcoid(),
+                    activeFeedbackMatch.getChannel(), isAllMatch);
+            String uniqueClickLogId = searchUniqueClickLogId(hashKeyFields);
 
-                if (StringUtils.isNotBlank(uniqueClickLogId)) {
-                    UniqueClickLog uniqueClickLog = UniqueClickLog.FromUniqueId(uniqueClickLogId);
-                    clickLogResult = new MatchClickLogResult();
-                    clickLogResult.setClickType(uniqueClickLog.getClickType());
-                    clickLogResult.setClickLogId(uniqueClickLog.getClickLogId());
-                    clickLogResult.setMatchKey(keyField.getMatchKey());
-                    clickLogResult.setMatchField(keyField.getMatchField());
-                    return clickLogResult;
-                }
+            if (StringUtils.isNotBlank(uniqueClickLogId)) {
+                UniqueClickLog uniqueClickLog = UniqueClickLog.FromUniqueId(uniqueClickLogId);
+                clickLogResult = new MatchClickLogResult();
+                clickLogResult.setClickType(uniqueClickLog.getClickType());
+                clickLogResult.setClickLogId(uniqueClickLog.getClickLogId());
+                clickLogResult.setMatchKey(keyField.getMatchKey());
+                clickLogResult.setMatchField(keyField.getMatchField());
+                return clickLogResult;
             }
         }
         return clickLogResult;
+    }
+
+    @Override
+    public boolean checkMatchedBefore(ActiveFeedbackMatch activeFeedbackMatch) {
+        List<ActiveMatchKeyField> matchKeyFields = getActiveMatchKeyFields(activeFeedbackMatch);
+        //检查是否回传过
+        List<String> keys = matchKeyFields.stream().map(kf -> kf.getMatchKey()).collect(Collectors.toList());
+        boolean matchedBefore = checkKeysMatchedBefore(keys, activeFeedbackMatch);
+        return matchedBefore;
     }
 
     /**
@@ -202,13 +203,9 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         String imei = feedbackMatch.getImei();
         String oaid = feedbackMatch.getOaid();
         String androidid = feedbackMatch.getAndroidid();
-        List<ActiveMatchKeyField> keys = Lists.newArrayList(
-                new ActiveMatchKeyField("oaid", oaid),
-                new ActiveMatchKeyField("androidId", androidid)
-        );
-        if (DsConstants.BAIDU.equals(feedbackMatch.getType())) {
-            keys.add(new ActiveMatchKeyField("ipua", feedbackMatch.getIp() + "#" + feedbackMatch.getUa()));
-        }
+        List<ActiveMatchKeyField> keys = Lists.newArrayList();
+
+        //imei放在前面 优先匹配imei
         if (StringUtils.isNotBlank(iimei)) {
             for (String mei : iimei.split(",")) {
                 keys.add(new ActiveMatchKeyField("imei", mei));
@@ -216,9 +213,14 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         } else {
             keys.add(new ActiveMatchKeyField("imei", imei));
         }
+        keys.add(new ActiveMatchKeyField("oaid", oaid));
+        keys.add(new ActiveMatchKeyField("androidId", androidid));
+        if (DsConstants.BAIDU.equals(feedbackMatch.getType())) {
+            keys.add(new ActiveMatchKeyField("ipua", feedbackMatch.getIp() + "#" + feedbackMatch.getUa()));
+        }
 
         keys = keys.stream().filter(k -> StringUtils.isNotBlank(k.getMatchKey()))
-                .filter(k -> !excludeKeys.contains(k.getMatchKey()) && !k.getMatchKey().startsWith("FAKE"))
+                .filter(k -> !excludeKeys.contains(k.getMatchKey()) && !k.getMatchKey().startsWith("FAKE") && !k.getMatchKey().startsWith("{{"))
                 .collect(Collectors.toList());
         keys.forEach(k -> k.setMatchKey(DigestUtils.getMd5Str(k.getMatchKey())));
         return keys;
@@ -240,7 +242,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
      * @param keys
      * @return
      */
-    private boolean checkClickLogMatchedBefore(List<String> keys, ActiveFeedbackMatch feedbackMatch) {
+    private boolean checkKeysMatchedBefore(List<String> keys, ActiveFeedbackMatch feedbackMatch) {
         RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
         for (String key : keys) {
             String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
