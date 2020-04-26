@@ -5,10 +5,10 @@ import com.eighteen.common.feedback.constants.Constants;
 import com.eighteen.common.feedback.dao.FeedbackConfigMapper;
 import com.eighteen.common.feedback.domain.FeedbackConfig;
 import com.eighteen.common.feedback.service.FeedbackConfigService;
-
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -26,7 +26,7 @@ import static com.eighteen.common.feedback.constants.Constants.RedisKeys.*;
  * @date : 2020/4/25 13:31
  */
 @Service
-public class FeedbackConfigServiceImpl implements FeedbackConfigService {
+public class FeedbackConfigServiceImpl implements FeedbackConfigService, InitializingBean {
     @Autowired
     FeedbackConfigMapper feedbackConfigMapper;
     @Autowired
@@ -78,13 +78,14 @@ public class FeedbackConfigServiceImpl implements FeedbackConfigService {
     @Override
     public void refreshCache(String key) {
         FeedbackConfig feedbackConfig;
+        redisTemplate.delete(key);
         switch (key) {
             case FEED_BACK_CONFIG_WDS:
                 configWdsCache.invalidateAll();
                 feedbackConfig = feedbackConfigMapper.selectOne(new FeedbackConfig().setType(Constants.FeedbackConfigType.CHANNEL_WD));
                 Map<String, String> data = (Map) JSON.parse(feedbackConfig.getValue());
                 if (!CollectionUtils.isEmpty(data)) {
-                    redisTemplate.opsForHash().putAll(Constants.RedisKeys.FEED_BACK_CONFIG_WDS, data);
+                    redisTemplate.opsForHash().putAll(key, data);
                 }
                 break;
             case FEED_BACK_CONFIG_EXCLUDE_CHANNELS:
@@ -99,4 +100,10 @@ public class FeedbackConfigServiceImpl implements FeedbackConfigService {
         }
     }
 
+    @Override
+    public void afterPropertiesSet() {
+        refreshCache(FEED_BACK_CONFIG_WDS);
+        refreshCache(FEED_BACK_CONFIG_EXCLUDE_CHANNELS);
+        refreshCache(FEED_BACK_CONFIG_INCLUDE_CHANNELS);
+    }
 }
