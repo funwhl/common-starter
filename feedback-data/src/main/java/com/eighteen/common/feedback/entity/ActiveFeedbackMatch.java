@@ -1,5 +1,6 @@
 package com.eighteen.common.feedback.entity;
 
+import com.alibaba.fastjson.annotation.JSONField;
 import lombok.Data;
 import lombok.experimental.Accessors;
 
@@ -106,6 +107,7 @@ public class ActiveFeedbackMatch implements Serializable {
     @Column(name = "`ip`")
     private String ip;
 
+    @JSONField(format="yyyy-MM-ddTHH:mm:ss.SSS")
     @Column(name = "`createTime`")
     private Date createtime;
 
