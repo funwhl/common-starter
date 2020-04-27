@@ -4,6 +4,8 @@ import com.alibaba.fastjson.JSONObject;
 import com.eighteen.common.feedback.dao.ChannelConfigMapper;
 import com.eighteen.common.feedback.domain.ThrowChannelConfig;
 import com.eighteen.common.feedback.service.ChannelConfigService;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -11,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 
 /**
  * @author lcomplete
@@ -18,6 +21,9 @@ import java.util.Optional;
 @Service
 @Slf4j
 public class ChannelConfigServiceImpl implements ChannelConfigService {
+
+    private Cache<String, ThrowChannelConfig> configCache = CacheBuilder.newBuilder().expireAfterWrite(3, TimeUnit.MINUTES).build();
+
     @Autowired
     ChannelConfigMapper channelConfigMapper;
     @Autowired
@@ -43,11 +49,22 @@ public class ChannelConfigServiceImpl implements ChannelConfigService {
 
     @Override
     public ThrowChannelConfig getByChannel(String channel) {
-        ThrowChannelConfig obj = (ThrowChannelConfig) redisTemplate.opsForHash().get(key, channel);
-        if (obj == null) {
-            obj = channelConfigMapper.getOne(channel);
-            Optional.ofNullable(obj).ifPresent(throwChannelConfig -> redisTemplate.opsForHash().put(key, channel, throwChannelConfig));
+        ThrowChannelConfig config = configCache.getIfPresent(channel);
+        if (config != null) {
+            return config;
         }
-        return obj;
+        if (config == null) {
+            config = (ThrowChannelConfig) redisTemplate.opsForHash().get(key, channel);
+        }
+        if (config == null) {
+            config = channelConfigMapper.getOne(channel);
+            Optional.ofNullable(config).ifPresent(throwChannelConfig -> {
+                redisTemplate.opsForHash().put(key, channel, throwChannelConfig);
+            });
+        }
+        if (config != null) {
+            configCache.put(channel, config);
+        }
+        return config;
     }
 }
