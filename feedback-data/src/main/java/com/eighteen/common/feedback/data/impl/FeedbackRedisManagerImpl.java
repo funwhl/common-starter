@@ -305,6 +305,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
         for (String key : keys) {
             String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
+            //ipua无法通过linkstatistics去重 永久保存在redis中
             if (key.equals("ipua")) {
                 storeTemplate.opsForValue().set(redisKey, 1);
             } else {
