@@ -26,5 +26,11 @@ public interface FeedbackConfigService {
      */
     List<String> getIncludeChannels();
 
+    /**
+     * 获取启动回传的平台
+     * @return
+     */
+    List<String> getIncludeTypes();
+
     void refreshCache(String key);
 }

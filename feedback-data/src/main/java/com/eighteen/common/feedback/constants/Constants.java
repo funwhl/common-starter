@@ -13,6 +13,7 @@ public interface Constants {
         String FEED_BACK_CONFIG_WDS = "feedback_config_wds";
         String FEED_BACK_CONFIG_EXCLUDE_CHANNELS = "feedback_config_exclude_channels";
         String FEED_BACK_CONFIG_INCLUDE_CHANNELS = "feedback_config_include_channels";
+        String FEED_BACK_CONFIG_INCLUDE_TYPE = "feedback_config_include_type";
     }
 
     interface Urls {
@@ -31,6 +32,7 @@ public interface Constants {
         int CHANNEL_EXCLUDE = 0;
         int CHANNEL_INCLUDE = 1;
         int CHANNEL_WD = 2;
+        int FEEDBACK_TYPE_INCLUDE = 3;
     }
 
     enum FeedbackMatchFields {

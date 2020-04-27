@@ -31,46 +31,48 @@ public class FeedbackConfigServiceImpl implements FeedbackConfigService, Initial
     FeedbackConfigMapper feedbackConfigMapper;
     @Autowired
     RedisTemplate redisTemplate;
-    private Cache<String, Map<String, String>> configWdsCache = CacheBuilder.newBuilder()
+    private Cache<String, Map<String, String>> mapCache = CacheBuilder.newBuilder()
             .expireAfterWrite(3, TimeUnit.MINUTES)
             .build();
-    private Cache<String, List<String>> configChannelsCache = CacheBuilder.newBuilder()
+    private Cache<String, List<String>> listCache = CacheBuilder.newBuilder()
             .expireAfterWrite(3, TimeUnit.MINUTES)
             .build();
 
     @Override
     public List<String> getMatchFields(String channel) {
-        Map<String, String> map = Optional.ofNullable(configWdsCache.getIfPresent(FEED_BACK_CONFIG_WDS)).orElse(new HashMap<>());
+        Map<String, String> map = Optional.ofNullable(mapCache.getIfPresent(FEED_BACK_CONFIG_WDS)).orElse(new HashMap<>());
         String value = Optional.ofNullable(map.get(channel)).orElseGet(() -> {
             String wds = (String) redisTemplate.opsForHash().get(FEED_BACK_CONFIG_WDS, channel);
             if (StringUtils.isNotBlank(wds)) {
                 map.put(channel, wds);
-                configWdsCache.put(FEED_BACK_CONFIG_WDS, map);
+                mapCache.put(FEED_BACK_CONFIG_WDS, map);
                 return wds;
             }
             return null;
         });
-        if (value == null) {
-            return null;
-        }
-        return Stream.of(value.split(",")).map(s -> Constants.FeedbackMatchFields.getDesc(Integer.valueOf(s))).collect(Collectors.toList());
+        return value==null?null:Stream.of(value.split(",")).map(s -> Constants.FeedbackMatchFields.getDesc(Integer.valueOf(s))).collect(Collectors.toList());
     }
 
     @Override
     public List<String> getExcludeChannels() {
-        return getFilterChannels(FEED_BACK_CONFIG_EXCLUDE_CHANNELS);
+        return getCacheList(FEED_BACK_CONFIG_EXCLUDE_CHANNELS);
     }
 
     @Override
     public List<String> getIncludeChannels() {
-        return getFilterChannels(FEED_BACK_CONFIG_INCLUDE_CHANNELS);
+        return getCacheList(FEED_BACK_CONFIG_INCLUDE_CHANNELS);
     }
 
-    private List<String> getFilterChannels(String key) {
-        return Optional.ofNullable(configChannelsCache.getIfPresent(key)).orElseGet(() -> {
+    @Override
+    public List<String> getIncludeTypes() {
+        return getCacheList(FEED_BACK_CONFIG_INCLUDE_TYPE);
+    }
+
+    private List<String> getCacheList(String key) {
+        return Optional.ofNullable(listCache.getIfPresent(key)).orElseGet(() -> {
             String value = (String) redisTemplate.opsForValue().get(key);
             List<String> collect = value == null ? new ArrayList<>() : Stream.of(value.split(",")).collect(Collectors.toList());
-            configChannelsCache.put(key, collect);
+            listCache.put(key, collect);
             return collect;
         });
     }
@@ -81,7 +83,7 @@ public class FeedbackConfigServiceImpl implements FeedbackConfigService, Initial
         redisTemplate.delete(key);
         switch (key) {
             case FEED_BACK_CONFIG_WDS:
-                configWdsCache.invalidateAll();
+                mapCache.invalidateAll();
                 feedbackConfig = feedbackConfigMapper.selectOne(new FeedbackConfig().setType(Constants.FeedbackConfigType.CHANNEL_WD));
                 Map<String, String> data = (Map) JSON.parse(feedbackConfig.getValue());
                 if (!CollectionUtils.isEmpty(data)) {
@@ -90,8 +92,11 @@ public class FeedbackConfigServiceImpl implements FeedbackConfigService, Initial
                 break;
             case FEED_BACK_CONFIG_EXCLUDE_CHANNELS:
             case FEED_BACK_CONFIG_INCLUDE_CHANNELS:
-                configChannelsCache.invalidate(key);
+            case FEED_BACK_CONFIG_INCLUDE_TYPE:
+                listCache.invalidate(key);
                 Integer type = key.equals(FEED_BACK_CONFIG_INCLUDE_CHANNELS) ? Constants.FeedbackConfigType.CHANNEL_INCLUDE : Constants.FeedbackConfigType.CHANNEL_EXCLUDE;
+                if (key.equals(FEED_BACK_CONFIG_INCLUDE_TYPE))
+                    type = Constants.FeedbackConfigType.FEEDBACK_TYPE_INCLUDE;
                 feedbackConfig = feedbackConfigMapper.selectOne(new FeedbackConfig().setType(type));
                 if (feedbackConfig != null && StringUtils.isNotBlank(feedbackConfig.getValue())) {
                     redisTemplate.opsForValue().set(key, feedbackConfig.getValue());
