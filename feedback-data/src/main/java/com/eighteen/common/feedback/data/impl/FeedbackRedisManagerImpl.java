@@ -305,7 +305,11 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
         for (String key : keys) {
             String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
-            storeTemplate.opsForValue().set(redisKey, 1, 3, TimeUnit.DAYS);
+            if (key.equals("ipua")) {
+                storeTemplate.opsForValue().set(redisKey, 1);
+            } else {
+                storeTemplate.opsForValue().set(redisKey, 1, 3, TimeUnit.DAYS);
+            }
             //todo clickChannel 持久化存储
         }
     }
