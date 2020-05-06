@@ -30,7 +30,10 @@ public interface Constants {
 
     interface EventType {
         int ACTIVE = 1;
-        int RETENTION = 2;
+        // 次日留存
+        int RETENTION_1 = 2;
+        // 7日留存
+        int RETENTION_7 = 3;
     }
 
     interface FeedbackConfigType {
