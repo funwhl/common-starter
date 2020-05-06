@@ -2,6 +2,7 @@ package com.eighteen.common.feedback.data;
 
 import com.eighteen.common.feedback.domain.MatchClickLogResult;
 import com.eighteen.common.feedback.domain.MatchNewUserRetryResult;
+import com.eighteen.common.feedback.domain.MatchRetentionResult;
 import com.eighteen.common.feedback.entity.ActiveFeedbackMatch;
 import com.eighteen.common.feedback.entity.ClickLog;
 import com.eighteen.common.feedback.entity.NewUserRetry;
@@ -63,5 +64,5 @@ public interface FeedbackRedisManager {
      */
     ClickLog getClickLog(String clickType,Long clickLogId);
 
-    ClickLog getFeedbackRetentionClickLog(ActiveFeedbackMatch feedbackMatch);
+    MatchRetentionResult matchFeedbackRetentionClickLog(ActiveFeedbackMatch feedbackMatch);
 }

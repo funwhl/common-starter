@@ -33,6 +33,8 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import static com.eighteen.common.feedback.constants.Constants.EventType.ACTIVE;
+
 /**
  * 回传redis数据管理
  *
@@ -288,10 +290,16 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
      */
     private boolean checkKeysMatchedBefore(List<String> keys, ActiveFeedbackMatch feedbackMatch) {
         RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
+        Integer eventType = feedbackMatch.getEventType();
         for (String key : keys) {
             String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
-            if (storeTemplate.hasKey(redisKey)) {
-                return true;
+            if (eventType.equals(ACTIVE)) {
+                if (storeTemplate.hasKey(redisKey)) {
+                    return true;
+                }
+            } else {
+                Object o = storeTemplate.opsForValue().get(redisKey);
+                return o != null && o.equals("1");
             }
         }
         return false;
@@ -309,7 +317,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         for (String key : keys) {
             String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
             //ipua无法通过linkstatistics去重 永久保存在redis中
-            String value = String.format("%s_%s_%d", new SimpleDateFormat("yyMMdd").format(new Date()), clickLog.getClickType(), clickLog.getId());
+            String value = feedbackMatch.getEventType().equals(ACTIVE) ? String.format("%s_%s_%d", new SimpleDateFormat("yyMMdd").format(new Date()), clickLog.getClickType(), clickLog.getId()) : "1";
             if (key.equals("ipua")) {
                 storeTemplate.opsForValue().set(redisKey, value);
             } else {
@@ -333,7 +341,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     @Override
-    public ClickLog getFeedbackRetentionClickLog(ActiveFeedbackMatch feedbackMatch) {
+    public MatchRetentionResult matchFeedbackRetentionClickLog(ActiveFeedbackMatch feedbackMatch) {
         List<ActiveMatchKeyField> matchKeyFields = getActiveMatchKeyFields(feedbackMatch);
         List<String> keys = matchKeyFields.stream().map(kf -> kf.getMatchKey()).collect(Collectors.toList());
         RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
@@ -341,15 +349,14 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
             String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
 
             String value = (String) storeTemplate.opsForValue().get(redisKey);
-            if (StringUtils.isNotBlank(value)) {
+            if (StringUtils.isNotBlank(value)&&!value.equals("1")) {
                 String[] valueSplit = value.split("_");
                 Date now = new Date();
                 now = DateUtils.addDays(now, -1);
                 SimpleDateFormat format = new SimpleDateFormat("yyMMdd");
                 boolean isYesterday = format.format(valueSplit[0]).equals(format.format(now));
                 if (isYesterday) {
-                    ClickLog clickLog = getClickLog(valueSplit[1],Long.valueOf(valueSplit[2]));
-                    if (clickLog!=null) return clickLog.setClickType(valueSplit[0]);
+                    return new MatchRetentionResult().setFeedbackDate(valueSplit[0]).setClickType(valueSplit[1]).setClickLogId(Long.valueOf(valueSplit[2]));
                 }
             }
         }
