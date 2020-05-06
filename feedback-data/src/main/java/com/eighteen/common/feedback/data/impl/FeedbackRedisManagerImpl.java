@@ -17,6 +17,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.time.DateUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -24,6 +25,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -295,21 +298,22 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     @Override
-    public void saveMatchedFeedbackRecord(ActiveFeedbackMatch activeFeedbackMatch, String clickChannel) {
+    public void saveMatchedFeedbackRecord(ActiveFeedbackMatch activeFeedbackMatch, ClickLog click) {
         Assert.notNull(activeFeedbackMatch, "activeFeedbackMatch不能为空");
         List<String> keys = getActiveMatchKeys(activeFeedbackMatch);
-        doSaveMatchedFeedbackRecord(keys, clickChannel, activeFeedbackMatch);
+        doSaveMatchedFeedbackRecord(keys, click, activeFeedbackMatch);
     }
 
-    private void doSaveMatchedFeedbackRecord(List<String> keys, String clickChannel, ActiveFeedbackMatch feedbackMatch) {
+    private void doSaveMatchedFeedbackRecord(List<String> keys, ClickLog clickLog, ActiveFeedbackMatch feedbackMatch) {
         RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
         for (String key : keys) {
             String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
             //ipua无法通过linkstatistics去重 永久保存在redis中
+            String value = String.format("%s_%s_%d", new SimpleDateFormat("yyMMdd").format(new Date()), clickLog.getClickType(), clickLog.getId());
             if (key.equals("ipua")) {
-                storeTemplate.opsForValue().set(redisKey, 1);
+                storeTemplate.opsForValue().set(redisKey, value);
             } else {
-                storeTemplate.opsForValue().set(redisKey, 1, 3, TimeUnit.DAYS);
+                storeTemplate.opsForValue().set(redisKey, value, 3, TimeUnit.DAYS);
             }
             //todo clickChannel 持久化存储
         }
@@ -323,6 +327,30 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
                 return (ClickLog) obj;
             } else if (obj instanceof JSONObject) {
                 return ((JSONObject) obj).toJavaObject(ClickLog.class);
+            }
+        }
+        return null;
+    }
+
+    @Override
+    public ClickLog getFeedbackRetentionClickLog(ActiveFeedbackMatch feedbackMatch) {
+        List<ActiveMatchKeyField> matchKeyFields = getActiveMatchKeyFields(feedbackMatch);
+        List<String> keys = matchKeyFields.stream().map(kf -> kf.getMatchKey()).collect(Collectors.toList());
+        RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
+        for (String key : keys) {
+            String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
+
+            String value = (String) storeTemplate.opsForValue().get(redisKey);
+            if (StringUtils.isNotBlank(value)) {
+                String[] valueSplit = value.split("_");
+                Date now = new Date();
+                now = DateUtils.addDays(now, -1);
+                SimpleDateFormat format = new SimpleDateFormat("yyMMdd");
+                boolean isYesterday = format.format(valueSplit[0]).equals(format.format(now));
+                if (isYesterday) {
+                    ClickLog clickLog = getClickLog(valueSplit[1],Long.valueOf(valueSplit[2]));
+                    if (clickLog!=null) return clickLog.setClickType(valueSplit[0]);
+                }
             }
         }
         return null;

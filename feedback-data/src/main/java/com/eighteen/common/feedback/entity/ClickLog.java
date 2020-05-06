@@ -77,4 +77,7 @@ public class ClickLog implements Serializable, HasDynamicDataSource {
      */
     private transient String dataSource;
 
+    @Transient
+    private String clickType;
+
 }

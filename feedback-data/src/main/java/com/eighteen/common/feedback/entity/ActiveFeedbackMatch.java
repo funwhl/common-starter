@@ -8,6 +8,8 @@ import javax.persistence.*;
 import java.io.Serializable;
 import java.util.Date;
 
+import static com.eighteen.common.feedback.constants.Constants.EventType.ACTIVE;
+
 @Table(name = "`active_feedback_match`")
 @Data
 @Accessors(chain = true)
@@ -107,15 +109,18 @@ public class ActiveFeedbackMatch implements Serializable {
     @Column(name = "`ip`")
     private String ip;
 
-    @JSONField(format="yyyy-MM-ddTHH:mm:ss.SSS")
+    @JSONField(format = "yyyy-MM-ddTHH:mm:ss.SSS")
     @Column(name = "`createTime`")
     private Date createtime;
 
     @Transient
     private String uuid;
 
-    @Column(name="`type`")
+    @Column(name = "`type`")
     private String type;
+
+    @Transient
+    private Integer eventType = ACTIVE;
 
     private static final long serialVersionUID = 1L;
 

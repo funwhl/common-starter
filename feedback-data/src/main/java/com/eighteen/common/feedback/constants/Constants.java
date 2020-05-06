@@ -28,6 +28,11 @@ public interface Constants {
         String FEEDBACK_LOG = "feedbacklog";
     }
 
+    interface EventType {
+        int ACTIVE = 1;
+        int RETENTION = 2;
+    }
+
     interface FeedbackConfigType {
         int CHANNEL_EXCLUDE = 0;
         int CHANNEL_INCLUDE = 1;

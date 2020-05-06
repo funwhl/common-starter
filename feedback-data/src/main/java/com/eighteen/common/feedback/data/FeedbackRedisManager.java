@@ -6,8 +6,6 @@ import com.eighteen.common.feedback.entity.ActiveFeedbackMatch;
 import com.eighteen.common.feedback.entity.ClickLog;
 import com.eighteen.common.feedback.entity.NewUserRetry;
 
-import java.util.List;
-
 public interface FeedbackRedisManager {
 
     /**
@@ -54,9 +52,9 @@ public interface FeedbackRedisManager {
     /**
      * 保存匹配回传记录
      * @param activeFeedbackMatch
-     * @param clickChannel 匹配到的点击记录中的渠道
+     * @param click 匹配到的点击记录中的渠道
      */
-    void saveMatchedFeedbackRecord(ActiveFeedbackMatch activeFeedbackMatch,String clickChannel);
+    void saveMatchedFeedbackRecord(ActiveFeedbackMatch activeFeedbackMatch, ClickLog click);
 
     /**
      * 从redis中获取点击日志
@@ -65,4 +63,5 @@ public interface FeedbackRedisManager {
      */
     ClickLog getClickLog(String clickType,Long clickLogId);
 
+    ClickLog getFeedbackRetentionClickLog(ActiveFeedbackMatch feedbackMatch);
 }
