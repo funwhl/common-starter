@@ -109,7 +109,7 @@ public class ActiveFeedbackMatch implements Serializable {
     @Column(name = "`ip`")
     private String ip;
 
-    @JSONField(format = "yyyy-MM-ddTHH:mm:ss.SSS")
+    @JSONField(format="yyyy-MM-ddTHH:mm:ss")
     @Column(name = "`createTime`")
     private Date createtime;
 

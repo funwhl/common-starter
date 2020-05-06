@@ -50,7 +50,7 @@ public class FeedbackConfigServiceImpl implements FeedbackConfigService, Initial
             }
             return null;
         });
-        return value==null?null:Stream.of(value.split(",")).map(s -> Constants.FeedbackMatchFields.getDesc(Integer.valueOf(s))).collect(Collectors.toList());
+        return value == null ? null : Stream.of(value.split(",")).map(s -> Constants.FeedbackMatchFields.getDesc(Integer.valueOf(s))).collect(Collectors.toList());
     }
 
     @Override
@@ -110,5 +110,6 @@ public class FeedbackConfigServiceImpl implements FeedbackConfigService, Initial
         refreshCache(FEED_BACK_CONFIG_WDS);
         refreshCache(FEED_BACK_CONFIG_EXCLUDE_CHANNELS);
         refreshCache(FEED_BACK_CONFIG_INCLUDE_CHANNELS);
+        refreshCache(FEED_BACK_CONFIG_INCLUDE_TYPE);
     }
 }
