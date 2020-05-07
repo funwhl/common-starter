@@ -5,7 +5,7 @@ import lombok.Data;
 
 /**
  * 唯一标志点击日志
- * @author admin
+ * @author lcomplete
  */
 @Data
 public class UniqueClickLog {
