@@ -25,11 +25,9 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
+import javax.swing.text.html.Option;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -347,7 +345,8 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         for (String key : keys) {
             String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
 
-            String value = (String) storeTemplate.opsForValue().get(redisKey);
+            Object obj = storeTemplate.opsForValue().get(redisKey);
+            String value = obj == null ? "" : String.valueOf(obj);
             if (StringUtils.isNotBlank(value) && !value.equals("1")) {
                 String[] valueSplit = value.split("_");
                 Date now = new Date();
