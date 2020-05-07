@@ -316,7 +316,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         for (String key : keys) {
             String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
             //ipua无法通过linkstatistics去重 永久保存在redis中
-            String value = feedbackMatch.getEventType().equals(ACTIVE) ? String.format("%s_%s_%d", new SimpleDateFormat("yyMMdd").format(new Date()), clickLog.getClickType(), clickLog.getId()) : "1";
+            String value = feedbackMatch.getEventType().equals(ACTIVE) ? String.format("%d_%s_%d", System.currentTimeMillis(), clickLog.getClickType(), clickLog.getId()) : "1";
             if (key.equals("ipua")) {
                 storeTemplate.opsForValue().set(redisKey, value);
             } else {
@@ -353,7 +353,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
                 Date now = new Date();
                 now = DateUtils.addDays(now, -1);
                 SimpleDateFormat format = new SimpleDateFormat("yyMMdd");
-                boolean isYesterday = format.format(valueSplit[0]).equals(format.format(now));
+                boolean isYesterday = format.format(new Date(Long.valueOf(valueSplit[0]))).equals(format.format(now));
                 if (isYesterday) {
                     return new MatchRetentionResult().setFeedbackDate(valueSplit[0]).setClickType(valueSplit[1]).setClickLogId(Long.valueOf(valueSplit[2]));
                 }
