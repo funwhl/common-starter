@@ -307,17 +307,17 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     @Override
     public void saveMatchedFeedbackRecord(ActiveFeedbackMatch activeFeedbackMatch, ClickLog click) {
         Assert.notNull(activeFeedbackMatch, "activeFeedbackMatch不能为空");
-        List<String> keys = getActiveMatchKeys(activeFeedbackMatch);
+        List<ActiveMatchKeyField> keys = getActiveMatchKeyFields(activeFeedbackMatch);
         doSaveMatchedFeedbackRecord(keys, click, activeFeedbackMatch);
     }
 
-    private void doSaveMatchedFeedbackRecord(List<String> keys, ClickLog clickLog, ActiveFeedbackMatch feedbackMatch) {
+    private void doSaveMatchedFeedbackRecord(List<ActiveMatchKeyField> keys, ClickLog clickLog, ActiveFeedbackMatch feedbackMatch) {
         RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
-        for (String key : keys) {
-            String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
+        for (ActiveMatchKeyField keyField : keys) {
+            String redisKey = RedisKeyManager.getMatchedRedisKey(keyField.getMatchKey(), feedbackMatch.getCoid(), feedbackMatch.getNcoid());
             //ipua无法通过linkstatistics去重 永久保存在redis中
             String value = feedbackMatch.getEventType().equals(ACTIVE) ? String.format("%s_%s_%d", new SimpleDateFormat("yyMMdd").format(new Date()), clickLog.getClickType(), clickLog.getId()) : "1";
-            if (key.equals("ipua")) {
+            if (keyField.getMatchField().equals("ipua")) {
                 storeTemplate.opsForValue().set(redisKey, value);
             } else {
                 storeTemplate.opsForValue().set(redisKey, value, 3, TimeUnit.DAYS);
@@ -348,7 +348,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
             String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
 
             String value = (String) storeTemplate.opsForValue().get(redisKey);
-            if (StringUtils.isNotBlank(value)&&!value.equals("1")) {
+            if (StringUtils.isNotBlank(value) && !value.equals("1")) {
                 String[] valueSplit = value.split("_");
                 Date now = new Date();
                 now = DateUtils.addDays(now, -1);

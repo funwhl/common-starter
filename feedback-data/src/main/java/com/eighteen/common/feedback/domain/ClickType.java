@@ -4,7 +4,7 @@ import com.eighteen.common.feedback.constants.DsConstants;
 
 /**
  * 点击类型枚举
- * @author admin
+ * @author lcomplete
  */
 
 public enum ClickType {
