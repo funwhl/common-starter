@@ -298,8 +298,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
                     return true;
                 }
             } else {
-                Object o = storeTemplate.opsForValue().get(redisKey);
-                return o != null && o.equals("1");
+                if ("1".equals(storeTemplate.opsForValue().get(redisKey))) return true;
             }
         }
         return false;
