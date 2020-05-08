@@ -5,6 +5,7 @@ import com.eighteen.common.feedback.constants.DsConstants;
 import com.eighteen.common.feedback.data.FeedbackRedisManager;
 import com.eighteen.common.feedback.data.HashKeyFields;
 import com.eighteen.common.feedback.data.RedisKeyManager;
+import com.eighteen.common.feedback.datasource.DataSourcePicker;
 import com.eighteen.common.feedback.domain.*;
 import com.eighteen.common.feedback.entity.ActiveFeedbackMatch;
 import com.eighteen.common.feedback.entity.ClickLog;
@@ -46,7 +47,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     @Autowired
     RedisTemplate redisTemplate;
 
-    @Autowired(required = false)
+    @Autowired
     PikaTemplate pikaTemplate;
 
     @Autowired
@@ -66,9 +67,9 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
 
         //coid ncoid channel 为null时，存储数据无意义，不保存
         if (!CollectionUtils.isEmpty(keyFieldsList)) {
-            String uniqueClickLogId = new UniqueClickLog(clickType, clickLog.getId()).ToUniqueId();
+            UniqueClickLog uniqueClickLog = new UniqueClickLog(clickType, clickLog.getId());
             keyFieldsList.forEach(keyFields -> {
-                doSaveClickLogId(keyFields, uniqueClickLogId);
+                doSaveClickLogId(keyFields, uniqueClickLog);
             });
             doSaveClickLog(clickType, clickLog);
         } else {
@@ -137,11 +138,12 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
      * 保存点击日志Id
      *
      * @param keyFields
-     * @param uniqueId
      */
-    private void doSaveClickLogId(HashKeyFields keyFields, String uniqueId) {
+    private void doSaveClickLogId(HashKeyFields keyFields, UniqueClickLog uniqueClickLog) {
         if (!CollectionUtils.isEmpty(keyFields.getHashFields())) {
-            RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
+            boolean isUsePika = Lists.newArrayList(ClickType.GDT.getType(), ClickType.TOUTIAO.getType()).contains(uniqueClickLog.getClickType());
+            RedisTemplate storeTemplate = isUsePika ? pikaTemplate : redisTemplate;
+            String uniqueId = uniqueClickLog.ToUniqueId();
             Map<String, String> map = keyFields.getHashFields().stream().collect(Collectors.toMap(f -> f, f -> uniqueId));
             storeTemplate.opsForHash().putAll(keyFields.getRedisKey(), map);
             storeTemplate.expire(keyFields.getRedisKey(), 5, TimeUnit.DAYS);
@@ -180,7 +182,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     private String getUniqueNewUserRetryId(String redisKey) {
-        RedisTemplate template = pikaTemplate != null ? pikaTemplate : redisTemplate;
+        RedisTemplate template = redisTemplate;
         Object obj = template.opsForValue().get(redisKey);
         return obj == null ? "" : obj.toString();
     }
@@ -212,7 +214,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
             //根据激活数据key生成点击id的redisKey，查找点击id
             HashKeyFields hashKeyFields = getClickLogIdRedisKeyFields(keyField.getMatchKey(), activeFeedbackMatch.getCoid(), activeFeedbackMatch.getNcoid(),
                     activeFeedbackMatch.getChannel(), isAllMatch);
-            String uniqueClickLogId = searchUniqueClickLogId(hashKeyFields);
+            String uniqueClickLogId = searchUniqueClickLogId(hashKeyFields, activeFeedbackMatch.getType());
 
             if (StringUtils.isNotBlank(uniqueClickLogId)) {
                 UniqueClickLog uniqueClickLog = UniqueClickLog.FromUniqueId(uniqueClickLogId);
@@ -287,7 +289,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
      * @return
      */
     private boolean checkKeysMatchedBefore(List<String> keys, ActiveFeedbackMatch feedbackMatch) {
-        RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
+        RedisTemplate storeTemplate = redisTemplate;
         Integer eventType = feedbackMatch.getEventType();
         for (String key : keys) {
             String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
@@ -310,7 +312,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     private void doSaveMatchedFeedbackRecord(List<ActiveMatchKeyField> keys, ClickLog clickLog, ActiveFeedbackMatch feedbackMatch) {
-        RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
+        RedisTemplate storeTemplate = redisTemplate;
         for (ActiveMatchKeyField keyField : keys) {
             String redisKey = RedisKeyManager.getMatchedRedisKey(keyField.getMatchKey(), feedbackMatch.getCoid(), feedbackMatch.getNcoid());
             //ipua无法通过linkstatistics去重 永久保存在redis中
@@ -320,7 +322,10 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
             } else {
                 storeTemplate.opsForValue().set(redisKey, value, 3, TimeUnit.DAYS);
             }
-            //todo clickChannel 持久化存储
+            //clickChannel 持久化存储
+            if (StringUtils.isNotBlank(clickLog.getChannel())) {
+                pikaTemplate.opsForValue().set(redisKey, clickLog.getChannel());
+            }
         }
     }
 
@@ -341,7 +346,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     public MatchRetentionResult matchFeedbackRetentionClickLog(ActiveFeedbackMatch feedbackMatch) {
         List<ActiveMatchKeyField> matchKeyFields = getActiveMatchKeyFields(feedbackMatch);
         List<String> keys = matchKeyFields.stream().map(kf -> kf.getMatchKey()).collect(Collectors.toList());
-        RedisTemplate storeTemplate = pikaTemplate != null ? pikaTemplate : redisTemplate;
+        RedisTemplate storeTemplate = redisTemplate;
         for (String key : keys) {
             String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
 
@@ -361,12 +366,13 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         return null;
     }
 
-    private String searchUniqueClickLogId(HashKeyFields keyFields) {
+    private String searchUniqueClickLogId(HashKeyFields keyFields, String activeType) {
         if (keyFields == null || CollectionUtils.isEmpty(keyFields.getHashFields())) {
             return "";
         }
-        RedisTemplate template = pikaTemplate != null ? pikaTemplate : redisTemplate;
-        List<String> uniqueIds = template.opsForHash().multiGet(keyFields.getRedisKey(), keyFields.getHashFields());
+        boolean isUsePika = Lists.newArrayList(DsConstants.GDT, DsConstants.TOUTIAO).contains(DataSourcePicker.getDataSourceByActiveType(activeType));
+        RedisTemplate storeTemplate = isUsePika ? pikaTemplate : redisTemplate;
+        List<String> uniqueIds = storeTemplate.opsForHash().multiGet(keyFields.getRedisKey(), keyFields.getHashFields());
         return CollectionUtils.isEmpty(uniqueIds) ? "" : uniqueIds.get(0);
     }
 
@@ -440,13 +446,13 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
 
     private void doSaveNewUserRetryId(String redisKey, String id) {
         //启用了pika则保存在pika中
-        RedisTemplate template = pikaTemplate != null ? pikaTemplate : redisTemplate;
+        RedisTemplate template = redisTemplate;
         template.opsForValue().set(redisKey, id, 1, TimeUnit.DAYS);
     }
 
     private void doDeleteNewUserRetryId(String redisKey) {
         //启用了pika则保存在pika中
-        RedisTemplate template = pikaTemplate != null ? pikaTemplate : redisTemplate;
+        RedisTemplate template = redisTemplate;
         template.delete(redisKey);
     }
 
