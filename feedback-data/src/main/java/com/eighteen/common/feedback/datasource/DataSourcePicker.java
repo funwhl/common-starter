@@ -13,6 +13,7 @@ public class DataSourcePicker {
 
     /**
      * 根据点击类型获取数据源
+     *
      * @param clickType
      * @return
      */
@@ -31,8 +32,7 @@ public class DataSourcePicker {
      * @return 无对应的数据源时返回null
      */
     public static String getDataSourceByActiveType(String activeType) {
-        // DsConstants.TOUTIAO DsConstants.GDT 暂时不启用
-        if (Lists.newArrayList(DsConstants.WEIXIN, DsConstants.SIGMOB, DsConstants.KUAISHOU, DsConstants.BAIDU).contains(activeType)) {
+        if (Lists.newArrayList(DsConstants.WEIXIN, DsConstants.SIGMOB, DsConstants.KUAISHOU, DsConstants.BAIDU, DsConstants.TOUTIAO, DsConstants.GDT).contains(activeType)) {
             return activeType;
         }
         return null;
