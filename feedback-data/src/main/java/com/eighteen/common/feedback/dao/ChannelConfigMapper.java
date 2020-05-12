@@ -17,10 +17,10 @@ import java.util.List;
 
 @org.apache.ibatis.annotations.Mapper
 public interface ChannelConfigMapper {
-    @Select("SELECT id,coid,ncoid,channel,agent,channel_type as channelType,plat_type as platType,remark,rate,ori_rate as oriRate  FROM [DB2_33].[YYGJ].[dbo].[throw_channel_config] with(nolock) ")
+    @Select("SELECT id,coid,ncoid,channel,agent,channel_type as channelType,plat_type as platType,remark,rate,ori_rate as oriRate,ad_filter as adFilter,feedback_type as feedbackType  FROM [DB2_33].[YYGJ].[dbo].[throw_channel_config] with(nolock) ")
     List<ThrowChannelConfig> throwChannelConfigList();
 
-    @Select("SELECT id,coid,ncoid,channel,agent,channel_type as channelType,plat_type as platType,remark,rate,ori_rate as oriRate  FROM [DB2_33].[YYGJ].[dbo].[throw_channel_config] with(nolock) where channel = #{channel} ")
+    @Select("SELECT id,coid,ncoid,channel,agent,channel_type as channelType,plat_type as platType,remark,rate,ori_rate as oriRate,ad_filter as adFilter,feedback_type as feedbackType  FROM [DB2_33].[YYGJ].[dbo].[throw_channel_config] with(nolock) where channel = #{channel} ")
     ThrowChannelConfig getOne(@Param("channel") String channel);
 
     @Insert("INSERT INTO [DB2_33].[YYGJ].[dbo].[throw_channel_config]  ( coid,ncoid,channel,agent,channel_type,plat_type,rate,ori_rate ) VALUES( #{config.coid},#{config.ncoid},#{config.channel},#{config.agent},#{config.channelType},#{config.platType},1,1)")

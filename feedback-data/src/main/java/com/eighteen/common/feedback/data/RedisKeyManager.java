@@ -19,6 +19,8 @@ public class RedisKeyManager {
 
     private static final String MATCHED_KEY_PREFIX = "ma_";
 
+    private static final String ADVERLOG_KEY_PREFIX = "al_";
+
     public static String getClickLogIdKey(String key) {
         return String.format("%s%s", CLICK_LOG_KEY_PREFIX, key);
     }
@@ -29,7 +31,7 @@ public class RedisKeyManager {
     }
 
     public static String getClickLogDataKey(String clickType, Long clickLogId) {
-        UniqueClickLog uniqueClickLog=new UniqueClickLog(clickType,clickLogId);
+        UniqueClickLog uniqueClickLog = new UniqueClickLog(clickType, clickLogId);
         String uniqueClickLogId = uniqueClickLog.ToUniqueId();
         return String.format("%s%s", CLICK_LOG_DATA_PREFIX, uniqueClickLogId);
     }
@@ -44,5 +46,9 @@ public class RedisKeyManager {
 
     public static String getMatchedRedisKey(String key, Integer coid, Integer ncoid) {
         return String.format("%s%d_%d_%s", MATCHED_KEY_PREFIX, coid, ncoid, key);
+    }
+
+    public static String getAdverLogKey(String key, String channel, Integer type) {
+        return String.format("%s%s_%s_%d", ADVERLOG_KEY_PREFIX, key, channel, type);
     }
 }

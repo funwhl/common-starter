@@ -1,5 +1,8 @@
 package com.eighteen.common.feedback.constants;
 
+import com.google.common.collect.Lists;
+
+import java.util.List;
 import java.util.stream.Stream;
 
 /**
@@ -8,6 +11,8 @@ import java.util.stream.Stream;
  * Time: 13:44
  */
 public interface Constants {
+     List<String> excludeKeys = Lists.newArrayList(null, "null", "Unknown", "Null", "NULL", "{{IMEI}}", "{{ANDDROID_ID}}", "{{OAID}}", "", "__IMEI__", "__OAID__");
+
     interface RedisKeys {
         String FEED_BACK_CACHE = "feedback_";
         String FEED_BACK_CONFIG_WDS = "feedback_config_wds";
@@ -35,6 +40,12 @@ public interface Constants {
         // 7日留存
         int RETENTION_7 = 3;
     }
+
+    interface AdverType {
+        int SHOW = 1;
+        int CLICK = 2;
+    }
+
 
     interface FeedbackConfigType {
         int CHANNEL_EXCLUDE = 0;

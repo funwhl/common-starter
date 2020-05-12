@@ -26,9 +26,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
 
-import javax.swing.text.html.Option;
 import java.text.SimpleDateFormat;
-import java.util.*;
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -47,7 +49,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     @Autowired
     RedisTemplate redisTemplate;
 
-    @Autowired
+    @Autowired(required = false)
     PikaTemplate pikaTemplate;
 
     @Autowired
@@ -60,8 +62,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     public void saveClickLog(ClickLog clickLog, String clickType) {
         Assert.notNull(clickLog, "clickLog不能为空");
         Assert.notNull(clickType, "clickType不能为空");
-
-        List<String> keys = getClickLogKeys(clickLog, clickType);
+        List<String> keys = getClickLogKeys(clickLog, ClickType.BAIDU.getType().equals(clickType));
         List<HashKeyFields> keyFieldsList = getAllClickLogIdRedisKeyFields(keys, clickLog.getCoid(), clickLog.getNcoid(),
                 clickLog.getChannel(), null);
 
@@ -77,9 +78,9 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         }
     }
 
-    private List<String> getClickLogKeys(ClickLog clickLog, String clickType) {
+    private List<String> getClickLogKeys(ClickLog clickLog, Boolean neededIpua) {
         List<String> keys = Lists.newArrayList(clickLog.getImeiMd5(), clickLog.getOaidMd5(), clickLog.getAndroidIdMd5());
-        if (ClickType.BAIDU.getType().equals(clickType)) {
+        if (neededIpua) {
             keys.add(clickLog.getIpua());
         }
         return keys.stream().filter(k -> !excludeKeys.contains(k) && !k.startsWith("FAKE") && !k.startsWith("{{")).collect(Collectors.toList());
@@ -162,10 +163,10 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     @Override
-    public MatchNewUserRetryResult matchNewUserRetry(ClickLog clickLog, String clickType) {
+    public MatchNewUserRetryResult matchNewUserRetry(ClickLog clickLog, boolean neededIpua) {
         Assert.notNull(clickLog, "clickLog不能为空");
 
-        List<String> keys = getClickLogKeys(clickLog, clickType);
+        List<String> keys = getClickLogKeys(clickLog, ClickType.BAIDU.getType().equals(neededIpua));
         List<String> redisKeys = getNewUserRetryIdRedisKeys(keys, clickLog.getCoid(), clickLog.getNcoid(), clickLog.getChannel(),
                 null);
         for (String redisKey : redisKeys) {
@@ -407,6 +408,33 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         redisKeys.forEach(redisKey -> {
             doDeleteNewUserRetryId(redisKey);
         });
+    }
+
+    @Override
+    public void saveAdverLog(AdverLog adverLog) {
+        List<ActiveMatchKeyField> keyFields = getActiveMatchKeyFields(adverLog.convert2Active());
+        keyFields.forEach(matchKeyField -> {
+            pikaTemplate.opsForValue().set(RedisKeyManager.getAdverLogKey(matchKeyField.getMatchKey(), adverLog.getChannel(),adverLog.getType()), "1",3,TimeUnit.DAYS);
+        });
+    }
+
+    @Override
+    public void deleteAdverLog(AdverLog adverLog) {
+        List<ActiveMatchKeyField> keyFields = getActiveMatchKeyFields(adverLog.convert2Active());
+        keyFields.forEach(matchKeyField -> {
+            pikaTemplate.delete(RedisKeyManager.getAdverLogKey(matchKeyField.getMatchKey(), adverLog.getChannel(),adverLog.getType()));
+        });
+    }
+
+    @Override
+    public MatchAdverLogResult matchAdverLog(ActiveFeedbackMatch activeFeedbackMatch) {
+        List<ActiveMatchKeyField> keyFields = getActiveMatchKeyFields(activeFeedbackMatch);
+        for (int i = 0; i < keyFields.size(); i++) {
+            ActiveMatchKeyField activeMatchKeyField = keyFields.get(i);
+            Boolean hasKey = pikaTemplate.hasKey(RedisKeyManager.getAdverLogKey(activeMatchKeyField.getMatchKey(), activeFeedbackMatch.getChannel(), activeFeedbackMatch.getBlockType()));
+            if (hasKey!=null&&hasKey) return new MatchAdverLogResult().setMatchField(activeMatchKeyField.getMatchField()).setMatchKey(activeMatchKeyField.getMatchKey());
+        }
+        return null;
     }
 
     private boolean getIsAllMatch(String channel) {

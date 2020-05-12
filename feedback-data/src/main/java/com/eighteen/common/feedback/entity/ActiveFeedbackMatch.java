@@ -122,6 +122,9 @@ public class ActiveFeedbackMatch implements Serializable {
     @Transient
     private Integer eventType = ACTIVE;
 
+    @Transient
+    private Integer blockType = 0;
+
     private static final long serialVersionUID = 1L;
 
 }

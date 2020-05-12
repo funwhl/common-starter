@@ -57,7 +57,7 @@ public class FsService {
         Map<String, String> map = new HashMap<>();
         map.put("Authorization", "Bearer " + getTenantToken());
         map.put("Content-Type", "application/json");
-        String text = "{\"msg_type\":\"post\",\"email\":\"wangnwei@18.net\",\"content\":{\"post\":{\"zh_cn\":{\"title\":\"feedback\",\"content\":[[{\"tag\":\"text\",\"text\":\"\"},{\"un_escape\":true,\"tag\":\"text\",\"text\":\"" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss") + "\"}],[{\"un_escape\":true,\"tag\":\"text\",\"text\":\"text&nbsp;:\"},{\"tag\":\"a\",\"text\":\"点击查看   \",\"href\":\"http://owl.18daxue.net//html/stat/DaylyIncomeComparelist.html\"},{\"user_id\":\"all\",\"tag\":\"at\"}],[{\"image_key\":\"" + imageId + "\",\"width\":400,\"tag\":\"img\",\"height\":400}]]}}}}";
+        String text = "{\"msg_type\":\"post\",\"email\":\"wangwei@angogo.cn\",\"content\":{\"post\":{\"zh_cn\":{\"title\":\"feedback\",\"content\":[[{\"tag\":\"text\",\"text\":\"\"},{\"un_escape\":true,\"tag\":\"text\",\"text\":\"" + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss") + "\"}],[{\"un_escape\":true,\"tag\":\"text\",\"text\":\"text&nbsp;:\"},{\"tag\":\"a\",\"text\":\"点击查看   \",\"href\":\"http://owl.18daxue.net//html/stat/DaylyIncomeComparelist.html\"},{\"user_id\":\"all\",\"tag\":\"at\"}],[{\"image_key\":\"" + imageId + "\",\"width\":400,\"tag\":\"img\",\"height\":400}]]}}}}";
         return HttpClientUtils.postJson("https://open.feishu.cn/open-apis/message/v4/send/", text, map);
     }
 
