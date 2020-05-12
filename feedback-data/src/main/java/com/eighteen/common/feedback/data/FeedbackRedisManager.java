@@ -46,10 +46,16 @@ public interface FeedbackRedisManager {
      * 匹配激活重试数据Id
      *
      * @param clickLog
-     * @param neededIpua
      * @return
      */
-    MatchNewUserRetryResult matchNewUserRetry(ClickLog clickLog, boolean neededIpua);
+    MatchNewUserRetryResult matchNewUserRetry(ClickLog clickLog,String clickType);
+
+    /**
+     * 根据广告日志匹配NewUserRetry记录
+     * @param adverLog
+     * @return
+     */
+    MatchNewUserRetryResult matchNewUserRetry(AdverLog adverLog);
 
     /**
      * 匹配点击Id

@@ -62,7 +62,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     public void saveClickLog(ClickLog clickLog, String clickType) {
         Assert.notNull(clickLog, "clickLog不能为空");
         Assert.notNull(clickType, "clickType不能为空");
-        List<String> keys = getClickLogKeys(clickLog, ClickType.BAIDU.getType().equals(clickType));
+        List<String> keys = getClickLogKeys(clickLog, clickType);
         List<HashKeyFields> keyFieldsList = getAllClickLogIdRedisKeyFields(keys, clickLog.getCoid(), clickLog.getNcoid(),
                 clickLog.getChannel(), null);
 
@@ -78,9 +78,9 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         }
     }
 
-    private List<String> getClickLogKeys(ClickLog clickLog, Boolean neededIpua) {
+    private List<String> getClickLogKeys(ClickLog clickLog, String clickType) {
         List<String> keys = Lists.newArrayList(clickLog.getImeiMd5(), clickLog.getOaidMd5(), clickLog.getAndroidIdMd5());
-        if (neededIpua) {
+        if (ClickType.BAIDU.getType().equals(clickType)) {
             keys.add(clickLog.getIpua());
         }
         return keys.stream().filter(k -> !excludeKeys.contains(k) && !k.startsWith("FAKE") && !k.startsWith("{{")).collect(Collectors.toList());
@@ -163,11 +163,15 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     @Override
-    public MatchNewUserRetryResult matchNewUserRetry(ClickLog clickLog, boolean neededIpua) {
+    public MatchNewUserRetryResult matchNewUserRetry(ClickLog clickLog, String clickType) {
         Assert.notNull(clickLog, "clickLog不能为空");
 
-        List<String> keys = getClickLogKeys(clickLog, ClickType.BAIDU.getType().equals(neededIpua));
-        List<String> redisKeys = getNewUserRetryIdRedisKeys(keys, clickLog.getCoid(), clickLog.getNcoid(), clickLog.getChannel(),
+        List<String> keys = getClickLogKeys(clickLog, clickType);
+        return matchNewUserRetry(keys, clickLog.getCoid(), clickLog.getNcoid(), clickLog.getChannel());
+    }
+
+    private MatchNewUserRetryResult matchNewUserRetry(List<String> keys, Integer coid, Integer ncoid, String channel) {
+        List<String> redisKeys = getNewUserRetryIdRedisKeys(keys, coid, ncoid, channel,
                 null);
         for (String redisKey : redisKeys) {
             String uniqueNewUserRetryId = getUniqueNewUserRetryId(redisKey);
@@ -180,6 +184,22 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
             }
         }
         return null;
+    }
+
+    @Override
+    public MatchNewUserRetryResult matchNewUserRetry(AdverLog adverLog) {
+        Assert.notNull(adverLog, "adverLog不能为空");
+
+        List<String> keys = getAdverLogKeys(adverLog);
+        return matchNewUserRetry(keys, adverLog.getCoid(), adverLog.getNCoid(), adverLog.getChannel());
+    }
+
+    private List<String> getAdverLogKeys(AdverLog adverLog) {
+        List<String> keys = Lists.newArrayList(adverLog.getImei(), adverLog.getOaid(), adverLog.getAndroidId()).stream()
+                .filter(k -> !excludeKeys.contains(k) && !k.startsWith("FAKE") && !k.startsWith("{{"))
+                .map(k -> DigestUtils.getMd5Str(k))
+                .collect(Collectors.toList());
+        return keys;
     }
 
     private String getUniqueNewUserRetryId(String redisKey) {
@@ -415,7 +435,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     public void saveAdverLog(AdverLog adverLog) {
         List<ActiveMatchKeyField> keyFields = getActiveMatchKeyFields(adverLog.convert2Active());
         keyFields.forEach(matchKeyField -> {
-            pikaTemplate.opsForValue().set(RedisKeyManager.getAdverLogKey(matchKeyField.getMatchKey(), adverLog.getChannel(),adverLog.getType()), "1",3,TimeUnit.DAYS);
+            pikaTemplate.opsForValue().set(RedisKeyManager.getAdverLogKey(matchKeyField.getMatchKey(), adverLog.getChannel(), adverLog.getType()), "1", 3, TimeUnit.DAYS);
         });
     }
 
@@ -423,7 +443,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     public void deleteAdverLog(AdverLog adverLog) {
         List<ActiveMatchKeyField> keyFields = getActiveMatchKeyFields(adverLog.convert2Active());
         keyFields.forEach(matchKeyField -> {
-            pikaTemplate.delete(RedisKeyManager.getAdverLogKey(matchKeyField.getMatchKey(), adverLog.getChannel(),adverLog.getType()));
+            pikaTemplate.delete(RedisKeyManager.getAdverLogKey(matchKeyField.getMatchKey(), adverLog.getChannel(), adverLog.getType()));
         });
     }
 
@@ -433,7 +453,8 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         for (int i = 0; i < keyFields.size(); i++) {
             ActiveMatchKeyField activeMatchKeyField = keyFields.get(i);
             Boolean hasKey = pikaTemplate.hasKey(RedisKeyManager.getAdverLogKey(activeMatchKeyField.getMatchKey(), activeFeedbackMatch.getChannel(), activeFeedbackMatch.getBlockType()));
-            if (hasKey!=null&&hasKey) return new MatchAdverLogResult().setMatchField(activeMatchKeyField.getMatchField()).setMatchKey(activeMatchKeyField.getMatchKey());
+            if (hasKey != null && hasKey)
+                return new MatchAdverLogResult().setMatchField(activeMatchKeyField.getMatchField()).setMatchKey(activeMatchKeyField.getMatchKey());
         }
         return null;
     }
