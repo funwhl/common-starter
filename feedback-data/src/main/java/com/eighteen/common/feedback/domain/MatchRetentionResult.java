@@ -15,4 +15,8 @@ public class MatchRetentionResult {
     private Long clickLogId;
 
     private String feedbackDate;
+
+    private String matchKey;
+
+    private String matchField;
 }

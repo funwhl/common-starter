@@ -1,11 +1,13 @@
 package com.eighteen.common.feedback.domain;
 
 import lombok.Data;
+import lombok.experimental.Accessors;
 
 /**
  * @author lcomplete
  */
 @Data
+@Accessors(chain = true)
 public class MatchClickLogResult {
     private String clickType;
 

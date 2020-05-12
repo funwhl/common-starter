@@ -346,10 +346,9 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     @Override
     public MatchRetentionResult matchFeedbackRetentionClickLog(ActiveFeedbackMatch feedbackMatch) {
         List<ActiveMatchKeyField> matchKeyFields = getActiveMatchKeyFields(feedbackMatch);
-        List<String> keys = matchKeyFields.stream().map(kf -> kf.getMatchKey()).collect(Collectors.toList());
         RedisTemplate storeTemplate = redisTemplate;
-        for (String key : keys) {
-            String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
+        for (ActiveMatchKeyField matchKeyField : matchKeyFields) {
+            String redisKey = RedisKeyManager.getMatchedRedisKey(matchKeyField.getMatchKey(), feedbackMatch.getCoid(), feedbackMatch.getNcoid());
 
             Object obj = storeTemplate.opsForValue().get(redisKey);
             String value = obj == null ? "" : String.valueOf(obj);
@@ -360,7 +359,9 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
                 SimpleDateFormat format = new SimpleDateFormat("yyMMdd");
                 boolean isYesterday = format.format(new Date(Long.valueOf(valueSplit[0]))).equals(format.format(now));
                 if (isYesterday) {
-                    return new MatchRetentionResult().setFeedbackDate(valueSplit[0]).setClickType(valueSplit[1]).setClickLogId(Long.valueOf(valueSplit[2]));
+                    return new MatchRetentionResult()
+                            .setMatchKey(matchKeyField.getMatchKey()).setMatchField(matchKeyField.getMatchField())
+                            .setFeedbackDate(valueSplit[0]).setClickType(valueSplit[1]).setClickLogId(Long.valueOf(valueSplit[2]));
                 }
             }
         }
