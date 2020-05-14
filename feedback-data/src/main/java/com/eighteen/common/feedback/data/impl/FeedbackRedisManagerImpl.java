@@ -62,8 +62,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         Assert.notNull(clickType, "clickType不能为空");
 
         List<String> keys = getClickLogKeys(clickLog, clickType);
-        List<HashKeyFields> keyFieldsList = getAllClickLogIdRedisKeyFields(keys, clickLog.getCoid(), clickLog.getNcoid(),
-                clickLog.getChannel(), null);
+        List<HashKeyFields> keyFieldsList = getAllClickLogIdRedisKeyFields(keys, clickLog.getChannel());
 
         //coid ncoid channel 为null时，存储数据无意义，不保存
         if (!CollectionUtils.isEmpty(keyFieldsList)) {
@@ -89,16 +88,13 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
      * 获取点击日志Id 所有的Redis相关的Key和HashField
      *
      * @param keys
-     * @param coid
-     * @param ncoid
      * @param channel
-     * @param isAllMatch 为true时返回coid、ncoid的key，false时返回channel的key，null时都返回
      * @return
      */
-    private List<HashKeyFields> getAllClickLogIdRedisKeyFields(List<String> keys, Integer coid, Integer ncoid, String channel, Boolean isAllMatch) {
+    private List<HashKeyFields> getAllClickLogIdRedisKeyFields(List<String> keys, String channel) {
         List<HashKeyFields> keyFieldsList = Lists.newArrayList();
         keys.forEach(key -> {
-            HashKeyFields keyFields = getClickLogIdRedisKeyFields(key, coid, ncoid, channel, isAllMatch);
+            HashKeyFields keyFields = getClickLogIdRedisKeyFields(key, channel);
             if (!CollectionUtils.isEmpty(keyFields.getHashFields())) {
                 keyFieldsList.add(keyFields);
             }
@@ -109,26 +105,12 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     /**
      * 获取点击日志Id的Redis相关的Key和HashField
      */
-    private HashKeyFields getClickLogIdRedisKeyFields(String key, Integer coid, Integer ncoid, String channel, Boolean isAllMatch) {
+    private HashKeyFields getClickLogIdRedisKeyFields(String key, String channel) {
         String redisKey = RedisKeyManager.getClickLogIdKey(key);
         Set<String> hashField = Sets.newHashSet();
-        String coidField = null;
-        if (coid != null && ncoid != null) {
-            String.format("%d_%d", coid, ncoid);
-        }
         String channelField = channel;
-        if (isAllMatch == null) {
-            if (coidField != null) {
-                hashField.add(coidField);
-            }
-            if (channelField != null) {
-                hashField.add(channelField);
-            }
-        } else if (isAllMatch) {
-            if (coidField != null) {
-                hashField.add(coidField);
-            }
-        } else if (channelField != null) {
+        //重构后 hashField中只保存一个channel
+        if (channelField != null) {
             hashField.add(channelField);
         }
         return new HashKeyFields().setRedisKey(redisKey).setHashFields(hashField);
@@ -166,8 +148,9 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         Assert.notNull(clickLog, "clickLog不能为空");
 
         List<String> keys = getClickLogKeys(clickLog, clickType);
+        boolean isAllMatch = getIsAllMatch(clickLog.getChannel());
         List<String> redisKeys = getNewUserRetryIdRedisKeys(keys, clickLog.getCoid(), clickLog.getNcoid(), clickLog.getChannel(),
-                null);
+                isAllMatch);
         for (String redisKey : redisKeys) {
             String uniqueNewUserRetryId = getUniqueNewUserRetryId(redisKey);
             if (StringUtils.isNotBlank(uniqueNewUserRetryId)) {
@@ -208,13 +191,46 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
             }
             matchKeyFields = tempKeyFields;
         }
-        boolean isAllMatch = getIsAllMatch(activeFeedbackMatch.getChannel());
 
         for (ActiveMatchKeyField keyField : matchKeyFields) {
-            //根据激活数据key生成点击id的redisKey，查找点击id
-            HashKeyFields hashKeyFields = getClickLogIdRedisKeyFields(keyField.getMatchKey(), activeFeedbackMatch.getCoid(), activeFeedbackMatch.getNcoid(),
-                    activeFeedbackMatch.getChannel(), isAllMatch);
-            String uniqueClickLogId = searchUniqueClickLogId(hashKeyFields, activeFeedbackMatch.getType());
+
+            //获取点击key中存储的hash数据
+            Map<String, String> clickLogIdMap = getUniqueClickLogIdMap(keyField.getMatchKey(), activeFeedbackMatch.getType());
+            if (CollectionUtils.isEmpty(clickLogIdMap)) {
+                continue;
+            }
+
+            //根据激活渠道获取点击数据
+            String uniqueClickLogId = clickLogIdMap.getOrDefault(activeFeedbackMatch.getChannel(), null);
+
+            //激活渠道中无法获取点击数据 查看其他点击渠道是否启用全网归因
+            if (uniqueClickLogId == null) {
+                for (Map.Entry<String, String> entry : clickLogIdMap.entrySet()) {
+                    String channel = !entry.getKey().contains("_") ? entry.getKey() : null; //排除旧的coid_ncoid的key 其他key为channel
+                    if (channel != null && !"0".equals(channel)) {
+                        ThrowChannelConfig channelConfig = channelConfigService.getByChannel(channel);
+                        //检查全网归因配置 & 产品相等
+                        boolean isMatch = channelConfig != null && channelConfig.getChannelType().equals(0) && channelConfig.getCoid().equals(activeFeedbackMatch.getCoid())
+                                && channelConfig.getNcoid().equals(activeFeedbackMatch.getNcoid());
+                        if (isMatch) {
+                            uniqueClickLogId = entry.getValue();
+                            break;
+                        }
+                    }
+                }
+            }
+
+            //无法匹配点击数据时 判断是否存在广点通渠道为0的全网归因
+            if (uniqueClickLogId == null && clickLogIdMap.containsKey("0")) {
+                String tempClickLogId = clickLogIdMap.get("0");
+                UniqueClickLog tempClickLog = UniqueClickLog.FromUniqueId(tempClickLogId);
+                String dsClick = DataSourcePicker.getDataSourceByClickType(tempClickLog.getClickType());
+                //广点通无法获取渠道的数据启用全网归因
+                boolean isMatch = DsConstants.GDT.equals(dsClick);
+                if (isMatch) {
+                    uniqueClickLogId = tempClickLogId;
+                }
+            }
 
             if (StringUtils.isNotBlank(uniqueClickLogId)) {
                 UniqueClickLog uniqueClickLog = UniqueClickLog.FromUniqueId(uniqueClickLogId);
@@ -225,6 +241,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
                 clickLogResult.setMatchField(keyField.getMatchField());
                 return clickLogResult;
             }
+
         }
         return clickLogResult;
     }
@@ -366,14 +383,12 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         return null;
     }
 
-    private String searchUniqueClickLogId(HashKeyFields keyFields, String activeType) {
-        if (keyFields == null || CollectionUtils.isEmpty(keyFields.getHashFields())) {
-            return "";
-        }
+    private Map<String, String> getUniqueClickLogIdMap(String matchKey, String activeType) {
         boolean isUsePika = Lists.newArrayList(DsConstants.GDT, DsConstants.TOUTIAO).contains(DataSourcePicker.getDataSourceByActiveType(activeType));
         RedisTemplate storeTemplate = isUsePika ? pikaTemplate : redisTemplate;
-        List<String> uniqueIds = storeTemplate.opsForHash().multiGet(keyFields.getRedisKey(), keyFields.getHashFields());
-        return CollectionUtils.isEmpty(uniqueIds) ? "" : uniqueIds.get(0);
+        String redisKey = RedisKeyManager.getClickLogIdKey(matchKey);
+        Map<String, String> clickLogIdMap = storeTemplate.opsForHash().entries(redisKey);
+        return clickLogIdMap;
     }
 
     @Override
@@ -382,12 +397,11 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
             throw new IllegalArgumentException("newUserRetry必须持久化有id");
         }
 
-        boolean isAllMatch = getIsAllMatch(newUserRetry.getChannel());
         ActiveFeedbackMatch feedbackMatch = new ActiveFeedbackMatch();
         BeanUtils.copyProperties(newUserRetry, feedbackMatch);
         List<String> keys = getActiveMatchKeys(feedbackMatch);
         List<String> redisKeys = getNewUserRetryIdRedisKeys(keys, newUserRetry.getCoid(), newUserRetry.getNcoid(),
-                newUserRetry.getChannel(), isAllMatch);
+                newUserRetry.getChannel(), null);
         String uniqueUserRetryId = RedisKeyManager.getUniqueUserRetryId(newUserRetry.getDataSource(), newUserRetry.getId());
         redisKeys.forEach(redisKey -> {
             doSaveNewUserRetryId(redisKey, uniqueUserRetryId);
@@ -398,17 +412,22 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     public void deleteNewUserRetry(NewUserRetry newUserRetry) {
         Assert.notNull(newUserRetry, "newUserRetry cannot be null");
 
-        boolean isAllMatch = getIsAllMatch(newUserRetry.getChannel());
         ActiveFeedbackMatch feedbackMatch = new ActiveFeedbackMatch();
         BeanUtils.copyProperties(newUserRetry, feedbackMatch);
         List<String> keys = getActiveMatchKeys(feedbackMatch);
         List<String> redisKeys = getNewUserRetryIdRedisKeys(keys, newUserRetry.getCoid(), newUserRetry.getNcoid(),
-                newUserRetry.getChannel(), isAllMatch);
+                newUserRetry.getChannel(), null);
         redisKeys.forEach(redisKey -> {
             doDeleteNewUserRetryId(redisKey);
         });
     }
 
+    /**
+     * 获取渠道是否为全网归因
+     *
+     * @param channel
+     * @return
+     */
     private boolean getIsAllMatch(String channel) {
         ThrowChannelConfig channelConfig = channelConfigService.getByChannel(channel);
         return channelConfig != null && channelConfig.getChannelType() == 0;
@@ -445,13 +464,11 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     private void doSaveNewUserRetryId(String redisKey, String id) {
-        //启用了pika则保存在pika中
         RedisTemplate template = redisTemplate;
         template.opsForValue().set(redisKey, id, 1, TimeUnit.DAYS);
     }
 
     private void doDeleteNewUserRetryId(String redisKey) {
-        //启用了pika则保存在pika中
         RedisTemplate template = redisTemplate;
         template.delete(redisKey);
     }
