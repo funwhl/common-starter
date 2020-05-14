@@ -21,6 +21,6 @@ public class ThrowChannelConfig {
     private String remark;
     private Double rate;
     private Double oriRate;
-    private Integer adFilter;
-    private Integer feedbackType;
+    private Integer adFilter = 0;
+    private Integer feedbackType = 1;
 }
