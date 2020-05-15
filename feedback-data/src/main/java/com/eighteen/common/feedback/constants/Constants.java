@@ -45,7 +45,11 @@ public interface Constants {
         int SHOW = 1;
         int CLICK = 2;
     }
-
+    interface FeedbackType {
+        int ACTIVE = 1;
+        int SHOW = 2;
+        int CLICK = 3;
+    }
 
     interface FeedbackConfigType {
         int CHANNEL_EXCLUDE = 0;
