@@ -8,7 +8,7 @@ package com.eighteen.common.spring.boot.autoconfigure.cache.redis;
 
 import com.eighteen.common.spring.boot.autoconfigure.cache.AbstractCacheService;
 import com.eighteen.common.spring.boot.autoconfigure.cache.Cache;
-import com.eighteen.common.spring.boot.autoconfigure.serializer.Serializer;
+import com.eighteen.common.serializer.Serializer;
 
 import java.util.function.Supplier;
 
@@ -29,7 +29,7 @@ public class RedisCacheService extends AbstractCacheService {
     }
 
     protected Cache doCreate(String prefix, int expire, int timeout) {
-        return new RedisCacheService.RedisCache(this.redis, this.serializer, prefix, expire);
+        return new RedisCache(this.redis, this.serializer, prefix, expire);
     }
 
     static class RedisCache implements Cache {
@@ -46,12 +46,12 @@ public class RedisCacheService extends AbstractCacheService {
         }
 
         public <T> T get(String key, Class<T> clazz) {
-            byte[] bytes = this.redis.get(RedisCacheService.join(this.prefix, key).getBytes());
+            byte[] bytes = this.redis.get(join(this.prefix, key).getBytes());
             return bytes == null ? null : this.read(bytes, clazz);
         }
 
         public <T> T get(String key, Supplier<T> supplier, int exp) {
-            String s = RedisCacheService.join(this.prefix, key);
+            String s = join(this.prefix, key);
             byte[] bytes = this.redis.get(s.getBytes());
             if (bytes == null) {
                 T t = supplier.get();
@@ -73,12 +73,12 @@ public class RedisCacheService extends AbstractCacheService {
         }
 
         public <T> void set(String key, T t) {
-            String s = RedisCacheService.join(this.prefix, key);
+            String s = join(this.prefix, key);
             this.redis.set(s.getBytes(), this.write(t));
         }
 
         public <T> void set(String key, T t, int exp) {
-            String s = RedisCacheService.join(this.prefix, key);
+            String s = join(this.prefix, key);
             byte[] bytes = this.write(t);
             this.redis.setex(s.getBytes(), exp, bytes);
         }
@@ -88,23 +88,23 @@ public class RedisCacheService extends AbstractCacheService {
         }
 
         public void clear(String key) {
-            this.redis.del(RedisCacheService.join(this.prefix, key));
+            this.redis.del(join(this.prefix, key));
         }
 
         public void clearByPattern(String keyPattern) {
-            this.redis.delByPattern(RedisCacheService.join(this.prefix, keyPattern));
+            this.redis.delByPattern(join(this.prefix, keyPattern));
         }
 
         public Long increment(String type) {
-            return this.redis.incr(RedisCacheService.join(this.prefix, type));
+            return this.redis.incr(join(this.prefix, type));
         }
 
         public Long increment(String type, Long value) {
-            return this.redis.incrBy(RedisCacheService.join(this.prefix, type), value);
+            return this.redis.incrBy(join(this.prefix, type), value);
         }
 
         public Long expire(String key, int second) {
-            return this.redis.expire(RedisCacheService.join(this.prefix, key), second);
+            return this.redis.expire(join(this.prefix, key), second);
         }
 
         private <T> byte[] write(T t) {

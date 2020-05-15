@@ -1,9 +1,12 @@
 # Auto Configure
 #org.springframework.boot.SpringApplicationRunListener=\
-#com.eighteen.common.spring.boot.autoconfigure.jooq.JOOQConfig
+#com.eighteen.com.eighteen.common.spring.boot.autoconfigure.jooq.JOOQConfig
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-com.eighteen.common.spring.boot.autoconfigure.mybatis.ref.MybatisAutoConfiguration,\
+com.eighteen.common.spring.boot.autoconfigure.mybatis.autoconfigure.MybatisAutoConfiguration,\
 com.eighteen.common.spring.boot.autoconfigure.job.JobAutoConfiguration,\
-com.eighteen.common.spring.boot.autoconfigure.feedback.FeedbackAutoConfiguration,\
 com.eighteen.common.spring.boot.autoconfigure.cache.redis.RedisAutoConfiguration,\
-com.eighteen.common.spring.boot.autoconfigure.mq.RabbitMqAutoConfiguration
+com.eighteen.common.spring.boot.autoconfigure.rabbitmq.RabbitMqAutoConfiguration,\
+com.eighteen.common.spring.boot.autoconfigure.swagger.SwaggerAutoConfiguration,\
+com.eighteen.common.spring.boot.autoconfigure.ds.autoconfigure.DynamicDataSourceAutoConfiguration,\
+com.eighteen.common.spring.boot.autoconfigure.pika.PikaAutoConfiguration,\
+com.eighteen.common.spring.boot.autoconfigure.redis.RedisTemplateAutoConfiguration

@@ -17,7 +17,7 @@ import static com.eighteen.common.spring.boot.autoconfigure.cache.redis.RedisPro
 public class RedisProperties {
     public static final String PREFIX = "spring.redis";
     private Boolean cluster = false;
-    private Integer timeout = 10000;
+    private Integer timeout = 100000;
     private String password;
     private Integer connectionTimeout = 2000;
     private Integer maxAttempts = 3;

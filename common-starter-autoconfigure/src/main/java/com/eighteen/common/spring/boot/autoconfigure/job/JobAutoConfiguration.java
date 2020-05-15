@@ -9,13 +9,17 @@ import com.dangdang.ddframe.job.lite.config.LiteJobConfiguration;
 import com.dangdang.ddframe.job.lite.spring.api.SpringJobScheduler;
 import com.dangdang.ddframe.job.reg.zookeeper.ZookeeperConfiguration;
 import com.dangdang.ddframe.job.reg.zookeeper.ZookeeperRegistryCenter;
+import com.eighteen.common.distribution.DistributedLock;
+import com.eighteen.common.distribution.ZooKeeperConnector;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnSingleCandidate;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
@@ -31,6 +35,7 @@ import org.springframework.web.context.support.GenericWebApplicationContext;
 
 import javax.sql.DataSource;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by eighteen.
@@ -39,9 +44,10 @@ import java.util.Map;
  */
 @Configuration
 @EnableConfigurationProperties(JobZkProperties.class)
-@ConditionalOnSingleCandidate(DataSource.class)
+//@ConditionalOnSingleCandidate(DataSource.class)
 @ConditionalOnProperty(prefix = JobZkProperties.PREFIX, name = "serverlist")
-@AutoConfigureAfter(DataSourceAutoConfiguration.class)
+@ConditionalOnClass(ZookeeperRegistryCenter.class)
+//@AutoConfigureAfter(DataSourceAutoConfiguration.class)
 public class JobAutoConfiguration implements EmbeddedValueResolverAware {
     private static final Logger logger = LoggerFactory.getLogger(JobAutoConfiguration.class);
     private JobZkProperties jobZkProperties;
@@ -49,6 +55,10 @@ public class JobAutoConfiguration implements EmbeddedValueResolverAware {
     private StringValueResolver resolver;
     @Value("${spring.application.name}")
     private String appName;
+    @Value("${18.feedback.channel:}")
+    private String channel;
+    @Autowired(required = false)
+    DataSource dataSource;
 
     public JobAutoConfiguration(JobZkProperties jobZkProperties) {
         this.jobZkProperties = jobZkProperties;
@@ -70,15 +80,30 @@ public class JobAutoConfiguration implements EmbeddedValueResolverAware {
     public RegisterJobs registerJobs(ApplicationContext applicationContext, ZookeeperRegistryCenter zookeeperRegistryCenter) {
         return new RegisterJobs(applicationContext, zookeeperRegistryCenter);
     }
+    @Bean
+    DistributedLock distributedLock() {
+        DistributedLock distributedLock = new DistributedLock();
+        distributedLock.setZooKeeperConnector(new ZooKeeperConnector(jobZkProperties.getServerlist(), jobZkProperties.getNamespace()
+                , (retryCount, elapsedTimeMs, sleeper) -> {
+            try {
+                 sleeper.sleepFor(5,TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return true;
+        }));
+        distributedLock.setTimeout(TimeUnit.MINUTES.toMillis(2));
+        return distributedLock;
+    }
 
     @Bean
-    public JobEventConfiguration jobEventConfiguration(DataSource dataSource) {
-        return new JobEventRdbConfiguration(dataSource);
+     public ZooKeeperConnector zooKeeperConnector () {
+        return new ZooKeeperConnector(jobZkProperties.getServerlist(),jobZkProperties.getNamespace(),(retryCount, elapsedTimeMs, sleeper) -> false);
     }
 
     private LiteJobConfiguration getJobConfiguration(Job job) {
         String c = resolver.resolveStringValue(job.getCron());
-        String jobName = appName + "#" + job.getJobName();
+        String jobName = appName +"#"+ (StringUtils.isBlank(channel)?"":channel) + "#" + job.getJobName();
 
 
         SimpleJobConfiguration simpleJobConfiguration = new SimpleJobConfiguration(
@@ -95,6 +120,7 @@ public class JobAutoConfiguration implements EmbeddedValueResolverAware {
 
         return LiteJobConfiguration
                 .newBuilder(simpleJobConfiguration).overwrite(job.isOverwrite())
+                .jobShardingStrategyClass("com.dangdang.ddframe.job.lite.api.strategy.impl.RotateServerByNameJobShardingStrategy")
                 .maxTimeDiffSeconds(job.getMaxTimeDiffSeconds())
                 .monitorExecution(job.isMonitorExecution())
                 .build();
@@ -107,12 +133,15 @@ public class JobAutoConfiguration implements EmbeddedValueResolverAware {
 
     private class RegisterJobs {
         public RegisterJobs(ApplicationContext applicationContext, ZookeeperRegistryCenter zookeeperRegistryCenter) {
+
             Map<String, Object> registerJobs = applicationContext.getBeansWithAnnotation(TaskJob.class);
             if (applicationContext.containsBean("simple18Jobs")) {
                 Map<String, Job> simpleJobs = (Map<String, Job>) applicationContext.getBean("simple18Jobs");
                 registerJobs.putAll(simpleJobs);
-              if (applicationContext instanceof AnnotationConfigServletWebServerApplicationContext) ((AnnotationConfigServletWebServerApplicationContext) applicationContext).getDefaultListableBeanFactory().removeBeanDefinition("simple18Jobs");
-              else  ((GenericWebApplicationContext) applicationContext).getDefaultListableBeanFactory().removeBeanDefinition("simple18Jobs");
+                if (applicationContext instanceof GenericWebApplicationContext) {
+                    ((GenericWebApplicationContext) applicationContext).removeBeanDefinition("simple18Jobs");
+                }else
+                ((AnnotationConfigServletWebServerApplicationContext) applicationContext).getDefaultListableBeanFactory().removeBeanDefinition("simple18Jobs");
             }
             for (Map.Entry<String, Object> entry : registerJobs.entrySet()) {
                 try {
@@ -131,7 +160,6 @@ public class JobAutoConfiguration implements EmbeddedValueResolverAware {
                         springJobScheduler = new SpringJobScheduler(
                                 (ElasticJob) object,
                                 zookeeperRegistryCenter,
-
                                 getJobConfiguration(Job.builder()
                                         .jobName(taskJob.jobName())
                                         .failover(false)

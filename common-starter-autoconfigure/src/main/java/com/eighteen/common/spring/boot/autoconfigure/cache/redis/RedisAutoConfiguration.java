@@ -1,15 +1,23 @@
 package com.eighteen.common.spring.boot.autoconfigure.cache.redis;
 
+import com.alibaba.fastjson.support.spring.FastJsonRedisSerializer;
+import com.eighteen.common.serializer.hessian.HessianSerializer;
+import com.eighteen.common.serializer.Serializer;
 import com.eighteen.common.spring.boot.autoconfigure.cache.Cache;
 import com.eighteen.common.spring.boot.autoconfigure.cache.CacheService;
-import com.eighteen.common.spring.boot.autoconfigure.serializer.HessianSerializer;
-import com.eighteen.common.spring.boot.autoconfigure.serializer.Serializer;
+import com.eighteen.common.spring.boot.autoconfigure.redis.RedisTemplateHelper;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.env.Environment;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.RedisOperations;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.data.redis.serializer.StringRedisSerializer;
 import redis.clients.jedis.HostAndPort;
 import redis.clients.jedis.JedisCluster;
 import redis.clients.jedis.JedisPool;
@@ -87,6 +95,29 @@ public class RedisAutoConfiguration {
     @Bean
     public Cache cache(Environment env, CacheService cacheService) {
         return cacheService.create(env.getProperty("spring.application.name"));
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(name = "redisTemplate")
+    @ConditionalOnClass(RedisOperations.class)
+
+    public RedisTemplate<Object, Object> redisTemplate(
+            RedisConnectionFactory redisConnectionFactory) {
+        RedisTemplate<Object, Object> template = new RedisTemplate<>();
+        RedisTemplateHelper.setSerializer(template);
+        template.setConnectionFactory(redisConnectionFactory);
+        return template;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean(StringRedisTemplate.class)
+    @ConditionalOnClass(RedisOperations.class)
+
+    public StringRedisTemplate stringRedisTemplate(
+            RedisConnectionFactory redisConnectionFactory) {
+        StringRedisTemplate template = new StringRedisTemplate();
+        template.setConnectionFactory(redisConnectionFactory);
+        return template;
     }
 
 }

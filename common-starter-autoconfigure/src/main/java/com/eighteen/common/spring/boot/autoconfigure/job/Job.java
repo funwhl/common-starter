@@ -84,10 +84,6 @@ public class Job {
 
     private boolean overwrite = false;
 
-    /*********************DataflowJobConfiguration END********************/
-
-
-    /*********************DataflowJobConfiguration START********************/
 
     /**
      * 是否流式处理数据

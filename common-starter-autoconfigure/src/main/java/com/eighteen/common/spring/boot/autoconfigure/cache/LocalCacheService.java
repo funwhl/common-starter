@@ -20,7 +20,7 @@ public class LocalCacheService extends AbstractCacheService {
     }
 
     protected Cache doCreate(String prefix, int expire, int timeout) {
-        return new LocalCacheService.LocalCache(prefix, expire);
+        return new LocalCache(prefix, expire);
     }
 
     static class LocalCache implements Cache {
