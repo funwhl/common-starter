@@ -466,7 +466,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         List<ActiveMatchKeyField> keyFields = getActiveMatchKeyFields(activeFeedbackMatch);
         for (int i = 0; i < keyFields.size(); i++) {
             ActiveMatchKeyField activeMatchKeyField = keyFields.get(i);
-            Boolean hasKey = pikaTemplate.hasKey(RedisKeyManager.getAdverLogKey(activeMatchKeyField.getMatchKey(), activeFeedbackMatch.getChannel(), activeFeedbackMatch.getBlockType()));
+            Boolean hasKey = pikaTemplate.hasKey(RedisKeyManager.getAdverLogKey(activeMatchKeyField.getMatchKey(), activeFeedbackMatch.getChannel(), activeFeedbackMatch.getBlockType()-2));
             if (hasKey != null && hasKey)
                 return new MatchAdverLogResult().setMatchField(activeMatchKeyField.getMatchField()).setMatchKey(activeMatchKeyField.getMatchKey());
         }
