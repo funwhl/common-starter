@@ -7,6 +7,7 @@ import com.eighteen.common.feedback.service.ChannelConfigService;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -49,6 +50,7 @@ public class ChannelConfigServiceImpl implements ChannelConfigService {
 
     @Override
     public ThrowChannelConfig getByChannel(String channel) {
+        if (StringUtils.isBlank(channel)) return null;
         ThrowChannelConfig config = configCache.getIfPresent(channel);
         if (config != null) {
             return config;
