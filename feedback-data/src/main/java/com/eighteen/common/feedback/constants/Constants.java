@@ -11,7 +11,7 @@ import java.util.stream.Stream;
  * Time: 13:44
  */
 public interface Constants {
-     List<String> excludeKeys = Lists.newArrayList(null, "null", "Unknown", "Null", "NULL", "{{IMEI}}", "{{ANDDROID_ID}}", "{{OAID}}", "", "__IMEI__", "__OAID__");
+     List<String> excludeKeys = Lists.newArrayList(null, "null", "Unknown", "Null", "NULL", "{{IMEI}}", "{{ANDDROID_ID}}","{{ANDDROID_ID_MD5}}", "{{OAID}}","{{OAID_MD5}}", "", "__IMEI__", "__OAID__","00000000");
 
     interface RedisKeys {
         String FEED_BACK_CACHE = "feedback_";

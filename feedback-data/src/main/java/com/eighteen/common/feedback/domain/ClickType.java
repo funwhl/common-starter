@@ -49,6 +49,15 @@ public enum ClickType {
         return null;
     }
 
+    public static ClickType fromDataSource(String dataSource){
+        for (ClickType clickType: ClickType.values()){
+            if(clickType.getDataSource().equals(dataSource)){
+                return clickType;
+            }
+        }
+        return null;
+    }
+
     public static ClickType fromId(int id){
         for (ClickType clickType: ClickType.values()){
             if(clickType.getId() == id){
