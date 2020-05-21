@@ -222,36 +222,10 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
                 continue;
             }
 
-            //根据激活渠道获取点击数据
-            String uniqueClickLogId = clickLogIdMap.getOrDefault(activeFeedbackMatch.getChannel(), null);
-
-            //激活渠道中无法获取点击数据 查看其他点击渠道是否启用全网归因
+            //从多个渠道的点击数据中获取最佳匹配 优先从相同数据源匹配
+            String uniqueClickLogId = matchUniqueClickLogId(activeFeedbackMatch, clickLogIdMap, true);
             if (uniqueClickLogId == null) {
-                for (Map.Entry<String, String> entry : clickLogIdMap.entrySet()) {
-                    String channel = !entry.getKey().contains("_") ? entry.getKey() : null; //排除旧的coid_ncoid的key 其他key为channel
-                    if (channel != null && !"0".equals(channel)) {
-                        ThrowChannelConfig channelConfig = channelConfigService.getByChannel(channel);
-                        //检查全网归因配置 & 产品相等
-                        boolean isMatch = channelConfig != null && channelConfig.getChannelType().equals(0) && channelConfig.getCoid().equals(activeFeedbackMatch.getCoid())
-                                && channelConfig.getNcoid().equals(activeFeedbackMatch.getNcoid());
-                        if (isMatch) {
-                            uniqueClickLogId = entry.getValue();
-                            break;
-                        }
-                    }
-                }
-            }
-
-            //无法匹配点击数据时 判断是否存在广点通渠道为0的全网归因
-            if (uniqueClickLogId == null && clickLogIdMap.containsKey("0")) {
-                String tempClickLogId = clickLogIdMap.get("0");
-                UniqueClickLog tempClickLog = UniqueClickLog.FromUniqueId(tempClickLogId);
-                String dsClick = DataSourcePicker.getDataSourceByClickType(tempClickLog.getClickType());
-                //广点通无法获取渠道的数据启用全网归因
-                boolean isMatch = DsConstants.GDT.equals(dsClick);
-                if (isMatch) {
-                    uniqueClickLogId = tempClickLogId;
-                }
+                uniqueClickLogId = matchUniqueClickLogId(activeFeedbackMatch, clickLogIdMap, false);
             }
 
             if (StringUtils.isNotBlank(uniqueClickLogId)) {
@@ -266,6 +240,58 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
 
         }
         return clickLogResult;
+    }
+
+    /**
+     * 从多个渠道的点击数据中获取最佳匹配
+     */
+    protected String matchUniqueClickLogId(ActiveFeedbackMatch activeFeedbackMatch, Map<String, String> clickLogIdMap, boolean isSameDataSource) {
+        String uniqueClickLogId = null;
+
+        //匹配同一数据源下 最大的点击id
+        String activeDataSource = DataSourcePicker.getDataSourceByActiveType(activeFeedbackMatch.getType());
+        Long maxClickId = 0L;
+        String curDataSource = isSameDataSource ? activeDataSource : null;
+
+        for (Map.Entry<String, String> entry : clickLogIdMap.entrySet()) {
+            String channel = !entry.getKey().contains("_") ? entry.getKey() : null; //排除旧的coid_ncoid的key 其他key为channel
+            if (channel != null) {
+                UniqueClickLog clickLog = UniqueClickLog.FromUniqueId(entry.getValue());
+                String dsClick = DataSourcePicker.getDataSourceByClickType(clickLog.getClickType());
+
+                //检查是否符合数据源匹配规则
+                boolean isGoingMatch = (isSameDataSource && activeDataSource.equals(dsClick)) || (!isSameDataSource && !activeDataSource.equals(dsClick));
+                if (!isGoingMatch) {
+                    continue;
+                }
+
+                boolean isMatch;
+                if (channel.equals(activeFeedbackMatch.getChannel())) {
+                    isMatch = true;
+                }
+                else if ("0".equals(channel)) {
+                    isMatch = DsConstants.GDT.equals(dsClick); //广点通渠道为0的数据为全网归因
+                } else {
+                    ThrowChannelConfig channelConfig = channelConfigService.getByChannel(channel);
+                    //检查全网归因配置 & 产品相等
+                    isMatch = channelConfig != null && channelConfig.getChannelType().equals(0) && channelConfig.getCoid().equals(activeFeedbackMatch.getCoid())
+                            && channelConfig.getNcoid().equals(activeFeedbackMatch.getNcoid());
+                }
+
+                if (isMatch) {
+                    //点击数据源一致
+                    if (curDataSource == null || curDataSource.equals(dsClick)) {
+                        if (clickLog.getClickLogId() > maxClickId) {
+                            maxClickId = clickLog.getClickLogId();
+                            curDataSource = DataSourcePicker.getDataSourceByClickType(clickLog.getClickType());
+                            uniqueClickLogId = entry.getValue();
+                        }
+                    }
+                }
+            }
+        }
+
+        return uniqueClickLogId;
     }
 
     @Override
@@ -466,7 +492,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         List<ActiveMatchKeyField> keyFields = getActiveMatchKeyFields(activeFeedbackMatch);
         for (int i = 0; i < keyFields.size(); i++) {
             ActiveMatchKeyField activeMatchKeyField = keyFields.get(i);
-            Boolean hasKey = pikaTemplate.hasKey(RedisKeyManager.getAdverLogKey(activeMatchKeyField.getMatchKey(), activeFeedbackMatch.getChannel(), activeFeedbackMatch.getBlockType()-2));
+            Boolean hasKey = pikaTemplate.hasKey(RedisKeyManager.getAdverLogKey(activeMatchKeyField.getMatchKey(), activeFeedbackMatch.getChannel(), activeFeedbackMatch.getBlockType() - 2));
             if (hasKey != null && hasKey)
                 return new MatchAdverLogResult().setMatchField(activeMatchKeyField.getMatchField()).setMatchKey(activeMatchKeyField.getMatchKey());
         }
