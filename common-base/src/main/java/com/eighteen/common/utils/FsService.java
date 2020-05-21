@@ -223,7 +223,7 @@ public class FsService {
 
     }
     public void sendMsg(String msg) {
-        sendMsg("wangnwei@18.net",msg);
+        sendMsg("wangnwei@angogo.cn",msg);
     }
     public void sendMsg(String email, String msg){
         try {
