@@ -247,7 +247,7 @@ public class FeedbackRedisManagerImplTest {
     //测试多个channel在一个数据源 根据channel和全网归因渠道匹配最大的点击Id
     @Test
     public void matchClickLog_hasMatchAllChannelInSameSource_matchBigId() {
-        var testImei = "multiChannelInSameSource";
+        var testImei = "hasMatchAllChannelInSameSource";
         var clickLog = getBaseClickLog(testImei, ClickType.GDT).setId(1L).setChannel("0");
         redisManager.saveClickLog(clickLog, clickLog.getClickType());
         clickLog.setId(2L).setClickType(ClickType.TOUTIAO.getType()).setChannel("2");
