@@ -67,7 +67,8 @@ public class AdverLog implements Serializable {
 
     public String model;
 
-    public String firstLinkTime;
+    @JSONField(format="yyyy-MM-ddTHH:mm:ss")
+    public Date firstLinkTime;
 
     public ActiveFeedbackMatch convert2Active() {
         return new ActiveFeedbackMatch().setAndroidid(this.AndroidId).setOaid(this.oaid).setImei(this.Imei);
