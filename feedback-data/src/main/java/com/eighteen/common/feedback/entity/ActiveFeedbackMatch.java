@@ -125,6 +125,9 @@ public class ActiveFeedbackMatch implements Serializable {
     @Transient
     private Integer blockType = 0;
 
+    @Transient
+    private String zToken;
+
     private static final long serialVersionUID = 1L;
 
 }

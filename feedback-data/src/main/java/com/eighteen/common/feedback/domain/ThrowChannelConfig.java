@@ -23,4 +23,5 @@ public class ThrowChannelConfig {
     private Double oriRate;
     private Integer adFilter = 0;
     private Integer feedbackType = 1;
+    private Double score;
 }

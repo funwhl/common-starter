@@ -8,7 +8,9 @@ import lombok.Getter;
  */
 @Getter
 public enum ErrorCode {
-    first_link_time_out_range(-1, "first link time is out of range not in [today ,1970 ,null]");
+    first_link_time_out_range(-1, "first link time is out of range not in [today ,1970 ,null]"),
+    um_score_checked_failed(100, "um score is less than the config score"),
+    call_callback_url_error(101, "call callbackUrl api error");
     Integer code;
     String message;
 
