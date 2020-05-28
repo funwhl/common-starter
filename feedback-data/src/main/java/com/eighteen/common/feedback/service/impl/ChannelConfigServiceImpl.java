@@ -66,7 +66,7 @@ public class ChannelConfigServiceImpl implements ChannelConfigService, Initializ
                     redisTemplate.opsForHash().put(key, channel, throwChannelConfig);
                 } else {
                     redisTemplate.opsForHash().put(key, channel, throwChannelConfig);
-                    redisTemplate.expire(key, 60, TimeUnit.HOURS);
+                    redisTemplate.expire(key, 60, TimeUnit.MINUTES);
                 }
             });
         }
