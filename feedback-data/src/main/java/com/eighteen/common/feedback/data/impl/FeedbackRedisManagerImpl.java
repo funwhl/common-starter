@@ -309,7 +309,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
      * @param feedbackMatch
      * @return
      */
-    public List<ActiveMatchKeyField> getActiveMatchKeyFields(ActiveFeedbackMatch feedbackMatch) {
+    private List<ActiveMatchKeyField> getActiveMatchKeyFields(ActiveFeedbackMatch feedbackMatch) {
         String iimei = feedbackMatch.getIimei();
         String imei = feedbackMatch.getImei();
         String oaid = feedbackMatch.getOaid();

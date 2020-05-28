@@ -1,6 +1,7 @@
 package com.eighteen.common.feedback.test;
 
 import com.eighteen.common.feedback.constants.DsConstants;
+import com.eighteen.common.feedback.data.FeedbackRedisManager;
 import com.eighteen.common.feedback.data.impl.FeedbackRedisManagerImpl;
 import com.eighteen.common.feedback.domain.ActiveMatchKeyField;
 import com.eighteen.common.feedback.domain.ClickType;
@@ -27,12 +28,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.test.context.junit4.SpringRunner;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.security.DigestInputStream;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 @RunWith(SpringRunner.class)
 @SpringBootTest(classes = TestRedisManagerConfiguration.class)
@@ -63,9 +66,12 @@ public class FeedbackRedisManagerImplTest {
 
     //测试双卡能正确获取用于匹配的key
     @Test
-    public void getActiveMatchKeyFields_IImei_existsKey() {
+    public void getActiveMatchKeyFields_IImei_existsKey() throws NoSuchMethodException, InvocationTargetException, IllegalAccessException {
         var feedbackMatch = new ActiveFeedbackMatch().setIimei("862980030500649,862980030500656").setImei("862980030500649").setAndroidid("21607bf3ba87db4").setOaid("862980030500649");
-        List<ActiveMatchKeyField> keys = redisManager.getActiveMatchKeyFields(feedbackMatch);
+        Method method= redisManager.getClass().getDeclaredMethod("getActiveMatchKeyFields",ActiveFeedbackMatch.class);
+        method.setAccessible(true);
+        List<ActiveMatchKeyField> keys = (List<ActiveMatchKeyField>) method.invoke(redisManager,new Object[]{feedbackMatch});
+        method.setAccessible(false);
         keys.forEach(k -> {
             log.info(k.getMatchKey());
         });
@@ -114,7 +120,7 @@ public class FeedbackRedisManagerImplTest {
         clickLog.setId(2L).setChannel("1");
         redisManager.saveClickLog(clickLog, clickLog.getClickType());
 
-        //mock gdt渠道为全网归因
+        //stubbing gdt渠道为全网归因
         when(channelConfigService.getByChannel("1")).thenReturn(mockChannelConfig(0));
 
         var feedbackMatch = getBaseActiveFeedbackMatch(testImei, DsConstants.GDT).setChannel("2");
