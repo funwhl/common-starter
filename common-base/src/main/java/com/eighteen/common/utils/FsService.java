@@ -49,7 +49,7 @@ public class FsService {
             .expireAfterWrite(1, TimeUnit.HOURS).concurrencyLevel(1)
             .build();
 
-    public static Cache<Integer, String> duplicateCache = CacheBuilder.newBuilder()
+    public static Cache<String, String> duplicateCache = CacheBuilder.newBuilder()
             .expireAfterWrite(2, TimeUnit.MINUTES).concurrencyLevel(1)
             .build();
 
@@ -231,11 +231,19 @@ public class FsService {
         sendMsg("wangnwei@angogo.cn",msg);
     }
 
-    public void sendMsgNoDuplicate(String msg) {
-        String presentMsg = duplicateCache.getIfPresent(msg.hashCode());
-        if (StringUtils.isBlank(presentMsg)) {
-            sendMsg("wangnwei@angogo.cn",msg);
-            duplicateCache.put(msg.hashCode(),"1");
+    public void sendMsgNoDuplicate(String msg,String key) {
+        if (StringUtils.isNotBlank(key)) {
+            String presentMsg = duplicateCache.getIfPresent(key);
+            if (StringUtils.isBlank(presentMsg)) {
+                sendMsg("wangnwei@angogo.cn", msg);
+                duplicateCache.put(key, "1");
+            }
+        } else {
+            String presentMsg = duplicateCache.getIfPresent(msg.hashCode());
+            if (StringUtils.isBlank(presentMsg)) {
+                sendMsg("wangnwei@angogo.cn",msg);
+                duplicateCache.put(String.valueOf(msg.hashCode()),"1");
+            }
         }
     }
 
