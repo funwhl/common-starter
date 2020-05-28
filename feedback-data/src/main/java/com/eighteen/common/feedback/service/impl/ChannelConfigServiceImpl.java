@@ -4,10 +4,9 @@ import com.alibaba.fastjson.JSONObject;
 import com.eighteen.common.feedback.dao.ChannelConfigMapper;
 import com.eighteen.common.feedback.domain.ThrowChannelConfig;
 import com.eighteen.common.feedback.service.ChannelConfigService;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
@@ -21,9 +20,10 @@ import java.util.concurrent.TimeUnit;
  */
 @Service
 @Slf4j
-public class ChannelConfigServiceImpl implements ChannelConfigService {
+public class ChannelConfigServiceImpl implements ChannelConfigService, InitializingBean {
 
-    private Cache<String, ThrowChannelConfig> configCache = CacheBuilder.newBuilder().expireAfterWrite(3, TimeUnit.MINUTES).build();
+//    private Cache<String, ThrowChannelConfig> configCache = CacheBuilder.newBuilder()
+//            .expireAfterWrite(3, TimeUnit.MINUTES).build();
 
     @Autowired
     ChannelConfigMapper channelConfigMapper;
@@ -51,22 +51,33 @@ public class ChannelConfigServiceImpl implements ChannelConfigService {
     @Override
     public ThrowChannelConfig getByChannel(String channel) {
         if (StringUtils.isBlank(channel)) return null;
-        ThrowChannelConfig config = configCache.getIfPresent(channel);
-        if (config != null) {
-            return config;
-        }
-        if (config == null) {
+//        ThrowChannelConfig config = configCache.getIfPresent(channel);
+        ThrowChannelConfig config = null;
+//        if (config != null) {
+//            return config;
+//        }
+//        if (config == null) {
             config = (ThrowChannelConfig) redisTemplate.opsForHash().get(key, channel);
-        }
+//        }
         if (config == null) {
             config = channelConfigMapper.getOne(channel);
             Optional.ofNullable(config).ifPresent(throwChannelConfig -> {
-                redisTemplate.opsForHash().put(key, channel, throwChannelConfig);
+                if (redisTemplate.hasKey(key)) {
+                    redisTemplate.opsForHash().put(key, channel, throwChannelConfig);
+                } else {
+                    redisTemplate.opsForHash().put(key, channel, throwChannelConfig);
+                    redisTemplate.expire(key, 60, TimeUnit.HOURS);
+                }
             });
         }
-        if (config != null) {
-            configCache.put(channel, config);
-        }
+//        if (config != null) {
+//            configCache.put(channel, config);
+//        }
         return config;
+    }
+
+    @Override
+    public void afterPropertiesSet() throws Exception {
+        redisTemplate.expire(key, 60, TimeUnit.MINUTES);
     }
 }
