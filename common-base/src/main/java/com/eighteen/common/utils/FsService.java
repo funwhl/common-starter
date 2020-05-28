@@ -4,6 +4,7 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -46,6 +47,10 @@ public class FsService {
     private String appSecret;
     private Cache<String, String> tenantToken = CacheBuilder.newBuilder()
             .expireAfterWrite(1, TimeUnit.HOURS).concurrencyLevel(1)
+            .build();
+
+    public static Cache<Integer, String> duplicateCache = CacheBuilder.newBuilder()
+            .expireAfterWrite(2, TimeUnit.MINUTES).concurrencyLevel(1)
             .build();
 
     public FsService(String appId, String appSecret) {
@@ -225,6 +230,15 @@ public class FsService {
     public void sendMsg(String msg) {
         sendMsg("wangnwei@angogo.cn",msg);
     }
+
+    public void sendMsgNoDuplicate(String msg) {
+        String presentMsg = duplicateCache.getIfPresent(msg.hashCode());
+        if (StringUtils.isBlank(presentMsg)) {
+            sendMsg("wangnwei@angogo.cn",msg);
+            duplicateCache.put(msg.hashCode(),"1");
+        }
+    }
+
     public void sendMsg(String email, String msg){
         try {
             Map<String, String> map = new HashMap<>();
