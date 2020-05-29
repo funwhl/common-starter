@@ -76,6 +76,12 @@
             <version>0.6</version>
             <scope>test</scope>
         </dependency>
+<!--        <dependency>-->
+<!--            <groupId>systems.manifold</groupId>-->
+<!--            <artifactId>manifold-all</artifactId>-->
+<!--            <version>2020.1.12</version>-->
+<!--            <scope>test</scope>-->
+<!--        </dependency>-->
 
     </dependencies>
 
