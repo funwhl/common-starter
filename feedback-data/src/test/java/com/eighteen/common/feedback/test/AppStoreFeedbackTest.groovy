@@ -27,7 +27,7 @@ import static org.mockito.Mockito.when
  * @date : 2020/6/6 15:51
  */
 @SpringBootTest(classes = TestRedisManagerConfiguration.class)
-class AppStoreFeedback extends Specification {
+class AppStoreFeedbackTest extends Specification {
     @InjectMocks
     private FeedbackRedisManagerImpl redisManager
 
