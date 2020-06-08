@@ -280,7 +280,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
                     isMatch = channelConfig != null && (channelConfig.getChannelType().equals(0) || channelConfig.getChannelType().equals(2)) && channelConfig.getCoid().equals(activeFeedbackMatch.getCoid())
                             && channelConfig.getNcoid().equals(activeFeedbackMatch.getNcoid());
 
-                    //应用商店数据，渠道类型不符合
+                    //商店直投点击数据，要求激活渠道为应用商店
                     if (channelConfig != null && channelConfig.getChannelType().equals(2) && !DsConstants.STORE.equals(activeDataSource)) continue;
                 }
 
