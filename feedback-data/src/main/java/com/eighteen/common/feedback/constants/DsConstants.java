@@ -28,4 +28,6 @@ public interface DsConstants {
     String SIGMOB = "sigmob";
 
     String ACTIVE_STATISTICS = "activestatistics";
+
+    String STORE = "store";
 }

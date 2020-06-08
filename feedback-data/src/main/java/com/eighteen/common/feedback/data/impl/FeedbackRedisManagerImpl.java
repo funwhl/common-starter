@@ -35,6 +35,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import static com.eighteen.common.feedback.constants.Constants.EventType.ACTIVE;
+import static com.eighteen.common.feedback.constants.DsConstants.STORE;
 
 /**
  * 回传redis数据管理
@@ -154,9 +155,11 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     private MatchNewUserRetryResult matchNewUserRetry(List<String> keys, Integer coid, Integer ncoid, String channel) {
-        boolean isAllMatch = getIsAllMatch(channel);
+        ThrowChannelConfig channelConfig = channelConfigService.getByChannel(channel);
+        boolean isAllMatch = channelConfig != null && (channelConfig.getChannelType() == 0 || channelConfig.getChannelType() == 2);
+        boolean isAppStore = channelConfig != null && channelConfig.getChannelType() == 2;
         List<String> redisKeys = getNewUserRetryIdRedisKeys(keys, coid, ncoid, channel,
-                isAllMatch);
+                isAllMatch, isAppStore);
         for (String redisKey : redisKeys) {
             String uniqueNewUserRetryId = getUniqueNewUserRetryId(redisKey);
             if (StringUtils.isNotBlank(uniqueNewUserRetryId)) {
@@ -221,11 +224,16 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
             if (CollectionUtils.isEmpty(clickLogIdMap)) {
                 continue;
             }
+            String uniqueClickLogId;
 
-            //从多个渠道的点击数据中获取最佳匹配 优先从相同数据源匹配
-            String uniqueClickLogId = matchUniqueClickLogId(activeFeedbackMatch, clickLogIdMap, true);
-            if (uniqueClickLogId == null) {
+            if (STORE.equals(activeFeedbackMatch.getType())) {
                 uniqueClickLogId = matchUniqueClickLogId(activeFeedbackMatch, clickLogIdMap, false);
+            } else {
+                //从多个渠道的点击数据中获取最佳匹配 优先从相同数据源匹配
+                uniqueClickLogId = matchUniqueClickLogId(activeFeedbackMatch, clickLogIdMap, true);
+                if (uniqueClickLogId == null) {
+                    uniqueClickLogId = matchUniqueClickLogId(activeFeedbackMatch, clickLogIdMap, false);
+                }
             }
 
             if (StringUtils.isNotBlank(uniqueClickLogId)) {
@@ -268,14 +276,16 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
                 boolean isMatch;
                 if (channel.equals(activeFeedbackMatch.getChannel())) {
                     isMatch = true;
-                }
-                else if ("0".equals(channel)) {
+                } else if ("0".equals(channel)) {
                     isMatch = DsConstants.GDT.equals(dsClick); //广点通渠道为0的数据为全网归因
                 } else {
                     ThrowChannelConfig channelConfig = channelConfigService.getByChannel(channel);
                     //检查全网归因配置 & 产品相等
-                    isMatch = channelConfig != null && channelConfig.getChannelType().equals(0) && channelConfig.getCoid().equals(activeFeedbackMatch.getCoid())
+                    isMatch = channelConfig != null && (channelConfig.getChannelType().equals(0) || channelConfig.getChannelType().equals(2)) && channelConfig.getCoid().equals(activeFeedbackMatch.getCoid())
                             && channelConfig.getNcoid().equals(activeFeedbackMatch.getNcoid());
+
+                    //应用商店数据，渠道类型不符合
+                    if (channelConfig != null && channelConfig.getChannelType().equals(2) && !DsConstants.STORE.equals(activeFeedbackMatch.getType())) continue;
                 }
 
                 if (isMatch) {
@@ -449,8 +459,9 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         ActiveFeedbackMatch feedbackMatch = new ActiveFeedbackMatch();
         BeanUtils.copyProperties(newUserRetry, feedbackMatch);
         List<String> keys = getActiveMatchKeys(feedbackMatch);
+        boolean isAppStore = STORE.equals(newUserRetry.getDataSource());
         List<String> redisKeys = getNewUserRetryIdRedisKeys(keys, newUserRetry.getCoid(), newUserRetry.getNcoid(),
-                newUserRetry.getChannel(), null);
+                newUserRetry.getChannel(), isAppStore ? true : null, isAppStore);
         String uniqueUserRetryId = RedisKeyManager.getUniqueUserRetryId(newUserRetry.getDataSource(), newUserRetry.getId());
         redisKeys.forEach(redisKey -> {
             doSaveNewUserRetryId(redisKey, uniqueUserRetryId);
@@ -464,8 +475,9 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         ActiveFeedbackMatch feedbackMatch = new ActiveFeedbackMatch();
         BeanUtils.copyProperties(newUserRetry, feedbackMatch);
         List<String> keys = getActiveMatchKeys(feedbackMatch);
+        boolean isAppStore = STORE.equals(newUserRetry.getDataSource());
         List<String> redisKeys = getNewUserRetryIdRedisKeys(keys, newUserRetry.getCoid(), newUserRetry.getNcoid(),
-                newUserRetry.getChannel(), null);
+                newUserRetry.getChannel(), isAppStore ? true : null, isAppStore);
         redisKeys.forEach(redisKey -> {
             doDeleteNewUserRetryId(redisKey);
         });
@@ -507,7 +519,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
      */
     private boolean getIsAllMatch(String channel) {
         ThrowChannelConfig channelConfig = channelConfigService.getByChannel(channel);
-        return channelConfig != null && channelConfig.getChannelType() == 0;
+        return channelConfig != null && (channelConfig.getChannelType() == 0 || channelConfig.getChannelType() == 2);
     }
 
 
@@ -521,12 +533,12 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
      * @param isAllMatch 为true时返回coid、ncoid的key，false时返回channel的key，null时都返回
      * @return
      */
-    private List<String> getNewUserRetryIdRedisKeys(List<String> keys, Integer coid, Integer ncoid, String channel, Boolean isAllMatch) {
+    private List<String> getNewUserRetryIdRedisKeys(List<String> keys, Integer coid, Integer ncoid, String channel, Boolean isAllMatch, Boolean isAppStore) {
         List<String> redisKeys = Lists.newArrayList();
         keys.forEach(key -> {
             if (StringUtils.isNotBlank(key)) {
-                String coidKey = RedisKeyManager.getNewUserRetryIdKey(key, coid, ncoid);
-                String channelKey = RedisKeyManager.getNewUserRetryIdKey(key, channel);
+                String coidKey = RedisKeyManager.getNewUserRetryIdKey(key, coid, ncoid, isAppStore);
+                String channelKey = RedisKeyManager.getNewUserRetryIdKey(key, channel, isAppStore);
                 if (isAllMatch == null) {
                     redisKeys.add(coidKey);
                     redisKeys.add(channelKey);
