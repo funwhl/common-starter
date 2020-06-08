@@ -226,14 +226,10 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
             }
             String uniqueClickLogId;
 
-            if (STORE.equals(activeFeedbackMatch.getType())) {
+            //从多个渠道的点击数据中获取最佳匹配 优先从相同数据源匹配
+            uniqueClickLogId = matchUniqueClickLogId(activeFeedbackMatch, clickLogIdMap, true);
+            if (uniqueClickLogId == null) {
                 uniqueClickLogId = matchUniqueClickLogId(activeFeedbackMatch, clickLogIdMap, false);
-            } else {
-                //从多个渠道的点击数据中获取最佳匹配 优先从相同数据源匹配
-                uniqueClickLogId = matchUniqueClickLogId(activeFeedbackMatch, clickLogIdMap, true);
-                if (uniqueClickLogId == null) {
-                    uniqueClickLogId = matchUniqueClickLogId(activeFeedbackMatch, clickLogIdMap, false);
-                }
             }
 
             if (StringUtils.isNotBlank(uniqueClickLogId)) {
@@ -285,7 +281,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
                             && channelConfig.getNcoid().equals(activeFeedbackMatch.getNcoid());
 
                     //应用商店数据，渠道类型不符合
-                    if (channelConfig != null && channelConfig.getChannelType().equals(2) && !DsConstants.STORE.equals(activeFeedbackMatch.getType())) continue;
+                    if (channelConfig != null && channelConfig.getChannelType().equals(2) && !DsConstants.STORE.equals(activeDataSource)) continue;
                 }
 
                 if (isMatch) {
