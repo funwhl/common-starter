@@ -19,6 +19,7 @@ import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.data.redis.core.RedisTemplate
 import spock.lang.Specification
 
+import static org.mockito.ArgumentMatchers.any
 import static org.mockito.Mockito.when
 
 /**
@@ -49,71 +50,108 @@ class AppStoreFeedbackTest extends Specification {
         MockitoAnnotations.initMocks(this)
     }
 
-    def "应用商店直投-激活匹配点击"() {
+    def "应用商店直投-激活匹配商店点击"() {
+
         given: '接收点击'
-        def c1 = generateClick()
-        when(channelConfigService.getByChannel(c1.getChannel())).thenReturn(getClickChannelConfig(2, c1))
-        def r1 = redisManager.matchNewUserRetry(c1, "gdtDir")
-        redisManager.saveClickLog(c1, "gdtDir")
+        def storeClick = generateClick("1")
+        when(channelConfigService.getByChannel(any(String))).thenReturn(getClickChannelConfig(storeClick))
+        def r1 = redisManager.matchNewUserRetry(storeClick, "gdtDir")
+        redisManager.saveClickLog(storeClick, "gdtDir")
 
         and: '接收平台激活'
-        def active = new ActiveFeedbackMatch().setType("gdt")
-        BeanUtils.copyProperties(c1, active)
-        active.setChannel("2")
+        def active = generateActive(storeClick, "3")
         def r2 = redisManager.matchClickLog(active)
 
-
         and: '接收商店激活'
-        active = new ActiveFeedbackMatch().setType("store")
-        BeanUtils.copyProperties(c1, active)
-        active.setChannel("2")
+        active = generateActive(storeClick, "4")
         def r3 = redisManager.matchClickLog(active)
 
+        and: '商店打开失败-兜底激活(同点击渠道)'
+        active = generateActive(storeClick, storeClick.getChannel())
+        def r4 = redisManager.matchClickLog(active)
 
-        expect: "平台匹配失败,商店匹配成功"
+        expect: "r1-点击匹配失败,r2-平台匹配失败,r3-商店匹配成功,r4-兜底同渠道匹配成功"
         r1 == null
         r2 == null
         r3 != null
+        r4 != null
     }
+
+    def "应用商店直投-激活匹配平台点击"() {
+
+        given: '接收点击'
+        def platClick = generateClick("2")
+        when(channelConfigService.getByChannel(any(String))).thenReturn(getClickChannelConfig(platClick))
+        def r1 = redisManager.matchNewUserRetry(platClick, "gdtDir")
+        redisManager.saveClickLog(platClick, "gdtDir")
+
+        and: '接收平台激活'
+        def active = generateActive(platClick, "2")
+        def r2 = redisManager.matchClickLog(active)
+
+        and: '接收平台激活'
+        active = generateActive(platClick, "3")
+        def r3 = redisManager.matchClickLog(active)
+
+        and: '接收商店激活'
+        active = generateActive(platClick, "4")
+        def r4 = redisManager.matchClickLog(active)
+
+        expect: "r1-点击匹配失败,r2-平台同渠道匹配成功,r3-平台不同渠道匹配失败,r4-商店匹配失败"
+        r1 == null
+        r2 != null
+        r3 == null
+        r4 == null
+    }
+
 
     def "应用商店直投-点击匹配retry"() {
 
         given: '生成点击'
-        def c1 = generateClick()
-        when(channelConfigService.getByChannel(c1.getChannel())).thenReturn(getClickChannelConfig(2, c1))
+        def click = generateClick("1")
+        when(channelConfigService.getByChannel(click.getChannel())).thenReturn(getClickChannelConfig(click))
 
         and: '点击匹配平台激活'
-        def retry = new NewUserRetry()
-        BeanUtils.copyProperties(c1, retry)
-        retry.setChannel("3")
-        retry.setDataSource("gdt")
+        def retry = generateRetry(generateActive(click, "3"))
         redisManager.saveNewUserRetry(retry)
-        def r1 = redisManager.matchNewUserRetry(c1, "gdtDir")
+        def r1 = redisManager.matchNewUserRetry(click, "gdtDir")
 
         and: '点击匹配商店激活'
-        def retry2 = new NewUserRetry()
-        BeanUtils.copyProperties(c1, retry2)
-        retry2.setChannel("2")
-        retry2.setDataSource("store")
+        def retry2 = generateRetry(generateActive(click, "4"))
         redisManager.saveNewUserRetry(retry2)
-        def r2 = redisManager.matchNewUserRetry(c1, "gdtDir")
+        def r2 = redisManager.matchNewUserRetry(click, "gdtDir")
 
-
-        expect: "平台匹配失败,商店匹配成功"
+        expect: "r1-平台匹配失败,r2-商店匹配成功"
         r1 == null
         r2 != null
     }
 
-    private ThrowChannelConfig getClickChannelConfig(int channelType, ClickLog clickLog) {
+    private static ThrowChannelConfig getClickChannelConfig(ClickLog clickLog) {
         def config = new ThrowChannelConfig()
-        config.setChannelType(channelType)
+        config.setChannelType(clickLog.getChannel() == "1" ? 2 : 1)
         config.setCoid(clickLog.getCoid())
         config.setNcoid(clickLog.getNcoid())
         config.setChannel(clickLog.getChannel())
         return config
     }
 
-    private ClickLog generateClick() {
-        return new ClickLog().setId(1).setImei("00000000").setImeiMd5(DigestUtils.getMd5Str("00000000")).setChannel("1").setCoid(1).setNcoid(1)
+    private static ClickLog generateClick(String channel) {
+        return new ClickLog().setId(1).setImei("00000000").setImeiMd5(DigestUtils.getMd5Str("00000000")).setChannel(channel).setCoid(1).setNcoid(1)
+    }
+
+    private static ActiveFeedbackMatch generateActive(ClickLog clickLog, String channel) {
+        ActiveFeedbackMatch active = new ActiveFeedbackMatch().setId(1).setImei(clickLog.getImei()).setChannel(channel).setCoid(clickLog.getCoid()).setNcoid(clickLog.getNcoid())
+        if (channel == "1") active.setType("store")
+        if (channel == "2") active.setType("gdt")
+        if (channel == "3") active.setType("gdt")
+        if (channel == "4") active.setType("store")
+        return active
+    }
+
+    private static NewUserRetry generateRetry(ActiveFeedbackMatch active) {
+        def retry = new NewUserRetry()
+        BeanUtils.copyProperties(active, retry)
+        retry.setDataSource(active.getType())
+        return retry
     }
 }
