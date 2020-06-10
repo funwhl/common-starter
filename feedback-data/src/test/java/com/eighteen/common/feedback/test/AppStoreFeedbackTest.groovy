@@ -70,11 +70,16 @@ class AppStoreFeedbackTest extends Specification {
         active = generateActive(storeClick, storeClick.getChannel())
         def r4 = redisManager.matchClickLog(active)
 
-        expect: "r1-点击匹配失败,r2-平台匹配失败,r3-商店匹配成功,r4-兜底同渠道匹配成功"
+        and: '接收0渠道激活'
+        active = generateActive(storeClick, "0")
+        def r5 = redisManager.matchClickLog(active)
+
+        expect: "r1-点击匹配失败,r2-平台匹配失败,r3-商店匹配成功,r4-兜底同渠道匹配成功,r5-0渠道匹配失败"
         r1 == null
         r2 == null
         r3 != null
         r4 != null
+        r5 == null
     }
 
     def "应用商店直投-激活匹配平台点击"() {
@@ -104,6 +109,33 @@ class AppStoreFeedbackTest extends Specification {
         r4 == null
     }
 
+    def "应用商店直投-激活匹配0渠道点击"() {
+
+        given: '接收点击'
+        def platClick = generateClick("0")
+        when(channelConfigService.getByChannel(any(String))).thenReturn(getClickChannelConfig(platClick))
+        def r1 = redisManager.matchNewUserRetry(platClick, "gdtDir")
+        redisManager.saveClickLog(platClick, "gdtDir")
+
+        and: '接收平台激活'
+        def active = generateActive(platClick, "0")
+        def r2 = redisManager.matchClickLog(active)
+
+        and: '接收平台激活'
+        active = generateActive(platClick, "3")
+        def r3 = redisManager.matchClickLog(active)
+
+        and: '接收商店激活'
+        active = generateActive(platClick, "4")
+        def r4 = redisManager.matchClickLog(active)
+
+        expect: "r1-点击匹配失败,r2-平台同渠道匹配成功,r3-平台不同渠道匹配成功,r4-商店匹配失败"
+        r1 == null
+        r2 != null
+        r3 != null
+        r4 == null
+    }
+
 
     def "应用商店直投-点击匹配retry"() {
 
@@ -129,6 +161,7 @@ class AppStoreFeedbackTest extends Specification {
     private static ThrowChannelConfig getClickChannelConfig(ClickLog clickLog) {
         def config = new ThrowChannelConfig()
         config.setChannelType(clickLog.getChannel() == "1" ? 2 : 1)
+        if (clickLog.getChannel()==0)config.setChannelType(0)
         config.setCoid(clickLog.getCoid())
         config.setNcoid(clickLog.getNcoid())
         config.setChannel(clickLog.getChannel())
@@ -141,6 +174,7 @@ class AppStoreFeedbackTest extends Specification {
 
     private static ActiveFeedbackMatch generateActive(ClickLog clickLog, String channel) {
         ActiveFeedbackMatch active = new ActiveFeedbackMatch().setId(1).setImei(clickLog.getImei()).setChannel(channel).setCoid(clickLog.getCoid()).setNcoid(clickLog.getNcoid())
+        if (channel == "0") active.setType("gdt")
         if (channel == "1") active.setType("store")
         if (channel == "2") active.setType("gdt")
         if (channel == "3") active.setType("gdt")

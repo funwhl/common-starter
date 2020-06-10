@@ -273,7 +273,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
                 if (channel.equals(activeFeedbackMatch.getChannel())) {
                     isMatch = true;
                 } else if ("0".equals(channel)) {
-                    isMatch = DsConstants.GDT.equals(dsClick); //广点通渠道为0的数据为全网归因
+                    isMatch = DsConstants.GDT.equals(dsClick)&&!DsConstants.STORE.equals(activeDataSource); //广点通渠道为0的数据为全网归因
                 } else {
                     ThrowChannelConfig channelConfig = channelConfigService.getByChannel(channel);
                     //检查全网归因配置 & 产品相等
