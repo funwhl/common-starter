@@ -273,7 +273,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
                 if (channel.equals(activeFeedbackMatch.getChannel())) {
                     isMatch = true;
                 } else if ("0".equals(channel)) {
-                    isMatch = DsConstants.GDT.equals(dsClick)&&!DsConstants.STORE.equals(activeDataSource); //广点通渠道为0的数据为全网归因
+                    isMatch = DsConstants.GDT.equals(dsClick) && !DsConstants.STORE.equals(activeDataSource); //广点通渠道为0的数据为全网归因
                 } else {
                     ThrowChannelConfig channelConfig = channelConfigService.getByChannel(channel);
                     //检查全网归因配置 & 产品相等
@@ -281,7 +281,8 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
                             && channelConfig.getNcoid().equals(activeFeedbackMatch.getNcoid());
 
                     //商店直投点击数据，要求激活渠道为应用商店
-                    if (channelConfig != null && channelConfig.getChannelType().equals(2) && !DsConstants.STORE.equals(activeDataSource)) continue;
+                    if (channelConfig != null && channelConfig.getChannelType().equals(2) && !DsConstants.STORE.equals(activeDataSource))
+                        continue;
                 }
 
                 if (isMatch) {
@@ -444,7 +445,7 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         RedisTemplate storeTemplate = isUsePika ? pikaTemplate : redisTemplate;
         String redisKey = RedisKeyManager.getClickLogIdKey(matchKey);
         Map<String, String> clickLogIdMap = storeTemplate.opsForHash().entries(redisKey);
-        if (DsConstants.STORE.equals(dataSource) && clickLogIdMap == null) {
+        if (DsConstants.STORE.equals(dataSource) && (clickLogIdMap == null || clickLogIdMap.size() == 0)) {
             clickLogIdMap = pikaTemplate.opsForHash().entries(redisKey);
         }
         return clickLogIdMap;
