@@ -439,10 +439,14 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
     }
 
     private Map<String, String> getUniqueClickLogIdMap(String matchKey, String activeType) {
-        boolean isUsePika = Lists.newArrayList(DsConstants.GDT, DsConstants.TOUTIAO).contains(DataSourcePicker.getDataSourceByActiveType(activeType));
+        String dataSource = DataSourcePicker.getDataSourceByActiveType(activeType);
+        boolean isUsePika = Lists.newArrayList(DsConstants.GDT, DsConstants.TOUTIAO).contains(dataSource);
         RedisTemplate storeTemplate = isUsePika ? pikaTemplate : redisTemplate;
         String redisKey = RedisKeyManager.getClickLogIdKey(matchKey);
         Map<String, String> clickLogIdMap = storeTemplate.opsForHash().entries(redisKey);
+        if (DsConstants.STORE.equals(dataSource) && clickLogIdMap == null) {
+            clickLogIdMap = pikaTemplate.opsForHash().entries(redisKey);
+        }
         return clickLogIdMap;
     }
 
