@@ -17,7 +17,7 @@ public enum ClickType {
     TOUTIAO(3,"toutiao",DsConstants.TOUTIAO),
     BAIDU(4,"baiduChannel",DsConstants.BAIDU),
     GDT(5,"gdtDir",DsConstants.GDT),
-    OPPO(6,"oppo",DsConstants.GDT);
+    OPPO(6,"oppo",DsConstants.OPPO);
 
     private int id;
     private String type;
