@@ -25,6 +25,8 @@ public interface DsConstants {
      */
     String WEIXIN = "weixin";
 
+    String OPPO = "oppo";
+
     String SIGMOB = "sigmob";
 
     String ACTIVE_STATISTICS = "activestatistics";
