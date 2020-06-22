@@ -32,7 +32,7 @@ public class DataSourcePicker {
      * @return 无对应的数据源时返回null
      */
     public static String getDataSourceByActiveType(String activeType) {
-        if (Lists.newArrayList(DsConstants.WEIXIN, DsConstants.SIGMOB, DsConstants.KUAISHOU, DsConstants.BAIDU, DsConstants.TOUTIAO, DsConstants.GDT,DsConstants.STORE, DsConstants.OPPO).contains(activeType)) {
+        if (Lists.newArrayList(DsConstants.WEIXIN, DsConstants.SIGMOB, DsConstants.KUAISHOU, DsConstants.BAIDU, DsConstants.TOUTIAO, DsConstants.GDT,DsConstants.STORE, DsConstants.OPPO, DsConstants.QUTOUTIAO).contains(activeType)) {
             return activeType;
         }
         return null;
