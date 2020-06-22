@@ -32,4 +32,7 @@ public interface DsConstants {
     String ACTIVE_STATISTICS = "activestatistics";
 
     String STORE = "store";
+
+    String QUTOUTIAO = "qutoutiao";
+
 }
