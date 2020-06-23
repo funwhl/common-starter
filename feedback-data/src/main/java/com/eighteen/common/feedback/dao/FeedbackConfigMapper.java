@@ -14,6 +14,6 @@ import tk.mybatis.mapper.common.special.InsertListMapper;
 @org.apache.ibatis.annotations.Mapper
 @DS("activestatistics")
 public interface FeedbackConfigMapper extends Mapper<FeedbackConfig>, InsertListMapper<FeedbackConfig> {
-    @Update("update activestatistics.t_feedback_config set value =  CONCAT(#{channel},',',value) where type = 1 and value not like '%#{channel}%' ")
+    @Update("update activestatistics.t_feedback_config set value =  CONCAT(#{channel},',',value) where type = 1 and value not like '%${channel}%' ")
     void updateGdtDebug(@Param("channel")String channel);
 }
