@@ -128,6 +128,8 @@ public class ActiveFeedbackMatch implements Serializable {
     @Transient
     private String zToken;
 
+    private String pkg;
+
     private static final long serialVersionUID = 1L;
 
 }
