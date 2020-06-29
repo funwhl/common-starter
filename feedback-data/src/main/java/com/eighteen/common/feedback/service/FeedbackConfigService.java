@@ -33,4 +33,12 @@ public interface FeedbackConfigService {
     List<String> getIncludeTypes();
 
     void refreshCache(String key);
+
+
+    /**
+     * 是否需要次留回传
+     * @param type 激活来源类型
+     * @return
+     */
+    Boolean neededRetention(String type);
 }

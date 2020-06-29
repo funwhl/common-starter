@@ -35,4 +35,6 @@ public interface DsConstants {
 
     String QUTOUTIAO = "qutoutiao";
 
+    String SOHU = "sohu";
+
 }

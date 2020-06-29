@@ -7,6 +7,8 @@ import com.eighteen.common.feedback.domain.FeedbackConfig;
 import com.eighteen.common.feedback.service.FeedbackConfigService;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Lists;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +21,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import static com.eighteen.common.feedback.constants.Constants.FeedbackConfigType.FEEDBACK_RETENTION_TYPE_EXCLUDE;
 import static com.eighteen.common.feedback.constants.Constants.RedisKeys.*;
 
 /**
@@ -26,6 +29,7 @@ import static com.eighteen.common.feedback.constants.Constants.RedisKeys.*;
  * @date : 2020/4/25 13:31
  */
 @Service
+@Slf4j
 public class FeedbackConfigServiceImpl implements FeedbackConfigService, InitializingBean {
     @Autowired
     FeedbackConfigMapper feedbackConfigMapper;
@@ -103,6 +107,27 @@ public class FeedbackConfigServiceImpl implements FeedbackConfigService, Initial
                 }
                 break;
         }
+    }
+
+    @Override
+    public Boolean neededRetention(String type) {
+        try {
+            List<String> types = listCache.get(FEED_BACK_RETENTION_EXCLUDE_TYPE, () -> {
+                String value = (String) redisTemplate.opsForValue().get(FEED_BACK_RETENTION_EXCLUDE_TYPE);
+                if (value == null) {
+                    FeedbackConfig feedbackConfig = feedbackConfigMapper.selectOne(new FeedbackConfig().setType(FEEDBACK_RETENTION_TYPE_EXCLUDE));
+                    if (feedbackConfig != null && StringUtils.isNotBlank(feedbackConfig.getValue())) {
+                        value = feedbackConfig.getValue();
+                        redisTemplate.opsForValue().set(FEED_BACK_RETENTION_EXCLUDE_TYPE, value, 1, TimeUnit.MINUTES);
+                    }
+                }
+                return value == null ? Lists.newArrayList() : Arrays.asList(value.split(","));
+            });
+            return !types.contains(type);
+        } catch (Exception e) {
+            log.error(e.getMessage());
+        }
+        return true;
     }
 
     @Override

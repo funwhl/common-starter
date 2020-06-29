@@ -1,12 +1,10 @@
 package com.eighteen.common.feedback.datasource;
 
-import com.eighteen.common.feedback.constants.DsConstants;
 import com.eighteen.common.feedback.domain.ClickType;
-import com.google.common.collect.Lists;
 import lombok.experimental.UtilityClass;
-import org.apache.commons.lang3.StringUtils;
 
-import java.util.List;
+import java.util.Optional;
+import java.util.stream.Stream;
 
 @UtilityClass
 public class DataSourcePicker {
@@ -32,9 +30,9 @@ public class DataSourcePicker {
      * @return 无对应的数据源时返回null
      */
     public static String getDataSourceByActiveType(String activeType) {
-        if (Lists.newArrayList(DsConstants.WEIXIN, DsConstants.SIGMOB, DsConstants.KUAISHOU, DsConstants.BAIDU, DsConstants.TOUTIAO, DsConstants.GDT,DsConstants.STORE, DsConstants.OPPO, DsConstants.QUTOUTIAO).contains(activeType)) {
+        if (Stream.of(ClickType.values()).anyMatch(clickType -> clickType.getDataSource().equals(activeType)))
             return activeType;
-        }
         return null;
     }
+
 }
