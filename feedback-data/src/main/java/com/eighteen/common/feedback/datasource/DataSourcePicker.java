@@ -1,5 +1,6 @@
 package com.eighteen.common.feedback.datasource;
 
+import com.eighteen.common.feedback.constants.DsConstants;
 import com.eighteen.common.feedback.domain.ClickType;
 import lombok.experimental.UtilityClass;
 
@@ -30,7 +31,7 @@ public class DataSourcePicker {
      * @return 无对应的数据源时返回null
      */
     public static String getDataSourceByActiveType(String activeType) {
-        if (Stream.of(ClickType.values()).anyMatch(clickType -> clickType.getDataSource().equals(activeType)))
+        if (Stream.of(ClickType.values()).anyMatch(clickType -> clickType.getDataSource().equals(activeType)) || DsConstants.STORE.equals(activeType))
             return activeType;
         return null;
     }
