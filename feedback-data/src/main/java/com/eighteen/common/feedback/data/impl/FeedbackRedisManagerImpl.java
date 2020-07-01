@@ -14,6 +14,8 @@ import com.eighteen.common.feedback.service.ChannelConfigService;
 import com.eighteen.common.feedback.service.FeedbackConfigService;
 import com.eighteen.common.spring.boot.autoconfigure.pika.PikaTemplate;
 import com.eighteen.common.utils.DigestUtils;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import lombok.extern.slf4j.Slf4j;
@@ -58,6 +60,10 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
 
     @Autowired
     FeedbackConfigService feedbackConfigService;
+
+    private Cache<String, String> frequencyCache = CacheBuilder.newBuilder()
+            .expireAfterWrite(1, TimeUnit.MINUTES).concurrencyLevel(1)
+            .build();
 
     @Override
     public void saveClickLog(ClickLog clickLog, String clickType) {
@@ -366,6 +372,12 @@ public class FeedbackRedisManagerImpl implements FeedbackRedisManager {
         for (String key : keys) {
             String redisKey = RedisKeyManager.getMatchedRedisKey(key, feedbackMatch.getCoid(), feedbackMatch.getNcoid());
             if (eventType.equals(ACTIVE)) {
+                // 白名单处理
+                if (feedbackConfigService.isWhitelist(key) && StringUtils.isBlank(frequencyCache.getIfPresent(redisKey))) {
+                    log.info("key {} in whitelist", key);
+                    frequencyCache.put(redisKey,key);
+                    return false;
+                }
                 if (storeTemplate.hasKey(redisKey)) {
                     return true;
                 }

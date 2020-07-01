@@ -20,6 +20,7 @@ public interface Constants {
         String FEED_BACK_CONFIG_INCLUDE_CHANNELS = "feedback_config_include_channels";
         String FEED_BACK_CONFIG_INCLUDE_TYPE = "feedback_config_include_type";
         String FEED_BACK_RETENTION_EXCLUDE_TYPE = "feed_back_retention_exclude_type";
+        String FEED_BACK_WHITELIST = "feed_back_whitelist";
     }
 
     interface Urls {
@@ -59,6 +60,7 @@ public interface Constants {
         int CHANNEL_WD = 2;
         int FEEDBACK_TYPE_INCLUDE = 3;
         int FEEDBACK_RETENTION_TYPE_EXCLUDE = 4;
+        int FEEDBACK_WHITELIST = 5;
     }
 
     enum FeedbackMatchFields {

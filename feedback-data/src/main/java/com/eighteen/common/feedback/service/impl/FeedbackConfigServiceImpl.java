@@ -22,6 +22,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static com.eighteen.common.feedback.constants.Constants.FeedbackConfigType.FEEDBACK_RETENTION_TYPE_EXCLUDE;
+import static com.eighteen.common.feedback.constants.Constants.FeedbackConfigType.FEEDBACK_WHITELIST;
 import static com.eighteen.common.feedback.constants.Constants.RedisKeys.*;
 
 /**
@@ -110,24 +111,42 @@ public class FeedbackConfigServiceImpl implements FeedbackConfigService, Initial
     }
 
     @Override
-    public Boolean neededRetention(String type) {
+    public Boolean neededRetention(String platType) {
+        return !retentionPlatType().contains(platType);
+    }
+
+    @Override
+    public Boolean isWhitelist(String key) {
+        return whitelist().contains(key);
+    }
+
+    @Override
+    public List<String> whitelist() {
+        return listCache(FEED_BACK_WHITELIST, FEEDBACK_WHITELIST, 5, TimeUnit.MINUTES);
+    }
+
+    @Override
+    public List<String> retentionPlatType() {
+        return listCache(FEED_BACK_RETENTION_EXCLUDE_TYPE, FEEDBACK_RETENTION_TYPE_EXCLUDE, 1, TimeUnit.MINUTES);
+    }
+
+    private List<String> listCache(String rediskey, int type, long timeout, TimeUnit unit) {
         try {
-            List<String> types = listCache.get(FEED_BACK_RETENTION_EXCLUDE_TYPE, () -> {
-                String value = (String) redisTemplate.opsForValue().get(FEED_BACK_RETENTION_EXCLUDE_TYPE);
+            return listCache.get(rediskey, () -> {
+                String value = (String) redisTemplate.opsForValue().get(rediskey);
                 if (value == null) {
-                    FeedbackConfig feedbackConfig = feedbackConfigMapper.selectOne(new FeedbackConfig().setType(FEEDBACK_RETENTION_TYPE_EXCLUDE));
+                    FeedbackConfig feedbackConfig = feedbackConfigMapper.selectOne(new FeedbackConfig().setType(type));
                     if (feedbackConfig != null && StringUtils.isNotBlank(feedbackConfig.getValue())) {
                         value = feedbackConfig.getValue();
-                        redisTemplate.opsForValue().set(FEED_BACK_RETENTION_EXCLUDE_TYPE, value, 1, TimeUnit.MINUTES);
+                        redisTemplate.opsForValue().set(rediskey, value, timeout, unit);
                     }
                 }
                 return value == null ? Lists.newArrayList() : Arrays.asList(value.split(","));
             });
-            return !types.contains(type);
         } catch (Exception e) {
             log.error(e.getMessage());
+            return Lists.newArrayList();
         }
-        return true;
     }
 
     @Override

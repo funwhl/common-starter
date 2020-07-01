@@ -9,6 +9,7 @@ import java.util.List;
 public interface FeedbackConfigService {
     /**
      * 获取渠道用于匹配回传的字段（imei、oaid...）
+     *
      * @param channel
      * @return
      */
@@ -16,18 +17,21 @@ public interface FeedbackConfigService {
 
     /**
      * 获取排除回传的渠道
+     *
      * @return
      */
     List<String> getExcludeChannels();
 
     /**
      * 获取启动回传的渠道
+     *
      * @return
      */
     List<String> getIncludeChannels();
 
     /**
      * 获取启动回传的平台
+     *
      * @return
      */
     List<String> getIncludeTypes();
@@ -37,8 +41,15 @@ public interface FeedbackConfigService {
 
     /**
      * 是否需要次留回传
+     *
      * @param type 激活来源类型
      * @return
      */
     Boolean neededRetention(String type);
+
+    Boolean isWhitelist(String key);
+
+    List<String> whitelist();
+
+    List<String> retentionPlatType();
 }
