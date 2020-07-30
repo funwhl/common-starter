@@ -37,4 +37,6 @@ public interface DsConstants {
 
     String SOHU = "sohu";
 
+    String QIHU = "qihu";
+
 }

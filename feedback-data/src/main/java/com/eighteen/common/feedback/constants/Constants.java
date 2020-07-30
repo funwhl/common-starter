@@ -54,6 +54,13 @@ public interface Constants {
         int CLICK = 3;
     }
 
+    interface ChannelType {
+        int Dir = 0;
+        int NOTDIR = 1;
+        int STORE = 2;
+        int SDK = 4;
+    }
+
     interface FeedbackConfigType {
         int CHANNEL_EXCLUDE = 0;
         int CHANNEL_INCLUDE = 1;
