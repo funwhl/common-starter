@@ -26,6 +26,7 @@ public interface Constants {
     interface Urls {
         String GDT_FEEDBACK_URL = "https://api.e.qq.com/v1.0/user_actions/add?access_token=<token>&timestamp=<timestamp>&nonce=<nonce>";
         String OPPO_FEEDBACK_URL = "https://api.ads.oppomobile.com/api/uploadActiveData";
+        String PDD_FEEDBACK_URL = "https://papapitk.pinduoduo.com/t.gif ";
     }
 
     interface locks {

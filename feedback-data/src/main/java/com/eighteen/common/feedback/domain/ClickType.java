@@ -9,9 +9,6 @@ import com.eighteen.common.feedback.constants.DsConstants;
  */
 
 public enum ClickType {
-    /**
-     * 微信
-     */
     WX(0, "wxChannel", DsConstants.WEIXIN),
     SIGMOB(1, "sigmobChannel", DsConstants.SIGMOB),
     KUAISHOU(2, "kuaishouChannel", DsConstants.KUAISHOU),
@@ -21,7 +18,8 @@ public enum ClickType {
     OPPO(6, "oppo", DsConstants.OPPO),
     QUTOUTIAO(7, "qutoutiao", DsConstants.QUTOUTIAO),
     SOHU(8, "sohu", DsConstants.SOHU),
-    QIHU(9, "qihu", DsConstants.QIHU);
+    QIHU(9, "qihu", DsConstants.QIHU),
+    PDD(10, "pdd", DsConstants.PDD);
 
     private int id;
     private String type;
